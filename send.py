@@ -323,7 +323,7 @@ def generate_email():
     #return subject, body, source, persona_name
     
     #固定主题
-    subject = SUBJECT_PREFIX if SUBJECT_PREFIX else "突然想到你"
+    subject = os.environ.get("SUBJECT_PREFIX", "~")
     
 
 
