@@ -320,10 +320,10 @@ def generate_email():
         #subject = random.choice(["突然想到你", "问候一下", "冒个泡", "闲聊几句", "在吗"])
         #logger.info(f"[FALLBACK] 使用随机主题: {subject}")
     
-    #return subject, body, source, persona_name
-    
     #固定主题
     subject = os.environ.get("SUBJECT_PREFIX", "~")
+
+    return subject, body, source, persona_name
     
 
 
