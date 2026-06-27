@@ -1,0 +1,57 @@
+name: Ghost AI Mail v2.0
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Ghost Sender
+        env:
+          QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
+          QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          TO_NAME: ${{ secrets.TO_NAME }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_URL: ${{ secrets.AI_API_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          MIN_DAYS: ${{ secrets.MIN_DAYS }}
+          MAX_DAYS: ${{ secrets.MAX_DAYS }}
+          SUBJECT_PREFIX: ${{ secrets.SUBJECT_PREFIX }}
+          MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
+        run: python send.py
+
+      - name: Commit state & history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state.json history.json
+          git diff --cached --quiet || git commit -m "chore: update state & history [skip ci]"
+          git push
