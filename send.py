@@ -314,13 +314,17 @@ def generate_email():
         logger.info(f"[FALLBACK] 已使用兜底文案（人设: {persona_name}）")
 
     # 生成主题
-    subject_prompt = f"给这封邮件起一个简短主题（10字以内），要求：{topic}，像朋友间随手发的"
-    subject = call_ai(subject_prompt, persona_text)
-    if not subject:
-        subject = random.choice(["突然想到你", "问候一下", "冒个泡", "闲聊几句", "在吗"])
-        logger.info(f"[FALLBACK] 使用随机主题: {subject}")
-
-    return subject, body, source, persona_name
+    #subject_prompt = f"给这封邮件起一个简短主题（10字以内），要求：{topic}，像朋友间随手发的"
+    #subject = call_ai(subject_prompt, persona_text)
+    #if not subject:
+        #subject = random.choice(["突然想到你", "问候一下", "冒个泡", "闲聊几句", "在吗"])
+        #logger.info(f"[FALLBACK] 使用随机主题: {subject}")
+    
+    #return subject, body, source, persona_name
+    
+    #固定主题
+    subject = SUBJECT_PREFIX if SUBJECT_PREFIX else "突然想到你"
+    
 
 
 def main():
