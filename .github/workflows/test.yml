@@ -12,6 +12,9 @@ on:
           - env
           - send
 
+permissions:
+  contents: write
+
 jobs:
   env-test:
     if: github.event.inputs.test_type == 'env'
