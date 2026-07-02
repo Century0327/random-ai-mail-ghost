@@ -524,11 +524,10 @@ def generate_email():
     # 负面约束（小模型必须明确说"不能做什么"）
     constraints = (
         "禁止事项："
-        "1.不要编造具体的城市名、人名、店名；"
-        "2.不要用夸张的形容词（如笑到合不拢嘴、超级、爆炸等）；"
-        "3.不要用颜文字和括号表情；"
-        "4.不要问'你猜'、'猜猜看'；"
-        "5.不要堆砌辞藻，像真人说话一样自然。"
+        "1.不要编造具体的城市名、人名、店名（人设里的描述只是背景，不要在邮件里具体化）；"
+        "2.不要用夸张的形容词（可爱不代表夸张，保持自然）；"
+        "3.不要问'你猜'、'猜猜看'这类问题；"
+        "4.不要堆砌辞藻，像真人说话一样自然。"
     )
 
     # 根据是否有用户回复调整提示词
@@ -555,11 +554,10 @@ def generate_email():
     body = call_ai(body_prompt, persona_text)
     source = "ai"
 
-    # 内容质量检查（防止小模型生成奇怪内容）
+    # 内容质量检查（防止小模型生成占位符等严重问题）
     _bad_patterns = [
-        "XX", "xxx", "某某", "某城市",
-        "笑到合不拢嘴", "超级", "爆炸", "绝绝子", "yyds",
-        "(眼睛", "(捂嘴", "(脸红", "（眼睛", "（捂嘴", "（脸红",
+        "XX", "xxx", "某某", "某城市",  # 占位符
+        "笑到合不拢嘴", "绝绝子", "yyds", "爆炸好看",  # 过度夸张的网络用语
     ]
     _content_bad = False
     if body:
@@ -568,6 +566,10 @@ def generate_email():
                 _content_bad = True
                 logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
                 break
+        # 长度检查
+        if len(body) < 30 or len(body) > 500:
+            _content_bad = True
+            logger.warning(f"[SAFETY] 内容长度异常: {len(body)}")
     else:
         _content_bad = True
 
