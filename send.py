@@ -304,11 +304,10 @@ def generate_email():
     ]
     topic = random.choice(topics)
 
-    signature_prompt = f"结尾署名'{SIGNATURE}'" if SIGNATURE else "不需要署名"
     body_prompt = (
         f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-        f"50-80字，开头称呼'{TO_NAME}'，{signature_prompt}。"
-        f"直接输出正文，不要主题，不要多余说明。"
+        f"50-80字，开头称呼'{TO_NAME}'，"
+        f"直接输出正文内容，不要写署名，不要主题，不要多余说明。"
     )
 
     body = call_ai(body_prompt, persona_text)

@@ -23,4 +23,4 @@ SIGNATURE = ""
 
 # ============ 页脚（邮件末尾标识） ============
 # 显示在邮件正文下方，支持 HTML 链接
-FOOTER = "— From Ghost Mail <a href=\"https://github.com/Century0327/random-ai-mail-ghost\" style=\"color:#999; text-decoration:none;\">https://github.com/Century0327/random-ai-mail-ghost</a>"
+FOOTER = "<a href=\"https://github.com/Century0327/random-ai-mail-ghost\" style=\"color:#999; text-decoration:none;\">— From Ghost Mail</a>"
