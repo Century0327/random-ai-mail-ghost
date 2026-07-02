@@ -176,7 +176,26 @@ if __name__ == "__main__":
     logger.info("=" * 50)
     if p == t:
         logger.info(f"✅ 全部通过 ({p}/{t})")
-        sys.exit(0)
+        
+        # 测试通过后立即发送一封邮件（绕过时间检查）
+        logger.info("=" * 50)
+        logger.info("[SEND] 测试通过，立即发送邮件...")
+        try:
+            import send
+            subject, body, source, persona = send.generate_email()
+            logger.info(f"[PREVIEW] 主题: {subject}")
+            logger.info(f"[PREVIEW] 正文: {body[:80]}...")
+            
+            if send.send_email(subject, body):
+                send.log_history(subject, source, persona)
+                logger.info("✅ 邮件发送成功（本次为测试发送，不更新下次发送时间）")
+                sys.exit(0)
+            else:
+                logger.error("❌ 邮件发送失败")
+                sys.exit(1)
+        except Exception as e:
+            logger.error(f"❌ 发送过程异常: {e}")
+            sys.exit(1)
     else:
-        logger.error(f"❌ 未通过 ({p}/{t})")
+        logger.error(f"❌ 未通过 ({p}/{t})，不发送邮件")
         sys.exit(1)
