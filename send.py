@@ -21,7 +21,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
-from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER
+from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES
 
 logger = setup_logger()
 
@@ -31,7 +31,7 @@ FALLBACK_FILE = "fallback.md"
 PERSONAS_DIR = "personas"
 
 # ============ 集中配置（借鉴 ajaycc17） ============
-# 敏感信息从 Secrets 读取；非敏感自定义项（称呼/标题/间隔天数）见 config.py
+# 敏感信息从 Secrets 读取；非敏感自定义项（称呼/标题/间隔天数/重试次数）见 config.py
 QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
 QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
 TO_EMAIL = os.environ.get("TO_EMAIL", "")
@@ -41,7 +41,6 @@ AI_API_URL = os.environ.get(
 )
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
-MAX_RETRIES = int(os.environ.get("MAX_RETRIES", "2"))
 
 
 # ============ 状态与历史（借鉴 claudeclaw） ============
@@ -304,10 +303,9 @@ def generate_email():
     ]
     topic = random.choice(topics)
 
-    signature_prompt = f"结尾署名'{SIGNATURE}'" if SIGNATURE else "不需要署名"
     body_prompt = (
         f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-        f"50-80字，开头称呼'{TO_NAME}'，{signature_prompt}。"
+        f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
         f"直接输出正文，不要主题，不要多余说明。"
     )
 

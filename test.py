@@ -17,12 +17,11 @@ logger = setup_logger("ghost_test")
 REQUIRED = ["QQ_EMAIL", "QQ_AUTH_CODE", "TO_EMAIL", "AI_API_KEY"]
 OPTIONAL = {
     "AI_API_URL": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    "AI_MODEL": "gemini-2.0-flash",
-    "MAX_RETRIES": "2"
+    "AI_MODEL": "gemini-2.0-flash"
 }
 
 # 已迁移到 config.py 的自定义项（不再从环境变量读取）
-CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS", "SIGNATURE", "FOOTER"]
+CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS", "SIGNATURE", "FOOTER", "MAX_RETRIES"]
 
 def test_env():
     logger.info("[TEST] 环境变量...")

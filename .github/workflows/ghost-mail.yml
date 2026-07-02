@@ -41,7 +41,6 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
         run: python send.py
 
       - name: Commit state & history
