@@ -44,10 +44,11 @@ jobs:
           CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
         run: python send.py
 
-      - name: Commit state, history & conversation
+      - name: Commit state & history
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state.json history.json conversation.enc
+          git add state.json history.json
+          if [ -f conversation.enc ]; then git add conversation.enc; fi
           git diff --cached --quiet || git commit -m "chore: update state & history [skip ci]"
           git push

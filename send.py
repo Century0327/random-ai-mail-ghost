@@ -521,6 +521,16 @@ def generate_email():
     ]
     topic = random.choice(topics)
 
+    # 负面约束（小模型必须明确说"不能做什么"）
+    constraints = (
+        "禁止事项："
+        "1.不要编造具体的城市名、人名、店名；"
+        "2.不要用夸张的形容词（如笑到合不拢嘴、超级、爆炸等）；"
+        "3.不要用颜文字和括号表情；"
+        "4.不要问'你猜'、'猜猜看'；"
+        "5.不要堆砌辞藻，像真人说话一样自然。"
+    )
+
     # 根据是否有用户回复调整提示词
     if context and history.get("full") and history["full"][-1]["role"] == "user":
         # 有用户回复：让 AI 回复用户的话题
@@ -528,6 +538,7 @@ def generate_email():
             f"{context}\n\n"
             f"你是'{TO_NAME}'的老朋友。根据上面的对话记忆，回复他最近的邮件，"
             f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
         )
     else:
@@ -537,13 +548,30 @@ def generate_email():
         ) + (
             f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
             f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
         )
 
     body = call_ai(body_prompt, persona_text)
     source = "ai"
 
-    if body is None:
+    # 内容质量检查（防止小模型生成奇怪内容）
+    _bad_patterns = [
+        "XX", "xxx", "某某", "某城市",
+        "笑到合不拢嘴", "超级", "爆炸", "绝绝子", "yyds",
+        "(眼睛", "(捂嘴", "(脸红", "（眼睛", "（捂嘴", "（脸红",
+    ]
+    _content_bad = False
+    if body:
+        for pat in _bad_patterns:
+            if pat in body:
+                _content_bad = True
+                logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
+                break
+    else:
+        _content_bad = True
+
+    if body is None or _content_bad:
         fallbacks = load_fallbacks()
         raw = random.choice(fallbacks)
         body = render_template(raw)
