@@ -61,15 +61,11 @@ def save_state(state):
     save_json(STATE_FILE, state)
 
 def log_history(subject, source, persona):
-    """记录发送历史（只存元数据，不存正文保护隐私）"""
+    """记录发送历史（不记录任何敏感信息）"""
     history = load_json(HISTORY_FILE, [])
     history.append({
         "time": datetime.now().isoformat(),
-        "to": TO_EMAIL,
-        "to_name": TO_NAME,
         "subject": subject,
-        "source": source,
-        "persona": persona,
     })
     history = history[-30:]  # 只保留最近30条
     save_json(HISTORY_FILE, history)
