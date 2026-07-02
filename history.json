@@ -62,5 +62,13 @@
     "subject": "【苏狐来信】",
     "source": "ai",
     "persona": "default"
+  },
+  {
+    "time": "2026-07-02T09:27:24.963921",
+    "to": "5411424@qq.com",
+    "to_name": "朋友",
+    "subject": "~",
+    "source": "ai",
+    "persona": "default"
   }
 ]
