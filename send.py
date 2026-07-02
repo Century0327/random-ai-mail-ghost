@@ -286,9 +286,9 @@ def add_to_history(history, role, content):
 
 
 def build_context_prompt(history):
-    """构建极简上下文（传给 AI）"""
+    """构建上下文（传给 AI）—— 突出用户最新回复，提升相关度"""
     if not ENABLE_CONVERSATION or not history:
-        return ""
+        return "", None
 
     parts = []
     summary = history.get("summary", "").strip()
@@ -296,17 +296,29 @@ def build_context_prompt(history):
         parts.append(f"【早期对话摘要】\n{summary}")
 
     full = history.get("full", [])
-    if full:
-        # 只取最近 2 轮，降低 token 消耗
-        recent = full[-4:]  # 最近4条（约2轮）
-        recent_text = "\n".join(
-            f"{item['role']}: {item['content'][:80]}" for item in recent
-        )
-        parts.append(f"【最近对话】\n{recent_text}")
+    if not full:
+        return "", None
 
-    if not parts:
-        return ""
-    return "\n\n".join(parts)
+    # 找出用户最新的一条回复
+    latest_user_msg = None
+    for item in reversed(full):
+        if item.get("role") == "user":
+            latest_user_msg = item.get("content", "")
+            break
+
+    # 最近对话历史（ghost + user 的往返）
+    if len(full) > 1:
+        # 取最近 4 条（约 2 轮），但去掉最后一条用户消息（会单独突出显示）
+        recent = full[-6:-1] if len(full) >= 6 else full[:-1]
+        if recent:
+            recent_text = "\n".join(
+                f"{item['role']}: {item['content'][:80]}" for item in recent
+            )
+            parts.append(f"【之前的对话】\n{recent_text}")
+
+    if not parts and not latest_user_msg:
+        return "", None
+    return "\n\n".join(parts), latest_user_msg
 
 
 # ============ 多人人设（借鉴 claudeclaw） ============
@@ -513,7 +525,7 @@ def generate_email():
             logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条用户回复")
 
     # 构建上下文提示
-    context = build_context_prompt(history)
+    context, latest_user_msg = build_context_prompt(history)
 
     topics = [
         "最近天气变化，提醒对方注意身体",
@@ -535,22 +547,38 @@ def generate_email():
     )
 
     # 根据是否有用户回复调整提示词
-    if context and history.get("full") and history["full"][-1]["role"] == "user":
-        # 有用户回复：让 AI 回复用户的话题
+    if latest_user_msg:
+        # 有用户回复：明确引用用户的话来回复，提高相关度
+        reply_trigger = (
+            f"【用户最近说】\n"
+            f"\"{latest_user_msg[:200]}\"\n\n"
+            f"请针对上面用户说的话来回复，"
+            f"可以在开头用'你说...'、'你提到...'之类的话引用一下用户的内容，"
+            f"让对方感觉到你在认真读他的信。"
+        )
+        body_prompt = (
+            f"{context}\n\n" if context else ""
+        ) + (
+            f"{reply_trigger}\n\n"
+            f"你是'{TO_NAME}'的老朋友。"
+            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
+            f"{constraints}"
+            f"直接输出正文，不要主题，不要多余说明。"
+        )
+    elif context:
+        # 有历史但没有新回复：正常生成，稍微参考一下历史
         body_prompt = (
             f"{context}\n\n"
-            f"你是'{TO_NAME}'的老朋友。根据上面的对话记忆，回复他最近的邮件，"
-            f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
+            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
         )
     else:
-        # 无回复或无历史：正常生成
+        # 无历史：完全随机
         body_prompt = (
-            f"{context}\n\n" if context else ""
-        ) + (
             f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-            f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
         )
