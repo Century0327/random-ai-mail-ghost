@@ -21,6 +21,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
+from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS
 
 logger = setup_logger()
 
@@ -30,19 +31,16 @@ FALLBACK_FILE = "fallback.md"
 PERSONAS_DIR = "personas"
 
 # ============ 集中配置（借鉴 ajaycc17） ============
+# 敏感信息从 Secrets 读取；非敏感自定义项（称呼/标题/间隔天数）见 config.py
 QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
 QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
 TO_EMAIL = os.environ.get("TO_EMAIL", "")
-TO_NAME = os.environ.get("TO_NAME", "朋友")
 AI_API_URL = os.environ.get(
     "AI_API_URL",
     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 )
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
-MIN_DAYS = int(os.environ.get("MIN_DAYS", "2"))
-MAX_DAYS = int(os.environ.get("MAX_DAYS", "14"))
-SUBJECT_PREFIX = os.environ.get("SUBJECT_PREFIX", "")  # 主题前缀，如"[Ghost] "
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", "2"))
 
 
@@ -320,8 +318,8 @@ def generate_email():
         #subject = random.choice(["突然想到你", "问候一下", "冒个泡", "闲聊几句", "在吗"])
         #logger.info(f"[FALLBACK] 使用随机主题: {subject}")
     
-    #固定主题
-    subject = os.environ.get("SUBJECT_PREFIX", "~")
+    #固定主题（来自 config.py，为空时回退到 "~"）
+    subject = SUBJECT_PREFIX or "~"
 
     return subject, body, source, persona_name
     

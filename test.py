@@ -16,14 +16,13 @@ logger = setup_logger("ghost_test")
 
 REQUIRED = ["QQ_EMAIL", "QQ_AUTH_CODE", "TO_EMAIL", "AI_API_KEY"]
 OPTIONAL = {
-    "TO_NAME": "朋友",
     "AI_API_URL": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     "AI_MODEL": "gemini-2.0-flash",
-    "MIN_DAYS": "2",
-    "MAX_DAYS": "14",
-    "SUBJECT_PREFIX": "",
     "MAX_RETRIES": "2"
 }
+
+# 已迁移到 config.py 的自定义项（不再从环境变量读取）
+CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS"]
 
 def test_env():
     logger.info("[TEST] 环境变量...")
@@ -133,12 +132,39 @@ def test_state():
         logger.error(f"  ✗ {e}")
         return False
 
+def test_config():
+    logger.info("[TEST] config.py 自定义配置...")
+    try:
+        import config
+    except Exception as e:
+        logger.error(f"  ✗ 导入 config 失败: {e}")
+        return False
+    ok = True
+    for k in CONFIG_KEYS:
+        if not hasattr(config, k):
+            logger.error(f"  ✗ 缺少 {k}")
+            ok = False
+        else:
+            logger.info(f"  ✓ {k}: {getattr(config, k)}")
+    if ok:
+        # MIN_DAYS / MAX_DAYS 应为整数且 MIN <= MAX
+        if not (isinstance(config.MIN_DAYS, int) and isinstance(config.MAX_DAYS, int)):
+            logger.error("  ✗ MIN_DAYS / MAX_DAYS 必须为整数")
+            ok = False
+        elif config.MIN_DAYS > config.MAX_DAYS:
+            logger.error(f"  ✗ MIN_DAYS({config.MIN_DAYS}) > MAX_DAYS({config.MAX_DAYS})")
+            ok = False
+    if ok:
+        logger.info("[PASS] config.py")
+    return ok
+
 if __name__ == "__main__":
     logger.info("=" * 50)
     logger.info("Ghost Mail v2.0 测试套件")
     logger.info("=" * 50)
     results = [
         test_env(),
+        test_config(),
         test_smtp(),
         test_api(),
         test_fallback(),

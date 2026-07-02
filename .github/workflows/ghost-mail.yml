@@ -38,13 +38,9 @@ jobs:
           QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          TO_NAME: ${{ secrets.TO_NAME }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          MIN_DAYS: ${{ secrets.MIN_DAYS }}
-          MAX_DAYS: ${{ secrets.MAX_DAYS }}
-          SUBJECT_PREFIX: ${{ secrets.SUBJECT_PREFIX }}
           MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
         run: python send.py
 
