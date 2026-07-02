@@ -157,6 +157,47 @@ def test_config():
         logger.info("[PASS] config.py")
     return ok
 
+def test_crypto():
+    """测试加密模块（仅在开启连续对话时需要）"""
+    import config
+    if not getattr(config, "ENABLE_CONVERSATION", False):
+        logger.info("[TEST] 加密模块...（连续对话未开启，跳过）")
+        return True
+    logger.info("[TEST] 加密模块...")
+    try:
+        from crypto import get_key, encrypt, decrypt, load_conversation, save_conversation
+        key = get_key()
+        if not key:
+            logger.warning("  ⚠ CONVERSATION_KEY 未设置（将以明文模式存储，仅适合本地测试）")
+        # 测试加密解密往返
+        test_data = {"full": [{"role": "ghost", "content": "测试内容"}], "summary": "测试摘要"}
+        blob = encrypt(test_data, key)
+        restored = decrypt(blob, key)
+        if restored == test_data:
+            logger.info("  ✓ 加密解密往返一致")
+        else:
+            logger.error("  ✗ 加密解密往返不一致")
+            return False
+        # 测试文件读写
+        save_conversation("test_conv.enc", test_data, key)
+        loaded = load_conversation("test_conv.enc", key)
+        if loaded == test_data:
+            logger.info("  ✓ 文件读写正常")
+        else:
+            logger.error("  ✗ 文件读写异常")
+            return False
+        import os as _os
+        if _os.path.exists("test_conv.enc"):
+            _os.remove("test_conv.enc")
+        logger.info("[PASS] 加密模块")
+        return True
+    except ImportError:
+        logger.error("  ✗ cryptography 库未安装")
+        return False
+    except Exception as e:
+        logger.error(f"  ✗ {e}")
+        return False
+
 if __name__ == "__main__":
     logger.info("=" * 50)
     logger.info("Ghost Mail v2.0 测试套件")
@@ -164,6 +205,7 @@ if __name__ == "__main__":
     results = [
         test_env(),
         test_config(),
+        test_crypto(),
         test_smtp(),
         test_api(),
         test_fallback(),

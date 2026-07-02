@@ -15,13 +15,20 @@ import re
 import json
 import random
 import smtplib
+import imaplib
+import email
+from email.header import decode_header
 import time
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
-from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES
+from config import (
+    TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
+    ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
+    SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH, IMAP_SERVER, IMAP_PORT
+)
 
 logger = setup_logger()
 
@@ -100,6 +107,202 @@ def schedule_next(state):
     state["next_send"] = next_time.isoformat()
     save_state(state)
     logger.info(f"[STATE] 🎲 下次: {next_time.strftime('%Y-%m-%d %H:%M')}（{days}天后）")
+
+
+# ============ IMAP 收信（读取用户回复） ============
+def _decode_mime_header(value):
+    """解码邮件头"""
+    if not value:
+        return ""
+    parts = decode_header(value)
+    out = []
+    for text, enc in parts:
+        if isinstance(text, bytes):
+            out.append(text.decode(enc or "utf-8", errors="ignore"))
+        else:
+            out.append(text)
+    return "".join(out)
+
+
+def _extract_body(msg):
+    """提取邮件正文（纯文本优先）"""
+    if msg.is_multipart():
+        for part in msg.walk():
+            ctype = part.get_content_type()
+            cdisp = str(part.get("Content-Disposition") or "")
+            if ctype == "text/plain" and "attachment" not in cdisp:
+                try:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        charset = part.get_content_charset() or "utf-8"
+                        return payload.decode(charset, errors="ignore").strip()
+                except Exception:
+                    continue
+    else:
+        try:
+            payload = msg.get_payload(decode=True)
+            if payload:
+                charset = msg.get_content_charset() or "utf-8"
+                return payload.decode(charset, errors="ignore").strip()
+        except Exception:
+            pass
+    return ""
+
+
+def fetch_user_replies(since_time=None):
+    """从收件箱读取用户回复（since_time 之后的所有邮件正文）"""
+    if not ENABLE_CONVERSATION:
+        return []
+    replies = []
+    try:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)
+        mail.login(QQ_EMAIL, QQ_AUTH_CODE)
+        mail.select("INBOX")
+
+        # 搜索条件：来自收件人的邮件
+        status, data = mail.search(None, f'(FROM "{TO_EMAIL}")')
+        if status != "OK":
+            logger.warning("[IMAP] 搜索失败")
+            mail.logout()
+            return []
+
+        ids = data[0].split()
+        # 只取最近 10 封，避免过多
+        ids = ids[-10:] if len(ids) > 10 else ids
+
+        for eid in ids:
+            status, msg_data = mail.fetch(eid, "(RFC822)")
+            if status != "OK":
+                continue
+            raw = msg_data[0][1]
+            msg = email.message_from_bytes(raw)
+            date_str = msg.get("Date", "")
+            subject = _decode_mime_header(msg.get("Subject", ""))
+            body = _extract_body(msg)
+
+            # 简单过滤：时间过滤（如果提供了 since_time）
+            if since_time and date_str:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    msg_time = parsedate_to_datetime(date_str)
+                    if msg_time.replace(tzinfo=None) < since_time:
+                        continue
+                except Exception:
+                    pass
+
+            if body:
+                replies.append({
+                    "time": date_str,
+                    "subject": subject,
+                    "body": body[:500]  # 限制长度，避免占用过多 token
+                })
+
+        mail.logout()
+        logger.info(f"[IMAP] 读取到 {len(replies)} 封用户回复")
+    except Exception as e:
+        logger.error(f"[IMAP] 收信失败: {e}")
+    return replies
+
+
+# ============ 对话历史管理（加密存储 + 分层压缩） ============
+def load_conversation_history():
+    """加载加密的对话历史"""
+    if not ENABLE_CONVERSATION:
+        return {"full": [], "summary": ""}
+    try:
+        from crypto import get_key, load_conversation
+        key = get_key()
+        return load_conversation(CONVERSATION_FILE, key)
+    except Exception as e:
+        logger.error(f"[CONVERSATION] 加载失败: {e}")
+        return {"full": [], "summary": ""}
+
+
+def save_conversation_history(data):
+    """保存对话历史（加密）"""
+    if not ENABLE_CONVERSATION:
+        return
+    try:
+        from crypto import get_key, save_conversation
+        key = get_key()
+        save_conversation(CONVERSATION_FILE, data, key)
+    except Exception as e:
+        logger.error(f"[CONVERSATION] 保存失败: {e}")
+
+
+def summarize_old_conversations(old_items):
+    """调用 AI 把早期对话合并为摘要"""
+    if not old_items:
+        return ""
+    try:
+        text_parts = []
+        for item in old_items:
+            role = item.get("role", "?")
+            content = item.get("content", "")[:100]
+            text_parts.append(f"{role}: {content}")
+        combined = "\n".join(text_parts)
+
+        from crypto import get_key
+        prompt = (
+            f"请将以下对话浓缩为一段摘要（不超过{SUMMARY_MAX_LENGTH}字），"
+            f"只保留关键信息（人物关系、重要事件、用户状态），用第三人称：\n\n{combined}"
+        )
+        summary = call_ai(prompt, "你是摘要助手，只输出摘要，不要其他内容。")
+        return (summary or "")[:SUMMARY_MAX_LENGTH]
+    except Exception as e:
+        logger.error(f"[CONVERSATION] 摘要生成失败: {e}")
+        return ""
+
+
+def add_to_history(history, role, content):
+    """添加一条对话到历史，并在超限时触发压缩"""
+    history["full"].append({
+        "time": datetime.now().isoformat(),
+        "role": role,  # "ghost" 或 "user"
+        "content": content[:500]
+    })
+
+    # 触发压缩
+    if len(history["full"]) > SUMMARY_TRIGGER:
+        overflow_count = len(history["full"]) - FULL_HISTORY_SIZE
+        if overflow_count > 0:
+            old_items = history["full"][:overflow_count]
+            new_summary = summarize_old_conversations(old_items)
+            if new_summary:
+                # 合并到已有摘要
+                existing = history.get("summary", "")
+                if existing:
+                    history["summary"] = f"{existing}\n{new_summary}"
+                else:
+                    history["summary"] = new_summary
+                history["full"] = history["full"][overflow_count:]
+                logger.info(f"[CONVERSATION] 已压缩 {overflow_count} 条为摘要")
+
+    return history
+
+
+def build_context_prompt(history):
+    """构建极简上下文（传给 AI）"""
+    if not ENABLE_CONVERSATION or not history:
+        return ""
+
+    parts = []
+    summary = history.get("summary", "").strip()
+    if summary:
+        parts.append(f"【早期对话摘要】\n{summary}")
+
+    full = history.get("full", [])
+    if full:
+        # 只取最近 2 轮，降低 token 消耗
+        recent = full[-4:]  # 最近4条（约2轮）
+        recent_text = "\n".join(
+            f"{item['role']}: {item['content'][:80]}" for item in recent
+        )
+        parts.append(f"【最近对话】\n{recent_text}")
+
+    if not parts:
+        return ""
+    return "\n\n".join(parts)
 
 
 # ============ 多人人设（借鉴 claudeclaw） ============
@@ -289,6 +492,25 @@ def send_email(subject, body):
 def generate_email():
     persona_name, persona_text = load_persona()
 
+    # ============ 连续对话：加载历史 + 收取用户回复 ============
+    history = load_conversation_history()
+    last_send_time = None
+    if history.get("full"):
+        try:
+            last_send_time = datetime.fromisoformat(history["full"][-1]["time"])
+        except Exception:
+            last_send_time = None
+
+    if ENABLE_CONVERSATION:
+        replies = fetch_user_replies(since_time=last_send_time)
+        for r in replies:
+            history = add_to_history(history, "user", r["body"])
+        if replies:
+            logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条用户回复")
+
+    # 构建上下文提示
+    context = build_context_prompt(history)
+
     topics = [
         "最近天气变化，提醒对方注意身体",
         "突然想到一个有趣的小事，分享给对方",
@@ -299,11 +521,24 @@ def generate_email():
     ]
     topic = random.choice(topics)
 
-    body_prompt = (
-        f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-        f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
-        f"直接输出正文，不要主题，不要多余说明。"
-    )
+    # 根据是否有用户回复调整提示词
+    if context and history.get("full") and history["full"][-1]["role"] == "user":
+        # 有用户回复：让 AI 回复用户的话题
+        body_prompt = (
+            f"{context}\n\n"
+            f"你是'{TO_NAME}'的老朋友。根据上面的对话记忆，回复他最近的邮件，"
+            f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"直接输出正文，不要主题，不要多余说明。"
+        )
+    else:
+        # 无回复或无历史：正常生成
+        body_prompt = (
+            f"{context}\n\n" if context else ""
+        ) + (
+            f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
+            f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+            f"直接输出正文，不要主题，不要多余说明。"
+        )
 
     body = call_ai(body_prompt, persona_text)
     source = "ai"
@@ -315,18 +550,16 @@ def generate_email():
         source = "fallback"
         logger.info(f"[FALLBACK] 已使用兜底文案（人设: {persona_name}）")
 
-    # 生成主题
-    #subject_prompt = f"给这封邮件起一个简短主题（10字以内），要求：{topic}，像朋友间随手发的"
-    #subject = call_ai(subject_prompt, persona_text)
-    #if not subject:
-        #subject = random.choice(["突然想到你", "问候一下", "冒个泡", "闲聊几句", "在吗"])
-        #logger.info(f"[FALLBACK] 使用随机主题: {subject}")
-    
-    #固定主题（来自 config.py，为空时回退到 "~"）
+    # 固定主题（来自 config.py，为空时回退到 "~"）
     subject = SUBJECT_PREFIX or "~"
 
+    # ============ 连续对话：记录本次发送 ============
+    if ENABLE_CONVERSATION:
+        history = add_to_history(history, "ghost", body)
+        save_conversation_history(history)
+
     return subject, body, source, persona_name
-    
+
 
 
 def main():

@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests cryptography
 
       - name: Run Ghost Sender
         env:
@@ -41,12 +41,13 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
+          CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
         run: python send.py
 
-      - name: Commit state & history
+      - name: Commit state, history & conversation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state.json history.json
+          git add state.json history.json conversation.enc
           git diff --cached --quiet || git commit -m "chore: update state & history [skip ci]"
           git push

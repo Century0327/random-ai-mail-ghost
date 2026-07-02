@@ -28,3 +28,25 @@ FOOTER = "— From Ghost Mail <a href=\"https://github.com/Century0327/random-ai
 # ============ API 重试配置 ============
 # AI API 调用失败后的重试次数
 MAX_RETRIES = 2
+
+# ============ 连续对话（加密记忆） ============
+# 开启后 Ghost 会记住上次发送的内容和用户回复，实现连续对话
+# 对话历史用 AES-256 加密存储，密钥在 GitHub Secrets 的 CONVERSATION_KEY 中
+# 未设置 CONVERSATION_KEY 时自动降级为不加密（仅适合本地测试）
+ENABLE_CONVERSATION = False
+
+# 对话历史文件（加密后存入仓库，明文不可读）
+CONVERSATION_FILE = "conversation.enc"
+
+# 完整保留的最近对话轮数（超出则触发压缩，生成摘要）
+FULL_HISTORY_SIZE = 5
+
+# 达到多少轮时触发压缩（把最早的对话合并为摘要）
+SUMMARY_TRIGGER = 10
+
+# 摘要最大长度（字符数）
+SUMMARY_MAX_LENGTH = 200
+
+# 邮箱收信配置（读取用户回复，与 SMTP 共用授权码）
+IMAP_SERVER = "imap.qq.com"
+IMAP_PORT = 993

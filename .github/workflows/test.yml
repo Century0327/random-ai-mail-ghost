@@ -31,7 +31,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests cryptography
 
       - name: Run environment tests
         env:
@@ -41,6 +41,7 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
+          CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
         run: python test.py
 
   send-test:
@@ -58,7 +59,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests cryptography
 
       - name: Run send test
         env:
@@ -68,12 +69,13 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
+          CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
         run: python send_test.py
 
-      - name: Commit history
+      - name: Commit history & conversation
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.json
+          git add history.json conversation.enc
           git diff --cached --quiet || git commit -m "chore: update history [skip ci]"
           git push
