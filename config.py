@@ -16,3 +16,11 @@ SUBJECT_PREFIX = ""
 # 下次发送时间在 [MIN_DAYS, MAX_DAYS] 天之间随机
 MIN_DAYS = 2
 MAX_DAYS = 14
+
+# ============ 署名（邮件正文结尾） ============
+# 为空时不署名；如果必须占位，用 "Ghost"
+SIGNATURE = ""
+
+# ============ 页脚（邮件末尾标识） ============
+# 显示在邮件正文下方，支持 HTML 链接
+FOOTER = "— From Ghost Mail <a href=\"https://github.com/Century0327/random-ai-mail-ghost\" style=\"color:#999; text-decoration:none;\">https://github.com/Century0327/random-ai-mail-ghost</a>"

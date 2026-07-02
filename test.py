@@ -22,7 +22,7 @@ OPTIONAL = {
 }
 
 # 已迁移到 config.py 的自定义项（不再从环境变量读取）
-CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS"]
+CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS", "SIGNATURE", "FOOTER"]
 
 def test_env():
     logger.info("[TEST] 环境变量...")

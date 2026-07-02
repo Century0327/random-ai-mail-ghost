@@ -21,7 +21,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
-from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS
+from config import TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER
 
 logger = setup_logger()
 
@@ -232,6 +232,10 @@ def build_email(subject, body):
     if "<br>" not in body and "<p>" not in body:
         body = body.replace("\n", "<br>")
 
+    # 添加署名（如果配置了）
+    if SIGNATURE:
+        body += f"<br><br>{SIGNATURE}"
+
     html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -243,7 +247,7 @@ def build_email(subject, body):
 {body}
 </td></tr>
 <tr><td style="padding: 0 30px 20px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px;">
-— 发自 Ghost Mail
+{FOOTER}
 </td></tr>
 </table>
 </td></tr>
@@ -259,7 +263,12 @@ def build_email(subject, body):
     msg["Precedence"] = "bulk"
 
     # 纯文本版本（垃圾邮件过滤器更友好）
-    text_part = re.sub(r'<[^>]+>', '', body.replace("<br>", "\n").replace("&nbsp;", " "))
+    text_body = body
+    if SIGNATURE:
+        text_body += f"\n\n{SIGNATURE}"
+    text_part = re.sub(r'<[^>]+>', '', text_body.replace("<br>", "\n").replace("&nbsp;", " "))
+    footer_text = re.sub(r'<[^>]+>', '', FOOTER)
+    text_part += f"\n\n{footer_text}"
     msg.attach(MIMEText(text_part, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
@@ -295,9 +304,10 @@ def generate_email():
     ]
     topic = random.choice(topics)
 
+    signature_prompt = f"结尾署名'{SIGNATURE}'" if SIGNATURE else "不需要署名"
     body_prompt = (
         f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-        f"50-120字，开头称呼'{TO_NAME}'，结尾署名'我'。"
+        f"50-80字，开头称呼'{TO_NAME}'，{signature_prompt}。"
         f"直接输出正文，不要主题，不要多余说明。"
     )
 
