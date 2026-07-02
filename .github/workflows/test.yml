@@ -2,10 +2,21 @@ name: Test Suite
 
 on:
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: '测试类型'
+        required: true
+        default: 'env'
+        type: choice
+        options:
+          - env
+          - send
 
 jobs:
-  test:
+  env-test:
+    if: github.event.inputs.test_type == 'env'
     runs-on: ubuntu-latest
+    name: 环境检查测试
 
     steps:
       - name: Checkout repo
@@ -19,17 +30,49 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run tests
+      - name: Run environment tests
         env:
           QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-          TO_NAME: ${{ secrets.TO_NAME }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          MIN_DAYS: ${{ secrets.MIN_DAYS }}
-          MAX_DAYS: ${{ secrets.MAX_DAYS }}
-          SUBJECT_PREFIX: ${{ secrets.SUBJECT_PREFIX }}
           MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
         run: python test.py
+
+  send-test:
+    if: github.event.inputs.test_type == 'send'
+    runs-on: ubuntu-latest
+    name: 发送测试（绕过时间检查）
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run send test
+        env:
+          QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
+          QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_URL: ${{ secrets.AI_API_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          MAX_RETRIES: ${{ secrets.MAX_RETRIES }}
+        run: python send_test.py
+
+      - name: Commit history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git diff --cached --quiet || git commit -m "chore: update history [skip ci]"
+          git push
