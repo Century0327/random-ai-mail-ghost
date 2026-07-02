@@ -46,7 +46,3 @@ SUMMARY_TRIGGER = 10
 
 # 摘要最大长度（字符数）
 SUMMARY_MAX_LENGTH = 200
-
-# 邮箱收信配置（读取用户回复，与 SMTP 共用授权码）
-IMAP_SERVER = "imap.qq.com"
-IMAP_PORT = 993

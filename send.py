@@ -27,7 +27,7 @@ from logger import setup_logger
 from config import (
     TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
     ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
-    SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH, IMAP_SERVER, IMAP_PORT
+    SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH
 )
 
 logger = setup_logger()
@@ -48,6 +48,10 @@ AI_API_URL = os.environ.get(
 )
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
+
+# IMAP 收信配置（QQ邮箱固定配置，与 SMTP 共用授权码）
+IMAP_SERVER = "imap.qq.com"
+IMAP_PORT = 993
 
 
 # ============ 状态与历史（借鉴 claudeclaw） ============
