@@ -255,7 +255,7 @@ def build_email(subject, body):
 </html>"""
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"{SUBJECT_PREFIX}{subject}"
+    msg["Subject"] = subject
     msg["From"] = f"Ghost Mail <{QQ_EMAIL}>"
     msg["To"] = TO_EMAIL
     msg["X-Mailer"] = "Ghost-Mail/2.0"
