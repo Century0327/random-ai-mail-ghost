@@ -1,241 +1,427 @@
 # -*- coding: utf-8 -*-
 """
-附件系统：生成小猫状态图片，附带到邮件中
-图片来源：Pollinations.ai（免费，无需 API key）
+附件系统：水彩彩铅风格明信片 + Q版线稿水印
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：watercolor and colored pencil, postcard format, soft pastel
+一致性：固定角色特征 + seed，保证是同一只猫
+水印：右下角 Q版线稿 + 日期 + 可选地点
 """
 
 import os
 import json
 import random
 import requests
-from email.mime.image import MIMEImage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from datetime import datetime
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 from logger import setup_logger
 
 logger = setup_logger("attachment")
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), 'state.json')
+STATE_FILE = "state.json"
+ASSETS_DIR = "assets"
+CHIBI_PATH = os.path.join(ASSETS_DIR, "cat_chibi.png")
+
+# ============ 固定角色特征（确保同一只猫）============
+CHARACTER = (
+    "same consistent small orange tabby kitten with dark tiger stripes, "
+    "white chest fur, pink nose, large round amber eyes, "
+    "3 months old, same cat across all images, "
+    "consistent character design, no change in appearance"
+)
+
+# ============ 场景池（水彩彩铅风格，明信片格式）============
+# 每行：(场景描述, 地点标注)
+# 描述中避免完整人形，只含局部肢体（hand/finger/knee）
+SCENES = {
+    "0-20": [
+        ("curled up trembling in a dark cardboard box corner, only big frightened eyes visible through a gap", "纸箱缝隙"),
+        ("shivering with ears pressed flat against head, paws gripping the cardboard edge tightly", "纸箱边缘"),
+        ("head buried under paws, only ear tips sticking out, hiding in the deepest corner", "纸箱深处"),
+        ("peeking through a narrow gap in the box, eyes wide with fear, whiskers trembling", "纸箱缝隙"),
+        ("pressed against the box wall, body curled into a tight ball, tail wrapped around paws", "纸箱角落"),
+    ],
+    "21-40": [
+        ("cautiously poking head out of the box, ears perked up listening to sounds outside", "纸箱口"),
+        ("sneaking to a water bowl, small pink tongue lapping cautiously, looking around nervously", "水碗边"),
+        ("hiding under a sofa, only the tail tip visible, whiskers twitching", "沙发底"),
+        ("sitting on a windowsill, staring intently at a bird outside, tail wrapped around body", "窗台上"),
+        ("sniffing a pile of cat food on the floor, hesitant to take a bite, one paw raised", "食盆旁"),
+    ],
+    "41-60": [
+        ("bending down to eat cat food, occasionally looking up at a nearby finger", "食盆旁"),
+        ("sniffing a human finger extended toward it, tail wagging gently", "地板上"),
+        ("lying on a windowsill, completely focused on watching a bird outside, one ear twitching", "窗台上"),
+        ("tentatively touching a ball of yarn with one paw, the other paw raised in curiosity", "地毯上"),
+        ("stretching with back arched, then slowly relaxing body on a warm patch of floor", "阳光下"),
+    ],
+    "61-80": [
+        ("rolling on back in a sunbeam on the windowsill, eyes half closed, belly exposed", "窗台上"),
+        ("rubbing against a table leg, tail raised high and fluffy", "桌腿旁"),
+        ("dozing on a soft cushion, half-open eyes, tail swaying lazily", "垫子上"),
+        ("sitting on a low cabinet, looking down at the room from above, tail hanging over the edge", "矮柜上"),
+        ("chasing its own tail in circles on a rug, then stopping to lick a paw", "地毯中央"),
+    ],
+    "81-100": [
+        ("curled into a fluffy ball on a human knee, tail wrapped around body", "膝盖上"),
+        ("rubbing head against a human hand, eyes half-closed in contentment", "人身边"),
+        ("kneading on a soft blanket with paws, one paw after another rhythmically", "软垫上"),
+        ("running toward a human hand with a small toy mouse in mouth", "地板上"),
+        ("lying side by side with a human on the windowsill, tail intertwined with a sleeve", "窗台上"),
+    ],
+}
 
 
-def load_attachment_count():
-    """从 state.json 读取当前附件编号"""
+# ============ 工具函数 ============
+
+def _trust_level_str(trust_value):
+    """根据信任值返回等级字符串"""
+    if trust_value is None:
+        return "0-20"
+    for level in ["0-20", "21-40", "41-60", "61-80", "81-100"]:
+        low, high = map(int, level.split("-"))
+        if low <= trust_value <= high:
+            return level
+    return "81-100"
+
+
+def _load_state():
+    """读取 state.json"""
     if not os.path.exists(STATE_FILE):
-        return 0
+        return {}
     try:
-        with open(STATE_FILE, 'r', encoding='utf-8') as f:
-            state = json.load(f)
-        return state.get('attachment_count', 0)
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
     except Exception:
-        return 0
+        return {}
 
 
-def save_attachment_count(count):
-    """保存附件编号到 state.json"""
-    state = {}
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, 'r', encoding='utf-8') as f:
-                state = json.load(f)
-        except Exception:
-            pass
-    state['attachment_count'] = count
+def _save_state(state):
+    """保存 state.json"""
     try:
-        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        logger.error(f"[ATTACHMENT] 保存附件编号失败: {e}")
+        logger.error(f"[ATTACHMENT] 保存状态失败: {e}")
 
 
-def get_next_attachment_number():
-    """获取下一个附件编号并保存"""
-    count = load_attachment_count()
-    count += 1
-    save_attachment_count(count)
-    return count
+# ============ 触发策略 ============
 
-
-def get_rarity():
-    """决定稀有度"""
-    r = random.random()
-    if r < 0.02:
-        return "限定"
-    elif r < 0.10:
-        return "稀有"
-    else:
-        return "普通"
-
-
-def build_image_prompt(trust_value, letter_num, rarity):
-    """根据信任值和信件编号生成图片描述
-
-    信任值越低，猫越害怕、越脏；信任值越高，猫越放松、越干净
+def should_attach(trust_value, letter_num, history=None, user_reply=None):
     """
-    if trust_value is None:
-        trust_value = 10
-
-    if trust_value <= 20:
-        scene = "a tiny dirty scared stray kitten curled up inside a cardboard box in a dark corner, trembling, wide frightened eyes, dilated pupils, messy matted fur with dirt and grass, ears flat against head, paws gripping cardboard edge, looking out through a gap, dim warm light, photography style, realistic"
-    elif trust_value <= 40:
-        scene = "a small wary stray kitten cautiously drinking water from a bowl on the floor, looking around nervously, dirty orange tabby fur, ears alert, half hidden behind furniture, soft indoor lighting, photography style, realistic"
-    elif trust_value <= 60:
-        scene = "a small curious stray kitten sniffing a human finger near a food bowl, slightly dirty orange tabby fur getting cleaner, tentative posture, ears forward, warm indoor lighting, photography style, realistic"
-    elif trust_value <= 80:
-        scene = "a clean relaxed orange tabby kitten rolling on its back showing belly, purring, bright eyes, soft clean fur, cozy home setting, warm sunlight, photography style, realistic"
-    else:
-        scene = "a happy clean orange tabby kitten sitting on a person's lap, eyes half closed purring, fluffy clean fur, tail up, cozy home with warm sunlight, photography style, realistic"
-
-    # 节日/限定特殊场景
-    if rarity == "限定":
-        scene += ", special edition, golden hour lighting, bokeh background, portrait composition"
-    elif rarity == "稀有":
-        scene += ", soft bokeh background, artistic composition"
-
-    return scene
-
-
-def generate_image(prompt, width=512, height=512):
-    """调用 Pollinations.ai 生成图片
-
-    Returns: bytes (图片数据) 或 None
+    判断是否应该生成附件
+    
+    返回: (bool, str)  —  (是否生成, 触发原因)
     """
-    # Pollinations.ai 的 URL 格式
-    encoded_prompt = requests.utils.quote(prompt, safe='')
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true"
+    state = _load_state()
+    last = state.get("last_attachment", {})
+    current_level = _trust_level_str(trust_value)
+    
+    # 1. 首次发信
+    if letter_num == 1:
+        return True, "first"
+    
+    # 2. 信任等级跃迁
+    last_level = last.get("trust_level")
+    if last_level and current_level != last_level:
+        return True, "level_up"
+    
+    # 3. 用户互动关键词
+    if user_reply:
+        text = user_reply.lower()
+        keywords = ["摸", "抱", "喂", "粮", "水", "吃", "食", "手", "指"]
+        if any(kw in text for kw in keywords):
+            return True, "interaction"
+    
+    # 4. 节日检查
+    today = datetime.now()
+    festivals = {
+        (1, 1): "元旦",
+        (2, 14): "情人节",
+        (5, 1): "劳动节",
+        (6, 1): "儿童节",
+        (9, 10): "教师节",
+        (10, 1): "国庆节",
+        (12, 25): "圣诞节",
+    }
+    festival = festivals.get((today.month, today.day))
+    if festival and last.get("festival") != festival:
+        return True, f"festival_{festival}"
+    
+    # 5. 随机彩蛋
+    if random.random() < 0.15:
+        return True, "random"
+    
+    return False, ""
 
+
+# ============ 图片生成 ============
+
+def build_image_prompt(scene_desc, trust_value, location=None):
+    """构建水彩彩铅风格明信片 prompt"""
+    
+    style = (
+        "watercolor and colored pencil illustration, postcard format, "
+        "soft pastel colors, gentle brush strokes, hand-drawn feel, "
+        "textured paper background, warm and cozy atmosphere, "
+        "white border around the image"
+    )
+    
+    # 地点
+    location_str = f", in {location}" if location else ""
+    
+    # 避免完整人形：只保留局部肢体
+    # 如果描述中有"human""person""man""woman"等，替换为局部
+    scene = scene_desc.replace("a human ", "a hand ").replace("human ", "a hand ")
+    
+    prompt = (
+        f"{style}, {CHARACTER}, {scene}{location_str}, "
+        f"the cat is the only main subject, "
+        f"no full human figure visible, "
+        f"only partial body parts like hands or legs may appear, "
+        f"postcard layout with decorative border"
+    )
+    
+    return prompt
+
+
+def generate_image(prompt, trust_level_str, scene_idx, seed_base=32727):
+    """调用 Pollinations.ai 生成图片，带固定 seed"""
+    # seed 保证同等级同场景 = 同一只猫同状态
+    level_map = {"0-20": 0, "21-40": 1, "41-60": 2, "61-80": 3, "81-100": 4}
+    level_num = level_map.get(trust_level_str, 0)
+    seed = seed_base + level_num * 1000 + scene_idx * 100
+    
+    encoded = requests.utils.quote(prompt, safe="")
+    # 明信片横版 600x400
+    url = f"https://image.pollinations.ai/prompt/{encoded}?width=600&height=400&seed={seed}&nologo=true"
+    
     try:
-        logger.info(f"[ATTACHMENT] 正在生成图片...")
+        logger.info(f"[ATTACHMENT] 生成图片... (seed={seed})")
         resp = requests.get(url, timeout=60)
         if resp.status_code == 200 and len(resp.content) > 1000:
             logger.info(f"[ATTACHMENT] 图片生成成功 ({len(resp.content)} bytes)")
-            return resp.content
+            return Image.open(BytesIO(resp.content))
         else:
-            logger.warning(f"[ATTACHMENT] 图片生成异常: status={resp.status_code}, size={len(resp.content)}")
-            return None
+            logger.warning(f"[ATTACHMENT] 图片异常: status={resp.status_code}, size={len(resp.content)}")
     except Exception as e:
         logger.warning(f"[ATTACHMENT] 图片生成失败: {e}")
-        return None
+    
+    return None
 
 
-def create_attachment(persona_name, trust_value, letter_num):
-    """创建一个完整的附件
+# ============ 水印系统 ============
 
-    Returns: dict with keys:
-        - image_bytes: 图片数据 (bytes)
-        - number: 编号 (int)
-        - rarity: 稀有度 (str)
-        - filename: 文件名 (str)
-        或 None（生成失败时）
+def create_chibi_fallback():
+    """Pillow 绘制极简 Q版线稿（保底）"""
+    size = 200
+    img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(img)
+    c = (80, 80, 80, 255)
+    w = 3
+    
+    # 大圆脸
+    draw.ellipse([40, 55, 160, 175], outline=c, width=w)
+    # 三角耳朵
+    draw.polygon([(50, 75), (25, 15), (75, 60)], outline=c, width=w)
+    draw.polygon([(150, 75), (175, 15), (125, 60)], outline=c, width=w)
+    # 内耳
+    draw.polygon([(55, 70), (40, 30), (65, 62)], outline=c, width=2)
+    draw.polygon([(145, 70), (160, 30), (135, 62)], outline=c, width=2)
+    # 大眼睛
+    draw.ellipse([70, 95, 95, 120], outline=c, width=2)
+    draw.ellipse([105, 95, 130, 120], outline=c, width=2)
+    # 瞳孔
+    draw.ellipse([79, 104, 86, 111], fill=c)
+    draw.ellipse([114, 104, 121, 111], fill=c)
+    # 高光
+    draw.ellipse([82, 106, 85, 109], fill=(255, 255, 255, 255))
+    draw.ellipse([117, 106, 120, 109], fill=(255, 255, 255, 255))
+    # 小三角鼻子
+    draw.polygon([(95, 125), (105, 125), (100, 133)], fill=c)
+    # W 形嘴
+    draw.arc([85, 130, 100, 148], 0, 180, fill=c, width=2)
+    draw.arc([100, 130, 115, 148], 0, 180, fill=c, width=2)
+    # 胡须
+    draw.line([(50, 120), (15, 108)], fill=c, width=2)
+    draw.line([(50, 130), (15, 138)], fill=c, width=2)
+    draw.line([(150, 120), (185, 108)], fill=c, width=2)
+    draw.line([(150, 130), (185, 138)], fill=c, width=2)
+    # 小身体
+    draw.ellipse([70, 165, 130, 200], outline=c, width=w)
+    # 小爪
+    draw.ellipse([75, 188, 95, 200], outline=c, width=2)
+    draw.ellipse([105, 188, 125, 200], outline=c, width=2)
+    # S 形尾巴
+    points = [(130, 180), (160, 170), (170, 145), (160, 115), (140, 100)]
+    for i in range(len(points) - 1):
+        draw.line([points[i], points[i + 1]], fill=c, width=w)
+    
+    return img
+
+
+def load_or_create_chibi():
+    """加载线稿，不存在则创建保底"""
+    if os.path.exists(CHIBI_PATH):
+        return Image.open(CHIBI_PATH)
+    
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+    chibi = create_chibi_fallback()
+    chibi.save(CHIBI_PATH)
+    logger.info(f"[ATTACHMENT] 创建保底线稿: {CHIBI_PATH}")
+    return chibi
+
+
+def add_watermark(img, chibi, location=None):
+    """添加水印：右下角 Q版线稿 + 日期 + 可选地点"""
+    result = img.copy().convert("RGBA")
+    width, height = result.size
+    
+    overlay = Image.new("RGBA", result.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
+    
+    margin = 12
+    chibi_size = 50
+    
+    # 调整线稿大小
+    chibi_small = chibi.resize((chibi_size, chibi_size), Image.Resampling.LANCZOS)
+    
+    # 粘贴线稿（右下角）
+    chibi_x = width - chibi_size - margin
+    chibi_y = height - chibi_size - margin - 12
+    overlay.paste(chibi_small, (chibi_x, chibi_y), chibi_small)
+    
+    # 时间文字
+    date_str = datetime.now().strftime("%Y.%m.%d")
+    text = date_str
+    if location:
+        text = f"{location} · {date_str}"
+    
+    # 字体
+    try:
+        font = ImageFont.truetype("arial.ttf", 9)
+    except:
+        try:
+            font = ImageFont.truetype("DejaVuSans.ttf", 9)
+        except:
+            font = ImageFont.load_default()
+    
+    # 文字位置
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_x = width - text_width - margin
+    text_y = height - 14
+    
+    # 半透明背景条
+    draw.rectangle(
+        [text_x - 4, text_y - 2, width - margin + 2, text_y + 11],
+        fill=(255, 255, 255, 160)
+    )
+    draw.text((text_x, text_y), text, fill=(80, 80, 80, 180), font=font)
+    
+    # 合并
+    result = Image.alpha_composite(result, overlay)
+    return result.convert("RGB")
+
+
+# ============ 主入口 ============
+
+def create_attachment(persona_name, trust_value, letter_num, history=None, user_reply=None, location=None):
     """
-    # 决定稀有度
-    rarity = get_rarity()
-
-    # 生成图片描述
-    prompt = build_image_prompt(trust_value, letter_num, rarity)
-
+    创建附件（或返回 None）
+    
+    参数:
+        persona_name: 人设名
+        trust_value: 当前信任值
+        letter_num: 第几封信
+        history: 对话历史（可选）
+        user_reply: 用户最新回复文本（可选）
+        location: 地点水印（可选，默认从 config 读取）
+    
+    返回:
+        dict 或 None: {image_bytes, number, rarity, filename}
+    """
+    should, reason = should_attach(trust_value, letter_num, history, user_reply)
+    if not should:
+        logger.info(f"[ATTACHMENT] 跳过附件 (letter={letter_num}, reason={reason})")
+        return None
+    
+    logger.info(f"[ATTACHMENT] 触发附件: {reason}")
+    
+    # 选择场景
+    level = _trust_level_str(trust_value)
+    scenes = SCENES[level]
+    scene_idx = random.randint(0, len(scenes) - 1)
+    scene_desc, _ = scenes[scene_idx]
+    
     # 生成图片
-    image_bytes = generate_image(prompt)
-    if not image_bytes:
+    prompt = build_image_prompt(scene_desc, trust_value, location)
+    img = generate_image(prompt, level, scene_idx)
+    if not img:
         logger.warning("[ATTACHMENT] 图片生成失败，跳过附件")
         return None
-
-    # 获取编号
-    number = get_next_attachment_number()
-
-    # 文件名
-    filename = f"cat-letter-{number:03d}-{rarity}.jpg"
-
-    logger.info(f"[ATTACHMENT] 附件创建完成: {filename} (信任值: {trust_value}, 稀有度: {rarity})")
-
+    
+    # 加载线稿并添加水印
+    chibi = load_or_create_chibi()
+    img = add_watermark(img, chibi, location)
+    
+    # 保存为 JPEG
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85)
+    buffer.seek(0)
+    
+    # 更新状态
+    state = _load_state()
+    state["last_attachment"] = {
+        "trust_level": level,
+        "reason": reason,
+        "festival": datetime.now().strftime("%m-%d"),
+    }
+    _save_state(state)
+    
     return {
-        'image_bytes': image_bytes,
-        'number': number,
-        'rarity': rarity,
-        'filename': filename,
+        "image_bytes": buffer.getvalue(),
+        "number": letter_num,
+        "rarity": reason,
+        "filename": f"cat-letter-{letter_num:03d}.jpg",
     }
 
 
-def build_email_with_attachment(subject, html_body, text_body, attachment=None):
-    """构建带附件的邮件
-
-    结构：
-    MIMEMultipart("mixed")
-      ├─ MIMEMultipart("alternative")
-      │    ├─ text/plain
-      │    └─ text/html
-      └─ MIMEImage (附件，可选)
-    """
-    from email.utils import formatdate
-
-    # 如果有附件，用 mixed 类型；否则用 alternative
-    if attachment:
-        msg = MIMEMultipart("mixed")
-        msg["Subject"] = subject
-        msg["From"] = f"Ghost Mail <{os.environ.get('QQ_EMAIL', '')}>"
-        msg["To"] = os.environ.get("TO_EMAIL", "")
-        msg["X-Mailer"] = "Ghost-Mail/3.0"
-        msg["Date"] = formatdate(localtime=True)
-
-        # 嵌套 alternative 部分
-        alt_part = MIMEMultipart("alternative")
-        alt_part.attach(MIMEText(text_body, "plain", "utf-8"))
-        alt_part.attach(MIMEText(html_body, "html", "utf-8"))
-        msg.attach(alt_part)
-
-        # 添加图片附件
-        img = MIMEImage(attachment['image_bytes'])
-        img.add_header('Content-Disposition', 'attachment',
-                       filename=attachment['filename'])
-        img.add_header('Content-ID', f'<cat-{attachment["number"]:03d}>')
-        img.add_header('X-Attachment-Info',
-                       f'编号:{attachment["number"]:03d} 稀有度:{attachment["rarity"]}')
-        msg.attach(img)
-
-        return msg
-    else:
-        # 无附件，用原来的 alternative 结构
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Ghost Mail <{os.environ.get('QQ_EMAIL', '')}>"
-        msg["To"] = os.environ.get("TO_EMAIL", "")
-        msg["X-Mailer"] = "Ghost-Mail/3.0"
-        msg["Date"] = formatdate(localtime=True)
-
-        msg.attach(MIMEText(text_body, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-        return msg
-
+# ============ 兼容旧接口 ============
 
 def build_attachment_preview_html(attachment):
-    """生成附件预览的 HTML（嵌入邮件正文底部）"""
+    """生成附件预览 HTML（嵌入邮件正文）"""
     if not attachment:
         return ""
-
-    number = attachment['number']
-    rarity = attachment['rarity']
-
-    # 稀有度颜色
-    rarity_colors = {
-        "限定": "#ffd700",
-        "稀有": "#a855f7",
-        "普通": "#94a3b8",
+    
+    number = attachment["number"]
+    rarity = attachment["rarity"]
+    
+    rarity_labels = {
+        "first": "初见",
+        "level_up": "成长",
+        "interaction": "互动",
+        "random": "彩蛋",
     }
-    color = rarity_colors.get(rarity, "#94a3b8")
-
-    # 用 Content-ID 引用内嵌图片
-    cid = f"cat-{number:03d}"
-
+    if rarity.startswith("festival_"):
+        label = rarity.replace("festival_", "")
+    else:
+        label = rarity_labels.get(rarity, rarity)
+    
     preview_html = f"""
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee;">
 <tr><td style="font-size: 12px; color: #999; padding-bottom: 8px;">
-附件 #{number:03d} · <span style="color: {color}; font-weight: bold;">{rarity}</span>
+📷 附件 #{number:03d} · {label}
 </td></tr>
 <tr><td>
-<img src="cid:{cid}" alt="小猫状态图" style="max-width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
-</td></tr>
-<tr><td style="font-size: 11px; color: #bbb; padding-top: 6px; text-align: center;">
-保存这张图片，收集小猫的成长瞬间
+<img src="cid:cat-{number:03d}" alt="小猫明信片" style="max-width: 100%; border-radius: 8px; display: block; margin: 0 auto;">
 </td></tr>
 </table>
 """
