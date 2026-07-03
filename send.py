@@ -813,6 +813,7 @@ def generate_email():
         except Exception:
             last_send_time = None
 
+    replies = []  # 初始化，供附件系统使用
     if ENABLE_CONVERSATION:
         replies = fetch_user_replies(since_time=last_send_time)
         for r in replies:
@@ -969,13 +970,23 @@ def generate_email():
         history = add_to_history(history, "ghost", body)
         save_conversation_history(history)
 
-    # ============ 附件系统：生成小猫状态图片 ============
+    # ============ 附件系统：水彩彩铅明信片 + Q版水印 ============
     attachment = None
     try:
+        # 收集用户最新回复文本
+        user_reply_text = ""
+        if replies:
+            user_reply_text = "\n".join([r.get("body", "") for r in replies])
+        
+        # 从 config 读取地点（可选）
+        from config import ATTACHMENT_LOCATION
         attachment = attachment_mod.create_attachment(
             persona_name=persona_name,
-            trust_value=relation_value if relation_config else None,
+            trust_value=relation_value,
             letter_num=letter_num,
+            history=history,
+            user_reply=user_reply_text,
+            location=ATTACHMENT_LOCATION if ATTACHMENT_LOCATION else None,
         )
     except Exception as e:
         logger.warning(f"[ATTACHMENT] 附件生成失败，继续发信: {e}")
