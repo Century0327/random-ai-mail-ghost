@@ -359,12 +359,12 @@ def load_persona():
     default = "你是一位邮件写作助手，语气亲切自然，像老朋友一样聊天。"
     if not os.path.exists(PERSONAS_DIR):
         logger.info(f"[PERSONA] 目录不存在，使用默认")
-        return "default", default
+        return "default", default, None
 
     files = [f for f in os.listdir(PERSONAS_DIR) if f.endswith(".md")]
     if not files:
         logger.info(f"[PERSONA] 目录为空，使用默认")
-        return "default", default
+        return "default", default, None
 
     # config 指定人设
     if PERSONA:
@@ -386,11 +386,171 @@ def load_persona():
     persona = "\n".join(lines).strip()
 
     if not persona:
-        return "default", default
+        return "default", default, None
 
     name = chosen.replace(".md", "")
     logger.info(f"[PERSONA] 已加载: {name} ({len(persona)}字)")
-    return name, persona
+
+    # 解析关系系统
+    relation_config = parse_relation_system(text)
+    if relation_config:
+        logger.info(f"[RELATION] 检测到关系系统: {relation_config['name']}（初始值: {relation_config['initial']}）")
+
+    return name, persona, relation_config
+
+
+def parse_relation_system(persona_text):
+    """从人设文本中解析关系系统配置
+    返回 None 或 dict: {name, initial, min_val, max_val, levels, rules}
+    levels: [(min, max, label, desc), ...]
+    rules: [(keywords, delta), ...]  # keywords 是列表，delta 是数值
+    """
+    import re
+
+    # 匹配【关系系统：XXX】标题
+    title_match = re.search(r'【关系系统[：:]\s*([^】]+)】', persona_text)
+    if not title_match:
+        return None
+
+    sys_name = title_match.group(1).strip()
+
+    # 提取关系系统区块（从标题到下一个【...】标题）
+    section_match = re.search(
+        r'【关系系统[：:][^】]+】(.*?)(?=\n【|\Z)',
+        persona_text,
+        re.DOTALL
+    )
+    if not section_match:
+        return None
+    section = section_match.group(1)
+
+    config = {
+        "name": sys_name,
+        "initial": 50,
+        "min_val": 0,
+        "max_val": 100,
+        "levels": [],
+        "rules": [],
+        "decay": 0,  # 自然衰减
+    }
+
+    # 解析范围（如 "范围 0-100"）
+    range_match = re.search(r'范围\s*(\d+)\s*[-~到]\s*(\d+)', section)
+    if range_match:
+        config["min_val"] = int(range_match.group(1))
+        config["max_val"] = int(range_match.group(2))
+
+    # 解析初始值（如 "初始为 50"）
+    initial_match = re.search(r'初始\s*(?:为|是|值)?\s*(\d+)', section)
+    if initial_match:
+        config["initial"] = int(initial_match.group(1))
+
+    # 解析等级列表（如 "- 0-20：日常警戒（飞机耳贴头，偶尔哈气）"）
+    level_pattern = re.compile(
+        r'-\s*(\d+)\s*[-~到]\s*(\d+)\s*[：:]\s*([^（\n]+)(?:（([^）]*)）)?',
+        re.MULTILINE
+    )
+    for m in level_pattern.finditer(section):
+        config["levels"].append({
+            "min": int(m.group(1)),
+            "max": int(m.group(2)),
+            "label": m.group(3).strip(),
+            "desc": m.group(4).strip() if m.group(4) else ""
+        })
+
+    # 解析调整规则（如 "- 对方提到"摸/抱/靠近/撸"：+15"）
+    rule_pattern = re.compile(
+        r'-\s*[^：:]*提到?[""]([^""]+)[""]\s*[：:]\s*([+-]?\d+)',
+        re.MULTILINE
+    )
+    for m in rule_pattern.finditer(section):
+        keywords_str = m.group(1)
+        delta = int(m.group(2))
+        keywords = re.split(r'[、/，,\s]+', keywords_str)
+        keywords = [k.strip() for k in keywords if k.strip()]
+        if keywords:
+            config["rules"].append({"keywords": keywords, "delta": delta})
+
+    # 解析自然衰减（如 "每次自然衰减：-3"）
+    decay_match = re.search(r'自然衰减\s*[：:]\s*([+-]?\d+)', section)
+    if decay_match:
+        config["decay"] = int(decay_match.group(1))
+
+    return config
+
+
+def get_current_level(value, relation_config):
+    """根据当前值获取对应等级信息"""
+    if not relation_config or not relation_config.get("levels"):
+        return None
+    for level in relation_config["levels"]:
+        if level["min"] <= value <= level["max"]:
+            return level
+    return relation_config["levels"][-1] if relation_config["levels"] else None
+
+
+def calculate_relation_delta(user_text, relation_config):
+    """根据用户文本和规则计算关系值变化量"""
+    if not relation_config or not relation_config.get("rules"):
+        return 0
+    delta = 0
+    text_lower = user_text.lower()
+    for rule in relation_config["rules"]:
+        for kw in rule["keywords"]:
+            if kw.lower() in text_lower:
+                delta += rule["delta"]
+                break  # 每条规则只触发一次
+    return delta
+
+
+def render_relation_bar(value, relation_config):
+    """渲染关系值进度条（HTML格式）"""
+    if not relation_config:
+        return ""
+
+    name = relation_config["name"]
+    min_val = relation_config["min_val"]
+    max_val = relation_config["max_val"]
+    percent = max(0, min(100, (value - min_val) / (max_val - min_val) * 100))
+
+    level = get_current_level(value, relation_config)
+    level_label = level["label"] if level else ""
+
+    # 根据值选择颜色（0=绿，50=黄，100=红）
+    if percent < 30:
+        color = "#4CAF50"
+    elif percent < 60:
+        color = "#FFC107"
+    elif percent < 80:
+        color = "#FF9800"
+    else:
+        color = "#f44336"
+
+    bar_html = f"""
+<div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; font-size: 12px; color: #666;">
+<div style="margin-bottom: 5px; display: flex; justify-content: space-between;">
+<span>{name}</span>
+<span>{level_label}（{value}/{max_val}）</span>
+</div>
+<div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+<div style="width: {percent:.0f}%; height: 100%; background: {color}; border-radius: 4px; transition: width 0.3s;"></div>
+</div>
+</div>
+"""
+    return bar_html.strip()
+
+
+def load_relation_value(history, relation_config):
+    """从历史记录中加载关系值，没有则返回初始值"""
+    if not relation_config:
+        return None
+    return history.get("relation_value", relation_config["initial"])
+
+
+def save_relation_value(history, value):
+    """保存关系值到历史记录"""
+    history["relation_value"] = value
+    return history
 
 
 # ============ 兜底文案（借鉴 bunnysaini 模板变量） ============
@@ -554,7 +714,7 @@ def send_email(subject, body):
 
 # ============ 主流程 ============
 def generate_email():
-    persona_name, persona_text = load_persona()
+    persona_name, persona_text, relation_config = load_persona()
 
     # ============ 连续对话：加载历史 + 收取用户回复 ============
     history = load_conversation_history()
@@ -572,6 +732,35 @@ def generate_email():
         if replies:
             senders = set(r["sender"] for r in replies)
             logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条回复（来自 {len(senders)} 人）")
+
+    # ============ 关系系统：计算当前值 ============
+    relation_value = load_relation_value(history, relation_config)
+    relation_level_desc = ""
+    if relation_config and relation_value is not None:
+        # 自然衰减
+        relation_value += relation_config.get("decay", 0)
+        # 根据新回复调整
+        new_replies_for_relation = []
+        for item in reversed(history.get("full", [])):
+            if item.get("role") == "user":
+                new_replies_for_relation.append(item)
+            else:
+                break
+        new_replies_for_relation.reverse()
+        for r in new_replies_for_relation:
+            delta = calculate_relation_delta(r.get("content", ""), relation_config)
+            relation_value += delta
+            if delta != 0:
+                logger.info(f"[RELATION] 回复触发调整: {delta:+d}（{r.get('sender', '?')}）")
+        # 限制范围
+        relation_value = max(relation_config["min_val"], min(relation_config["max_val"], relation_value))
+        # 保存到历史
+        history = save_relation_value(history, relation_value)
+        # 获取等级描述
+        level = get_current_level(relation_value, relation_config)
+        if level:
+            relation_level_desc = f"当前{relation_config['name']}：{relation_value}/{relation_config['max_val']}（{level['label']}）"
+            logger.info(f"[RELATION] {relation_level_desc}")
 
     # 计算当前是第几封信（用于软化进度判断）
     ghost_count = sum(1 for item in history.get("full", []) if item.get("role") == "ghost")
@@ -601,6 +790,11 @@ def generate_email():
 
     names_str = "、".join(ALL_NAMES)
 
+    # 关系系统状态提示（让AI知道当前状态）
+    relation_prompt = ""
+    if relation_level_desc:
+        relation_prompt = f"\n\n【重要】{relation_level_desc}。你的回复风格必须符合这个等级。"
+
     if new_replies:
         # 有回复：合并回复所有人
         # 按发件人组织回复内容
@@ -624,6 +818,7 @@ def generate_email():
                 f"3.不要自顾自说自己的事。\n"
                 f"40-80字，开头称呼'{sender_name}'，不要写署名。"
                 f"直接输出正文，不要主题，不要多余说明。"
+                f"{relation_prompt}"
             )
         else:
             # 多人回复：合并回复
@@ -637,6 +832,7 @@ def generate_email():
                 f"3.不要自顾自说自己的事。\n"
                 f"60-120字，开头称呼'{names_str}'，不要写署名。"
                 f"直接输出正文，不要主题，不要多余说明。"
+                f"{relation_prompt}"
             )
         # Ghost记忆放末尾（背景）
         if context:
@@ -649,6 +845,7 @@ def generate_email():
             f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
+            f"{relation_prompt}"
             f"\n\n{context}"
         )
     else:
@@ -659,6 +856,7 @@ def generate_email():
             f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
+            f"{relation_prompt}"
         )
 
     body = call_ai(body_prompt, persona_text)
@@ -697,6 +895,12 @@ def generate_email():
 
     # 固定主题（来自 config.py，为空时回退到 "~"）
     subject = SUBJECT_PREFIX or "~"
+
+    # 添加关系系统进度条（在署名之前，页脚之前）
+    if relation_config and relation_value is not None:
+        bar_html = render_relation_bar(relation_value, relation_config)
+        if bar_html:
+            body += bar_html
 
     # ============ 连续对话：记录本次发送 ============
     if ENABLE_CONVERSATION:
