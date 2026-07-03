@@ -555,20 +555,37 @@ def save_relation_value(history, value):
 
 
 # ============ 兜底文案（借鉴 bunnysaini 模板变量） ============
-def load_fallbacks():
+def load_fallbacks(persona_name=None):
+    """加载兜底文案：优先人设专属，其次全局"""
     names_str = "、".join(ALL_NAMES) if ALL_NAMES else "大家"
+
+    # 优先加载人设专属 fallback（personas/{name}_fallback.md）
+    if persona_name and os.path.exists(PERSONAS_DIR):
+        persona_fallback = os.path.join(PERSONAS_DIR, f"{persona_name}_fallback.md")
+        if os.path.exists(persona_fallback):
+            with open(persona_fallback, "r", encoding="utf-8") as f:
+                text = f.read()
+            text = re.sub(r'^#.*\n', '', text)  # 去掉开头的标题行
+            blocks = re.split(r'\n##\s+.*\n', text)
+            contents = [b.strip() for b in blocks if b.strip()]
+            if contents:
+                logger.info(f"[FALLBACK] 使用人设专属兜底: {persona_name}（{len(contents)}条）")
+                return contents
+
+    # 全局 fallback
     if not os.path.exists(FALLBACK_FILE):
         return [f"{names_str}，<br><br>突然想到你们，问候一下。<br><br>祝好。"]
 
     with open(FALLBACK_FILE, "r", encoding="utf-8") as f:
         text = f.read()
 
+    text = re.sub(r'^#.*\n', '', text)  # 去掉开头的标题行
     blocks = re.split(r'\n##\s+.*\n', text)
     contents = [b.strip() for b in blocks if b.strip()]
     if not contents:
         return [f"{names_str}，<br><br>突然想到你们，问候一下。<br><br>祝好。"]
 
-    logger.info(f"[FALLBACK] 已加载 {len(contents)} 条")
+    logger.info(f"[FALLBACK] 已加载 {len(contents)} 条（全局）")
     return contents
 
 def render_template(text):
@@ -819,9 +836,11 @@ def generate_email():
     if relation_level_desc:
         relation_prompt = f"\n\n【重要】{relation_level_desc}。你的回复风格必须符合这个等级。"
 
+    # 构建核心指令（不硬塞格式要求，让人设文件自己定义）
+    base_info = f"这是你写的第{letter_num}封信。\n收信人：{names_str}"
+
     if new_replies:
-        # 有回复：合并回复所有人
-        # 按发件人组织回复内容
+        # 有回复：按发件人组织内容
         reply_lines = []
         for r in new_replies:
             sender = r.get("sender", "朋友")
@@ -829,57 +848,29 @@ def generate_email():
             reply_lines.append(f'{sender}说："{content}"')
         replies_text = "\n\n".join(reply_lines)
 
-        if len(new_replies) == 1:
-            # 单人回复
-            sender_name = new_replies[0].get("sender", names_str)
-            body_prompt = (
-                f"这是你写的第{letter_num}封信。"
-                f"你收到了{sender_name}的回信：\n"
-                f'"{new_replies[0].get("content", "")[:200]}"\n\n'
-                f"请回信。要求：\n"
-                f"1.第一句回应{sender_name}说的具体内容；\n"
-                f"2.围绕{sender_name}聊的事接着聊；\n"
-                f"3.不要自顾自说自己的事。\n"
-                f"40-80字，开头称呼'{sender_name}'，不要写署名。"
-                f"直接输出正文，不要主题，不要多余说明。"
-                f"{relation_prompt}"
-            )
-        else:
-            # 多人回复：合并回复
-            body_prompt = (
-                f"这是你写的第{letter_num}封信。"
-                f"你收到了以下回信：\n\n"
-                f"{replies_text}\n\n"
-                f"请写一封回信给所有人。要求：\n"
-                f"1.分别回应每个人说的话（如'小令狐，你说...'）；\n"
-                f"2.围绕他们聊的事接着聊；\n"
-                f"3.不要自顾自说自己的事。\n"
-                f"60-120字，开头称呼'{names_str}'，不要写署名。"
-                f"直接输出正文，不要主题，不要多余说明。"
-                f"{relation_prompt}"
-            )
+        body_prompt = (
+            f"{base_info}\n\n"
+            f"你收到了以下回信：\n\n"
+            f"{replies_text}\n\n"
+            f"请回信。"
+            f"{relation_prompt}"
+        )
         # Ghost记忆放末尾（背景）
         if context:
             body_prompt += f"\n\n{context}"
     elif context:
         # 有历史但无新回复
         body_prompt = (
-            f"这是你写的第{letter_num}封信。"
-            f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
-            f"40-80字，开头称呼'{names_str}'，不要写署名。"
-            f"{constraints}"
-            f"直接输出正文，不要主题，不要多余说明。"
+            f"{base_info}\n\n"
+            f"主动写一封邮件给他们。"
             f"{relation_prompt}"
             f"\n\n{context}"
         )
     else:
         # 无历史：完全随机
         body_prompt = (
-            f"这是你写的第{letter_num}封信。"
-            f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
-            f"40-80字，开头称呼'{names_str}'，不要写署名。"
-            f"{constraints}"
-            f"直接输出正文，不要主题，不要多余说明。"
+            f"{base_info}\n\n"
+            f"主动写一封邮件给他们。"
             f"{relation_prompt}"
         )
 
@@ -911,7 +902,7 @@ def generate_email():
         _content_bad = True
 
     if body is None or _content_bad:
-        fallbacks = load_fallbacks()
+        fallbacks = load_fallbacks(persona_name)
         raw = random.choice(fallbacks)
         body = render_template(raw)
         source = "fallback"
