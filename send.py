@@ -505,7 +505,7 @@ def calculate_relation_delta(user_text, relation_config):
 
 
 def render_relation_bar(value, relation_config):
-    """渲染关系值进度条（HTML格式）"""
+    """渲染关系值进度条（HTML格式，使用 table 布局兼容邮件客户端）"""
     if not relation_config:
         return ""
 
@@ -527,16 +527,29 @@ def render_relation_bar(value, relation_config):
     else:
         color = "#f44336"
 
+    # 用 table 布局（邮件客户端最兼容），并用 bgcolor 兜底
+    bar_width = int(600 * percent / 100)
+    rest_width = 600 - bar_width
+
     bar_html = f"""
-<div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; font-size: 12px; color: #666;">
-<div style="margin-bottom: 5px; display: flex; justify-content: space-between;">
-<span>{name}</span>
-<span>{level_label}（{value}/{max_val}）</span>
-</div>
-<div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
-<div style="width: {percent:.0f}%; height: 100%; background: {color}; border-radius: 4px; transition: width 0.3s;"></div>
-</div>
-</div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; font-size: 12px; color: #666;">
+<tr><td>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td align="left" style="font-size: 12px; color: #666;">{name}</td>
+<td align="right" style="font-size: 12px; color: #666;">{level_label}（{value}/{max_val}）</td>
+</tr>
+</table>
+</td></tr>
+<tr><td style="padding-top: 6px;">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="width: 100%; height: 10px; background: #eee; border-radius: 4px; overflow: hidden;">
+<tr>
+<td width="{bar_width}" bgcolor="{color}" height="10" style="background: {color}; height: 10px; line-height: 10px; font-size: 0;">&nbsp;</td>
+<td width="{rest_width}" height="10" style="background: #eee; height: 10px; line-height: 10px; font-size: 0;">&nbsp;</td>
+</tr>
+</table>
+</td></tr>
+</table>
 """
     return bar_html.strip()
 
