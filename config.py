@@ -7,11 +7,11 @@ Ghost Mail 用户自定义配置（非敏感信息，无需放入 Secrets）
 
 # ============ 联系人（多人回信） ============
 # 每个联系人：name 是称呼，email_env 是对应的 GitHub Secret 变量名
-# 在 GitHub Secrets 中添加对应的邮箱地址（如 CONTACT_EMAIL_1: xxx@qq.com）
+# 在 GitHub Secrets 中添加对应的邮箱地址（如 TO_EMAIL_1: xxx@qq.com）
 # 邮件会发送给所有联系人，AI 会区分不同人的回复
 CONTACTS = [
-    {"name": "小令狐", "email_env": "CONTACT_EMAIL_1"},
-    # {"name": "阿狸",   "email_env": "CONTACT_EMAIL_2"},
+    {"name": "小令狐", "email_env": "TO_EMAIL_1"},
+    # {"name": "阿狸",   "email_env": "TO_EMAIL_2"},
 ]
 
 # ============ 标题（邮件主题） ============
