@@ -684,7 +684,7 @@ def build_email(subject, body):
     # 添加署名（如果配置了）
     body_with_sig = body
     if SIGNATURE:
-        body_with_sig += f"<br><br>{SIGNATURE}"
+        body_with_sig += f"<br><br><div style='text-align:right;'>{SIGNATURE}</div>"
 
     # 加载模板（或内置默认）
     template_html = load_template()
@@ -903,7 +903,7 @@ def generate_email():
 
     if body is None or _content_bad:
         fallbacks = load_fallbacks(persona_name)
-        raw = random.choice(fallbacks)
+        raw = fallbacks[0]  # 固定用第一条，方便排查
         body = render_template(raw)
         source = "fallback"
         logger.info(f"[FALLBACK] 已使用兜底文案（人设: {persona_name}）")
