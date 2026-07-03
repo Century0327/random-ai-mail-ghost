@@ -661,34 +661,32 @@ def generate_email():
             f"直接输出正文，不要主题，不要多余说明。"
         )
 
-    # 特殊人设：耄耋使用固定哈气模板，不调用 AI
-    if persona_name == "maodie":
-        logger.info("[PERSONA] 使用耄耋固定哈气模板")
-        body = generate_maodie_body(letter_num)
-        source = "template"
-        _content_bad = False
-    else:
-        body = call_ai(body_prompt, persona_text)
-        source = "ai"
+    body = call_ai(body_prompt, persona_text)
+    source = "ai"
 
-        # 内容质量检查（防止小模型生成占位符等严重问题）
-        _bad_patterns = [
-            "XX", "xxx", "某某", "某城市",  # 占位符
-            "笑到合不拢嘴", "绝绝子", "yyds", "爆炸好看",  # 过度夸张的网络用语
-        ]
-        _content_bad = False
-        if body:
-            for pat in _bad_patterns:
-                if pat in body:
-                    _content_bad = True
-                    logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
-                    break
-            # 长度检查
+    # 内容质量检查（防止小模型生成占位符等严重问题）
+    _bad_patterns = [
+        "XX", "xxx", "某某", "某城市",  # 占位符
+        "笑到合不拢嘴", "绝绝子", "yyds", "爆炸好看",  # 过度夸张的网络用语
+    ]
+    _content_bad = False
+    if body:
+        for pat in _bad_patterns:
+            if pat in body:
+                _content_bad = True
+                logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
+                break
+        # 长度检查（耄耋人设特殊放宽）
+        if persona_name == "maodie":
+            if len(body) < 10 or len(body) > 800:
+                _content_bad = True
+                logger.warning(f"[SAFETY] 耄耋内容长度异常: {len(body)}")
+        else:
             if len(body) < 30 or len(body) > 500:
                 _content_bad = True
                 logger.warning(f"[SAFETY] 内容长度异常: {len(body)}")
-        else:
-            _content_bad = True
+    else:
+        _content_bad = True
 
     if body is None or _content_bad:
         fallbacks = load_fallbacks()
