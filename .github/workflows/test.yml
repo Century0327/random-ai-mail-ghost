@@ -31,7 +31,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install Pillow
 
       - name: Run environment tests
         env:
@@ -60,7 +62,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests cryptography
+        run: |
+          pip install -r requirements.txt
+          pip install Pillow
 
       - name: Run send test
         env:
