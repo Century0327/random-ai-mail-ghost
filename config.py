@@ -7,8 +7,9 @@ Ghost Mail 用户自定义配置（非敏感信息，无需放入 Secrets）
 
 # ============ 人设（personas/ 目录下的 .md 文件名，不含后缀） ============
 # 指定用哪个人设；为空则随机选择 personas/ 下的所有 .md 文件
-PERSONA = "default"
-# PERSONA = ""  # 随机
+PERSONA = "yuantou"
+# PERSONA = "default"   # 默认温柔人设
+# PERSONA = ""           # 随机
 
 # ============ 联系人（多人回信） ============
 # 每个联系人：name 是称呼，email_env 是对应的 GitHub Secret 变量名
