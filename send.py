@@ -25,7 +25,7 @@ from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
 from config import (
-    TO_NAME, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
+    CONTACTS as CONTACT_CONFIG, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
     ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
     SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH
 )
@@ -41,13 +41,24 @@ PERSONAS_DIR = "personas"
 # 敏感信息从 Secrets 读取；非敏感自定义项（称呼/标题/间隔天数/重试次数）见 config.py
 QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
 QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
-TO_EMAIL = os.environ.get("TO_EMAIL", "")
 AI_API_URL = os.environ.get(
     "AI_API_URL",
     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 )
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
+
+# 从 config + 环境变量加载联系人（邮箱地址是敏感信息，存在 Secrets 中）
+CONTACTS = []
+for c in CONTACT_CONFIG:
+    email_addr = os.environ.get(c["email_env"], "")
+    if email_addr:
+        CONTACTS.append({"name": c["name"], "email": email_addr})
+    else:
+        logger.warning(f"[CONFIG] 联系人 '{c['name']}' 的邮箱未设置 ({c['email_env']})")
+
+# 所有联系人姓名列表（用于提示词）
+ALL_NAMES = [c["name"] for c in CONTACTS]
 
 # IMAP 收信配置（QQ邮箱固定配置，与 SMTP 共用授权码）
 IMAP_SERVER = "imap.qq.com"
@@ -154,7 +165,7 @@ def _extract_body(msg):
 
 
 def fetch_user_replies(since_time=None):
-    """从收件箱读取用户回复（since_time 之后的所有邮件正文）"""
+    """从收件箱读取所有联系人的回复，标识发件人"""
     if not ENABLE_CONVERSATION:
         return []
     replies = []
@@ -163,14 +174,15 @@ def fetch_user_replies(since_time=None):
         mail.login(QQ_EMAIL, QQ_AUTH_CODE)
         mail.select("INBOX")
 
-        # 搜索条件：来自收件人的邮件
-        status, data = mail.search(None, f'(FROM "{TO_EMAIL}")')
-        if status != "OK":
-            logger.warning("[IMAP] 搜索失败")
-            mail.logout()
-            return []
+        # 搜索所有联系人的邮件，合并去重
+        all_ids = set()
+        for contact in CONTACTS:
+            status, data = mail.search(None, f'(FROM "{contact["email"]}")')
+            if status == "OK":
+                for eid in data[0].split():
+                    all_ids.add(eid)
 
-        ids = data[0].split()
+        ids = sorted(all_ids)
         # 只取最近 10 封，避免过多
         ids = ids[-10:] if len(ids) > 10 else ids
 
@@ -180,11 +192,20 @@ def fetch_user_replies(since_time=None):
                 continue
             raw = msg_data[0][1]
             msg = email.message_from_bytes(raw)
+
+            # 识别发件人（匹配联系人邮箱）
+            from_header = _decode_mime_header(msg.get("From", ""))
+            sender_name = "未知"
+            for contact in CONTACTS:
+                if contact["email"] in from_header:
+                    sender_name = contact["name"]
+                    break
+
             date_str = msg.get("Date", "")
             subject = _decode_mime_header(msg.get("Subject", ""))
             body = _extract_body(msg)
 
-            # 简单过滤：时间过滤（如果提供了 since_time）
+            # 时间过滤
             if since_time and date_str:
                 try:
                     from email.utils import parsedate_to_datetime
@@ -197,12 +218,13 @@ def fetch_user_replies(since_time=None):
             if body:
                 replies.append({
                     "time": date_str,
+                    "sender": sender_name,
                     "subject": subject,
-                    "body": body[:500]  # 限制长度，避免占用过多 token
+                    "body": body[:500]
                 })
 
         mail.logout()
-        logger.info(f"[IMAP] 读取到 {len(replies)} 封用户回复")
+        logger.info(f"[IMAP] 读取到 {len(replies)} 封回复（来自 {len(set(r['sender'] for r in replies))} 人）")
     except Exception as e:
         logger.error(f"[IMAP] 收信失败: {e}")
     return replies
@@ -242,8 +264,12 @@ def summarize_old_conversations(old_items):
         text_parts = []
         for item in old_items:
             role = item.get("role", "?")
+            sender = item.get("sender", "")
             content = item.get("content", "")[:100]
-            text_parts.append(f"{role}: {content}")
+            if sender:
+                text_parts.append(f"{role}({sender}): {content}")
+            else:
+                text_parts.append(f"{role}: {content}")
         combined = "\n".join(text_parts)
 
         from crypto import get_key
@@ -258,11 +284,12 @@ def summarize_old_conversations(old_items):
         return ""
 
 
-def add_to_history(history, role, content):
+def add_to_history(history, role, content, sender=None):
     """添加一条对话到历史，并在超限时触发压缩"""
     history["full"].append({
         "time": datetime.now().isoformat(),
         "role": role,  # "ghost" 或 "user"
+        "sender": sender,  # user 时为联系人名，ghost 时为 None
         "content": content[:500]
     })
 
@@ -286,39 +313,39 @@ def add_to_history(history, role, content):
 
 
 def build_context_prompt(history):
-    """构建上下文（传给 AI）—— 突出用户最新回复，提升相关度"""
+    """构建上下文：Ghost记忆 + 所有新回复（按人分组）"""
     if not ENABLE_CONVERSATION or not history:
-        return "", None
-
-    parts = []
-    summary = history.get("summary", "").strip()
-    if summary:
-        parts.append(f"【早期对话摘要】\n{summary}")
+        return "", []
 
     full = history.get("full", [])
     if not full:
-        return "", None
+        return "", []
 
-    # 找出用户最新的一条回复
-    latest_user_msg = None
+    # 提取所有未回复的 user 消息（按发件人分组）
+    new_replies = []
     for item in reversed(full):
         if item.get("role") == "user":
-            latest_user_msg = item.get("content", "")
-            break
+            new_replies.append(item)
+        else:
+            break  # 遇到 ghost 消息就停，之前的都已回复过
+    new_replies.reverse()  # 恢复时间顺序
 
-    # 最近对话历史（ghost + user 的往返）
-    if len(full) > 1:
-        # 取最近 4 条（约 2 轮），但去掉最后一条用户消息（会单独突出显示）
-        recent = full[-6:-1] if len(full) >= 6 else full[:-1]
-        if recent:
-            recent_text = "\n".join(
-                f"{item['role']}: {item['content'][:80]}" for item in recent
-            )
-            parts.append(f"【之前的对话】\n{recent_text}")
+    # 提取 Ghost 最近说过的事（保持自身经历连贯）
+    ghost_msgs = [item for item in full if item.get("role") == "ghost"]
+    ghost_memory = ""
+    if ghost_msgs:
+        recent_ghost = ghost_msgs[-2:] if len(ghost_msgs) >= 2 else ghost_msgs
+        ghost_parts = []
+        for msg in recent_ghost:
+            content = msg.get("content", "")[:60].replace("\n", " ")
+            ghost_parts.append(f"- 你之前说过：{content}...")
+        summary = history.get("summary", "").strip()
+        if summary:
+            ghost_memory = f"【你的记忆】\n{summary[:100]}\n" + "\n".join(ghost_parts)
+        else:
+            ghost_memory = f"【你的记忆】\n" + "\n".join(ghost_parts)
 
-    if not parts and not latest_user_msg:
-        return "", None
-    return "\n\n".join(parts), latest_user_msg
+    return ghost_memory, new_replies
 
 
 # ============ 多人人设（借鉴 claudeclaw） ============
@@ -353,8 +380,9 @@ def load_persona():
 
 # ============ 兜底文案（借鉴 bunnysaini 模板变量） ============
 def load_fallbacks():
+    names_str = "、".join(ALL_NAMES) if ALL_NAMES else "大家"
     if not os.path.exists(FALLBACK_FILE):
-        return [f"{TO_NAME}，<br><br>突然想到你，问候一下。<br><br>祝好。"]
+        return [f"{names_str}，<br><br>突然想到你们，问候一下。<br><br>祝好。"]
 
     with open(FALLBACK_FILE, "r", encoding="utf-8") as f:
         text = f.read()
@@ -362,13 +390,14 @@ def load_fallbacks():
     blocks = re.split(r'\n##\s+.*\n', text)
     contents = [b.strip() for b in blocks if b.strip()]
     if not contents:
-        return [f"{TO_NAME}，<br><br>突然想到你，问候一下。<br><br>祝好。"]
+        return [f"{names_str}，<br><br>突然想到你们，问候一下。<br><br>祝好。"]
 
     logger.info(f"[FALLBACK] 已加载 {len(contents)} 条")
     return contents
 
 def render_template(text):
     """变量替换：支持 {name} {date} {weekday} {festival} {random_quote}"""
+    names_str = "、".join(ALL_NAMES) if ALL_NAMES else "大家"
     quotes = [
         "日子是过以后，不是过以前。",
         "山高水长，江湖再见。",
@@ -385,7 +414,7 @@ def render_template(text):
     festival = festivals.get((today.month, today.day), "")
 
     vars = {
-        "{name}": TO_NAME,
+        "{name}": names_str,
         "{date}": today.strftime("%Y年%m月%d日"),
         "{weekday}": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][today.weekday()],
         "{random_quote}": random.choice(quotes),
@@ -472,7 +501,7 @@ def build_email(subject, body):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"Ghost Mail <{QQ_EMAIL}>"
-    msg["To"] = TO_EMAIL
+    msg["To"] = ", ".join([c["email"] for c in CONTACTS])
     msg["X-Mailer"] = "Ghost-Mail/2.0"
     msg["Precedence"] = "bulk"
 
@@ -490,11 +519,15 @@ def build_email(subject, body):
 
 def send_email(subject, body):
     msg = build_email(subject, body)
+    recipients = [c["email"] for c in CONTACTS]
+    if not recipients:
+        logger.error("[SMTP] ❌ 没有配置任何联系人邮箱")
+        return False
     try:
         with smtplib.SMTP_SSL("smtp.qq.com", 465, timeout=15) as server:
             server.login(QQ_EMAIL, QQ_AUTH_CODE)
-            server.sendmail(QQ_EMAIL, [TO_EMAIL], msg.as_string())
-        logger.info(f"[SMTP] ✅ 发送成功 | 主题: {subject}")
+            server.sendmail(QQ_EMAIL, recipients, msg.as_string())
+        logger.info(f"[SMTP] ✅ 发送成功 | 主题: {subject} | 收件人: {len(recipients)}人")
         return True
     except smtplib.SMTPAuthenticationError:
         logger.error("[SMTP] ❌ 认证失败：请检查 QQ_AUTH_CODE 是否为16位SMTP授权码")
@@ -520,12 +553,13 @@ def generate_email():
     if ENABLE_CONVERSATION:
         replies = fetch_user_replies(since_time=last_send_time)
         for r in replies:
-            history = add_to_history(history, "user", r["body"])
+            history = add_to_history(history, "user", r["body"], sender=r["sender"])
         if replies:
-            logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条用户回复")
+            senders = set(r["sender"] for r in replies)
+            logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条回复（来自 {len(senders)} 人）")
 
-    # 构建上下文提示
-    context, latest_user_msg = build_context_prompt(history)
+    # 构建上下文：Ghost记忆 + 新回复列表
+    context, new_replies = build_context_prompt(history)
 
     topics = [
         "最近天气变化，提醒对方注意身体",
@@ -546,39 +580,60 @@ def generate_email():
         "4.不要堆砌辞藻，像真人说话一样自然。"
     )
 
-    # 根据是否有用户回复调整提示词
-    if latest_user_msg:
-        # 有用户回复：明确引用用户的话来回复，提高相关度
-        reply_trigger = (
-            f"【用户最近说】\n"
-            f"\"{latest_user_msg[:200]}\"\n\n"
-            f"请针对上面用户说的话来回复，"
-            f"可以在开头用'你说...'、'你提到...'之类的话引用一下用户的内容，"
-            f"让对方感觉到你在认真读他的信。"
-        )
-        body_prompt = (
-            f"{context}\n\n" if context else ""
-        ) + (
-            f"{reply_trigger}\n\n"
-            f"你是'{TO_NAME}'的老朋友。"
-            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
-            f"{constraints}"
-            f"直接输出正文，不要主题，不要多余说明。"
-        )
+    names_str = "、".join(ALL_NAMES)
+
+    if new_replies:
+        # 有回复：合并回复所有人
+        # 按发件人组织回复内容
+        reply_lines = []
+        for r in new_replies:
+            sender = r.get("sender", "朋友")
+            content = r.get("content", "")[:200]
+            reply_lines.append(f'{sender}说："{content}"')
+        replies_text = "\n\n".join(reply_lines)
+
+        if len(new_replies) == 1:
+            # 单人回复
+            sender_name = new_replies[0].get("sender", names_str)
+            body_prompt = (
+                f"你收到了{sender_name}的回信：\n"
+                f'"{new_replies[0].get("content", "")[:200]}"\n\n'
+                f"请回信。要求：\n"
+                f"1.第一句回应{sender_name}说的具体内容；\n"
+                f"2.围绕{sender_name}聊的事接着聊；\n"
+                f"3.不要自顾自说自己的事。\n"
+                f"40-80字，开头称呼'{sender_name}'，不要写署名。"
+                f"直接输出正文，不要主题，不要多余说明。"
+            )
+        else:
+            # 多人回复：合并回复
+            body_prompt = (
+                f"你收到了以下回信：\n\n"
+                f"{replies_text}\n\n"
+                f"请写一封回信给所有人。要求：\n"
+                f"1.分别回应每个人说的话（如'小令狐，你说...'）；\n"
+                f"2.围绕他们聊的事接着聊；\n"
+                f"3.不要自顾自说自己的事。\n"
+                f"60-120字，开头称呼'{names_str}'，不要写署名。"
+                f"直接输出正文，不要主题，不要多余说明。"
+            )
+        # Ghost记忆放末尾（背景）
+        if context:
+            body_prompt += f"\n\n{context}"
     elif context:
-        # 有历史但没有新回复：正常生成，稍微参考一下历史
+        # 有历史但无新回复
         body_prompt = (
-            f"{context}\n\n"
-            f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
+            f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
+            f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
+            f"\n\n{context}"
         )
     else:
         # 无历史：完全随机
         body_prompt = (
-            f"给'{TO_NAME}'写一封简短邮件。要求：{topic}，"
-            f"50-120字，开头称呼'{TO_NAME}'，不要写署名。"
+            f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
+            f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
             f"直接输出正文，不要主题，不要多余说明。"
         )
