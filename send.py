@@ -22,8 +22,11 @@ import time
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
+from email.utils import formatdate
 import requests
 from logger import setup_logger
+import attachment as attachment_mod
 from config import (
     CONTACTS as CONTACT_CONFIG, PERSONA, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
     ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
@@ -689,10 +692,16 @@ def load_template():
 
 
 # ============ 邮件构建（借鉴 SmartEmail HTML 模板） ============
-def build_email(subject, body):
-    """构建 HTML 邮件，同时包含纯文本版本降低垃圾箱概率"""
+def build_email(subject, body, attachment=None):
+    """构建 HTML 邮件，同时包含纯文本版本降低垃圾箱概率，可选附带附件"""
     if "<br>" not in body and "<p>" not in body:
         body = body.replace("\n", "<br>")
+
+    # 添加附件预览（如果有附件，在署名之前插入）
+    if attachment:
+        preview_html = attachment_mod.build_attachment_preview_html(attachment)
+        if preview_html:
+            body += preview_html
 
     # 添加署名（如果配置了）
     body_with_sig = body
@@ -727,13 +736,6 @@ def build_email(subject, body):
 </body>
 </html>"""
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"Ghost Mail <{QQ_EMAIL}>"
-    msg["To"] = ", ".join([c["email"] for c in CONTACTS])
-    msg["X-Mailer"] = "Ghost-Mail/2.0"
-    msg["Precedence"] = "bulk"
-
     # 纯文本版本（垃圾邮件过滤器更友好）
     text_body = body
     if SIGNATURE:
@@ -741,13 +743,45 @@ def build_email(subject, body):
     text_part = re.sub(r'<[^>]+>', '', text_body.replace("<br>", "\n").replace("&nbsp;", " "))
     footer_text = re.sub(r'<[^>]+>', '', FOOTER)
     text_part += f"\n\n{footer_text}"
-    msg.attach(MIMEText(text_part, "plain", "utf-8"))
-    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    # 构建邮件：有附件用 mixed 嵌套，无附件用 alternative
+    if attachment:
+        msg = MIMEMultipart("mixed")
+        msg["Subject"] = subject
+        msg["From"] = f"Ghost Mail <{QQ_EMAIL}>"
+        msg["To"] = ", ".join([c["email"] for c in CONTACTS])
+        msg["X-Mailer"] = "Ghost-Mail/3.0"
+        msg["Date"] = formatdate(localtime=True)
+
+        # 嵌套 alternative（文本+HTML）
+        alt_part = MIMEMultipart("alternative")
+        alt_part.attach(MIMEText(text_part, "plain", "utf-8"))
+        alt_part.attach(MIMEText(html, "html", "utf-8"))
+        msg.attach(alt_part)
+
+        # 添加图片附件
+        img = MIMEImage(attachment['image_bytes'])
+        img.add_header('Content-Disposition', 'attachment',
+                       filename=attachment['filename'])
+        img.add_header('Content-ID', f'<cat-{attachment["number"]:03d}>')
+        msg.attach(img)
+        logger.info(f"[ATTACHMENT] 邮件已附带附件: {attachment['filename']}")
+    else:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Ghost Mail <{QQ_EMAIL}>"
+        msg["To"] = ", ".join([c["email"] for c in CONTACTS])
+        msg["X-Mailer"] = "Ghost-Mail/3.0"
+        msg["Precedence"] = "bulk"
+        msg["Date"] = formatdate(localtime=True)
+
+        msg.attach(MIMEText(text_part, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
 
     return msg
 
-def send_email(subject, body):
-    msg = build_email(subject, body)
+def send_email(subject, body, attachment=None):
+    msg = build_email(subject, body, attachment)
     recipients = [c["email"] for c in CONTACTS]
     if not recipients:
         logger.error("[SMTP] ❌ 没有配置任何联系人邮箱")
@@ -935,7 +969,18 @@ def generate_email():
         history = add_to_history(history, "ghost", body)
         save_conversation_history(history)
 
-    return subject, body, source, persona_name
+    # ============ 附件系统：生成小猫状态图片 ============
+    attachment = None
+    try:
+        attachment = attachment_mod.create_attachment(
+            persona_name=persona_name,
+            trust_value=relation_value if relation_config else None,
+            letter_num=letter_num,
+        )
+    except Exception as e:
+        logger.warning(f"[ATTACHMENT] 附件生成失败，继续发信: {e}")
+
+    return subject, body, source, persona_name, attachment
 
 
 
@@ -951,12 +996,14 @@ def main():
         return
 
     logger.info("[ACTION] 开始生成邮件...")
-    subject, body, source, persona = generate_email()
+    subject, body, source, persona, attachment = generate_email()
 
     logger.info(f"[PREVIEW] 主题: {subject}")
     logger.info(f"[PREVIEW] 正文: {body[:80]}...")
+    if attachment:
+        logger.info(f"[PREVIEW] 附件: {attachment['filename']} ({attachment['rarity']})")
 
-    if send_email(subject, body):
+    if send_email(subject, body, attachment):
         log_history(subject, source, persona)
         schedule_next(state)
     else:

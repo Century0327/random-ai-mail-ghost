@@ -18,14 +18,16 @@ if __name__ == "__main__":
     try:
         import send
         logger.info("[STEP] 生成邮件...")
-        subject, body, source, persona = send.generate_email()
-        
+        subject, body, source, persona, attachment = send.generate_email()
+
         logger.info(f"[PREVIEW] 主题: {subject}")
         logger.info(f"[PREVIEW] 正文: {body[:100]}...")
         logger.info(f"[PREVIEW] 来源: {source}, 人设: {persona}")
-        
+        if attachment:
+            logger.info(f"[PREVIEW] 附件: {attachment['filename']} ({attachment['rarity']})")
+
         logger.info("[STEP] 发送邮件...")
-        if send.send_email(subject, body):
+        if send.send_email(subject, body, attachment):
             send.log_history(subject, source, persona)
             logger.info("✅ 邮件发送成功（本次为测试发送，不更新下次发送时间）")
             sys.exit(0)
