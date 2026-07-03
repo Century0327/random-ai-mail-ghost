@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install requests cryptography
+        run: pip install -r requirements.txt
 
       - name: Run Ghost Sender
         env:
