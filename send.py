@@ -568,6 +568,10 @@ def generate_email():
             senders = set(r["sender"] for r in replies)
             logger.info(f"[CONVERSATION] 已记录 {len(replies)} 条回复（来自 {len(senders)} 人）")
 
+    # 计算当前是第几封信（用于软化进度判断）
+    ghost_count = sum(1 for item in history.get("full", []) if item.get("role") == "ghost")
+    letter_num = ghost_count + 1
+
     # 构建上下文：Ghost记忆 + 新回复列表
     context, new_replies = build_context_prompt(history)
 
@@ -606,6 +610,7 @@ def generate_email():
             # 单人回复
             sender_name = new_replies[0].get("sender", names_str)
             body_prompt = (
+                f"这是你写的第{letter_num}封信。"
                 f"你收到了{sender_name}的回信：\n"
                 f'"{new_replies[0].get("content", "")[:200]}"\n\n'
                 f"请回信。要求：\n"
@@ -618,6 +623,7 @@ def generate_email():
         else:
             # 多人回复：合并回复
             body_prompt = (
+                f"这是你写的第{letter_num}封信。"
                 f"你收到了以下回信：\n\n"
                 f"{replies_text}\n\n"
                 f"请写一封回信给所有人。要求：\n"
@@ -633,6 +639,7 @@ def generate_email():
     elif context:
         # 有历史但无新回复
         body_prompt = (
+            f"这是你写的第{letter_num}封信。"
             f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
             f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
@@ -642,6 +649,7 @@ def generate_email():
     else:
         # 无历史：完全随机
         body_prompt = (
+            f"这是你写的第{letter_num}封信。"
             f"给你的朋友们（{names_str}）写一封简短邮件。要求：{topic}，"
             f"40-80字，开头称呼'{names_str}'，不要写署名。"
             f"{constraints}"
