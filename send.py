@@ -27,7 +27,7 @@ from logger import setup_logger
 from config import (
     CONTACTS as CONTACT_CONFIG, PERSONA, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
     ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
-    SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH
+    SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH, EMAIL_TEMPLATE
 )
 
 logger = setup_logger()
@@ -36,6 +36,7 @@ STATE_FILE = "state.json"
 HISTORY_FILE = "history.json"
 FALLBACK_FILE = "fallback.md"
 PERSONAS_DIR = "personas"
+TEMPLATES_DIR = "templates"
 
 # ============ 集中配置（借鉴 ajaycc17） ============
 # 敏感信息从 Secrets 读取；非敏感自定义项（称呼/标题/间隔天数/重试次数）见 config.py
@@ -644,6 +645,19 @@ def call_ai(prompt, persona_text, max_retries=MAX_RETRIES):
     return None
 
 
+# ============ 邮件模板（不绑定人设，config切换） ============
+def load_template():
+    """加载邮件模板文件；未配置或不存在时返回内置默认"""
+    if not EMAIL_TEMPLATE:
+        return None
+    path = os.path.join(TEMPLATES_DIR, f"{EMAIL_TEMPLATE}.html")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    logger.warning(f"[TEMPLATE] '{EMAIL_TEMPLATE}.html' 不存在，使用内置默认")
+    return None
+
+
 # ============ 邮件构建（借鉴 SmartEmail HTML 模板） ============
 def build_email(subject, body):
     """构建 HTML 邮件，同时包含纯文本版本降低垃圾箱概率"""
@@ -651,10 +665,20 @@ def build_email(subject, body):
         body = body.replace("\n", "<br>")
 
     # 添加署名（如果配置了）
+    body_with_sig = body
     if SIGNATURE:
-        body += f"<br><br>{SIGNATURE}"
+        body_with_sig += f"<br><br>{SIGNATURE}"
 
-    html = f"""<!DOCTYPE html>
+    # 加载模板（或内置默认）
+    template_html = load_template()
+    if template_html:
+        html = template_html
+        html = html.replace("{{SUBJECT}}", subject)
+        html = html.replace("{{BODY}}", body_with_sig)
+        html = html.replace("{{FOOTER}}", FOOTER)
+        logger.info(f"[TEMPLATE] 使用模板: {EMAIL_TEMPLATE}")
+    else:
+        html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f4f4f4;">
@@ -662,7 +686,7 @@ def build_email(subject, body):
 <tr><td align="center" style="padding: 20px 0;">
 <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
 <tr><td style="padding: 30px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333;">
-{body}
+{body_with_sig}
 </td></tr>
 <tr><td style="padding: 0 30px 20px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px;">
 {FOOTER}

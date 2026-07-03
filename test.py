@@ -116,6 +116,33 @@ def test_personas():
         logger.info(f"  ✓ {f}: {len(body)}字")
     return True
 
+def test_templates():
+    """测试邮件模板文件"""
+    import config
+    logger.info("[TEST] 邮件模板...")
+    template_name = getattr(config, "EMAIL_TEMPLATE", "")
+    if not template_name:
+        logger.info("  ⚠ EMAIL_TEMPLATE 未配置，将使用内置默认")
+        return True
+    path = os.path.join("templates", f"{template_name}.html")
+    if not os.path.exists(path):
+        logger.error(f"  ✗ 模板文件不存在: {path}")
+        return False
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    # 检查必要占位符
+    required_placeholders = ["{{BODY}}", "{{FOOTER}}"]
+    missing = [p for p in required_placeholders if p not in content]
+    if missing:
+        logger.error(f"  ✗ 缺少占位符: {', '.join(missing)}")
+        return False
+    logger.info(f"  ✓ 模板 '{template_name}' 有效（{len(content)}字符）")
+    # 列出所有可用模板
+    if os.path.exists("templates"):
+        all_tpl = [f for f in os.listdir("templates") if f.endswith(".html")]
+        logger.info(f"  ✓ 可用模板: {', '.join(t.replace('.html', '') for t in all_tpl)}")
+    return True
+
 def test_state():
     logger.info("[TEST] 状态IO...")
     try:
@@ -221,6 +248,7 @@ if __name__ == "__main__":
         test_env(),
         test_config(),
         test_crypto(),
+        test_templates(),
         test_smtp(),
         test_api(),
         test_fallback(),

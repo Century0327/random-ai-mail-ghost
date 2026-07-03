@@ -11,6 +11,14 @@ PERSONA = "maodie"
 # PERSONA = "default"   # 默认温柔人设
 # PERSONA = ""           # 随机
 
+# ============ 邮件模板（templates/ 目录下的 .html 文件名，不含后缀） ============
+# 指定用哪个邮件模板；为空则使用内置默认模板
+# 可用的模板：default（简洁白）、cat（猫猫风格）、dark（深色）
+EMAIL_TEMPLATE = "cat"
+# EMAIL_TEMPLATE = "default"
+# EMAIL_TEMPLATE = "dark"
+# EMAIL_TEMPLATE = ""   # 使用内置默认
+
 # ============ 联系人（多人回信） ============
 # 每个联系人：name 是称呼，email_env 是对应的 GitHub Secret 变量名
 # 在 GitHub Secrets 中添加对应的邮箱地址（如 TO_EMAIL_1: xxx@qq.com）
