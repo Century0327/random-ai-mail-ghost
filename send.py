@@ -232,26 +232,31 @@ def fetch_user_replies(since_time=None):
 
 # ============ 对话历史管理（加密存储 + 分层压缩） ============
 def load_conversation_history():
-    """加载加密的对话历史"""
+    """加载加密的对话历史（每人设独立文件）"""
     if not ENABLE_CONVERSATION:
         return {"full": [], "summary": ""}
     try:
         from crypto import get_key, load_conversation
         key = get_key()
-        return load_conversation(CONVERSATION_FILE, key)
+        # 每人设独立历史文件，避免人设切换时历史污染
+        persona_name, _ = load_persona()
+        history_file = f"{CONVERSATION_FILE.replace('.enc', '')}_{persona_name}.enc"
+        return load_conversation(history_file, key)
     except Exception as e:
         logger.error(f"[CONVERSATION] 加载失败: {e}")
         return {"full": [], "summary": ""}
 
 
 def save_conversation_history(data):
-    """保存对话历史（加密）"""
+    """保存对话历史（加密，每人设独立文件）"""
     if not ENABLE_CONVERSATION:
         return
     try:
         from crypto import get_key, save_conversation
         key = get_key()
-        save_conversation(CONVERSATION_FILE, data, key)
+        persona_name, _ = load_persona()
+        history_file = f"{CONVERSATION_FILE.replace('.enc', '')}_{persona_name}.enc"
+        save_conversation(history_file, data, key)
     except Exception as e:
         logger.error(f"[CONVERSATION] 保存失败: {e}")
 
