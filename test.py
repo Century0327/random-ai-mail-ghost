@@ -14,14 +14,14 @@ from logger import setup_logger
 
 logger = setup_logger("ghost_test")
 
-REQUIRED = ["QQ_EMAIL", "QQ_AUTH_CODE", "TO_EMAIL", "AI_API_KEY"]
+REQUIRED = ["QQ_EMAIL", "QQ_AUTH_CODE", "AI_API_KEY"]
 OPTIONAL = {
     "AI_API_URL": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     "AI_MODEL": "gemini-2.0-flash"
 }
 
 # 已迁移到 config.py 的自定义项（不再从环境变量读取）
-CONFIG_KEYS = ["TO_NAME", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS", "SIGNATURE", "FOOTER", "MAX_RETRIES"]
+CONFIG_KEYS = ["CONTACTS", "SUBJECT_PREFIX", "MIN_DAYS", "MAX_DAYS", "SIGNATURE", "FOOTER", "MAX_RETRIES"]
 
 def test_env():
     logger.info("[TEST] 环境变量...")
@@ -153,6 +153,21 @@ def test_config():
         elif config.MIN_DAYS > config.MAX_DAYS:
             logger.error(f"  ✗ MIN_DAYS({config.MIN_DAYS}) > MAX_DAYS({config.MAX_DAYS})")
             ok = False
+        # CONTACTS 检查
+        if not isinstance(config.CONTACTS, list) or len(config.CONTACTS) == 0:
+            logger.error("  ✗ CONTACTS 必须是非空列表")
+            ok = False
+        else:
+            for c in config.CONTACTS:
+                if "name" not in c or "email_env" not in c:
+                    logger.error(f"  ✗ CONTACTS 条目缺少 name 或 email_env: {c}")
+                    ok = False
+                else:
+                    email_val = os.environ.get(c["email_env"], "")
+                    if email_val:
+                        logger.info(f"  ✓ 联系人 {c['name']} 邮箱已设置 ({c['email_env']})")
+                    else:
+                        logger.warning(f"  ⚠ 联系人 {c['name']} 邮箱未设置 ({c['email_env']})")
     if ok:
         logger.info("[PASS] config.py")
     return ok

@@ -37,7 +37,8 @@ jobs:
         env:
           QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
-          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          CONTACT_EMAIL_1: ${{ secrets.CONTACT_EMAIL_1 }}
+          CONTACT_EMAIL_2: ${{ secrets.CONTACT_EMAIL_2 }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
@@ -65,7 +66,8 @@ jobs:
         env:
           QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
-          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          CONTACT_EMAIL_1: ${{ secrets.CONTACT_EMAIL_1 }}
+          CONTACT_EMAIL_2: ${{ secrets.CONTACT_EMAIL_2 }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
