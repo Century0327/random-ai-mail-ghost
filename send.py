@@ -25,7 +25,7 @@ from email.mime.multipart import MIMEMultipart
 import requests
 from logger import setup_logger
 from config import (
-    CONTACTS as CONTACT_CONFIG, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
+    CONTACTS as CONTACT_CONFIG, PERSONA, SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
     ENABLE_CONVERSATION, CONVERSATION_FILE, FULL_HISTORY_SIZE,
     SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH
 )
@@ -350,7 +350,7 @@ def build_context_prompt(history):
 
 # ============ 多人人设（借鉴 claudeclaw） ============
 def load_persona():
-    """加载人设，支持 personas/ 目录多文件随机选择"""
+    """加载人设：config 指定优先，为空则随机选择"""
     default = "你是一位邮件写作助手，语气亲切自然，像老朋友一样聊天。"
     if not os.path.exists(PERSONAS_DIR):
         logger.info(f"[PERSONA] 目录不存在，使用默认")
@@ -361,7 +361,17 @@ def load_persona():
         logger.info(f"[PERSONA] 目录为空，使用默认")
         return "default", default
 
-    chosen = random.choice(files)
+    # config 指定人设
+    if PERSONA:
+        target = f"{PERSONA}.md"
+        if target in files:
+            chosen = target
+        else:
+            logger.warning(f"[PERSONA] '{PERSONA}' 不存在，随机选择")
+            chosen = random.choice(files)
+    else:
+        chosen = random.choice(files)
+
     path = os.path.join(PERSONAS_DIR, chosen)
     with open(path, "r", encoding="utf-8") as f:
         text = f.read().strip()
