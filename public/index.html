@@ -486,7 +486,13 @@ function api(endpoint, method='GET', body=null) {
   };
   if (body) options.body = JSON.stringify(body);
   return fetch(endpoint, options).then(r => {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (!r.ok) {
+      return r.json().then(data => {
+        throw new Error(data.error || data.message || ('HTTP ' + r.status));
+      }).catch(() => {
+        throw new Error('HTTP ' + r.status);
+      });
+    }
     return r.json();
   });
 }
@@ -697,10 +703,10 @@ function loadConfig() {
     setButtonsDisabled(false);
     const hasCache = personaList.length > 0 || document.getElementById('config-persona').options.length > 1;
     if (hasCache) {
-      showStatus('加载失败，使用本地缓存（修改后点保存即可更新到仓库）', 'warning', false);
+      showStatus('远程加载失败，使用本地缓存。原因: ' + err.message + '。修改后点保存即可更新到仓库。', 'warning', false);
       document.getElementById('repoInfo').textContent = '离线模式（缓存）';
     } else {
-      showStatus('加载失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN / GITHUB_REPO 是否配置正确', 'error', false);
+      showStatus('加载失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN / GITHUB_REPO 是否配置正确。', 'error', false);
       document.getElementById('repoInfo').textContent = '加载失败';
     }
   });
