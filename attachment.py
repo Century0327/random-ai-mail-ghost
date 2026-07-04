@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-附件系统：水彩彩铅风格明信片 + Q版线稿水印
+附件系统：写实风格小猫状态图
 
 触发策略：不是每次都有，只在关键节点生成
 - 首次发信（第1封）
@@ -9,7 +9,7 @@
 - 节日（元旦/情人节/儿童节/圣诞等）
 - 随机彩蛋（15%概率）
 
-图片风格：watercolor and colored pencil, postcard format, soft pastel
+图片风格：realistic photography，写实
 一致性：固定角色特征 + seed，保证是同一只猫
 水印：右下角 Q版线稿 + 日期 + 可选地点
 """
@@ -37,7 +37,7 @@ CHARACTER = (
     "consistent character design, no change in appearance"
 )
 
-# ============ 场景池（水彩彩铅风格，明信片格式）============
+# ============ 场景池（写实风格）============
 # 每行：(场景描述, 地点标注)
 # 描述中避免完整人形，只含局部肢体（hand/finger/knee）
 SCENES = {
@@ -165,30 +165,28 @@ def should_attach(trust_value, letter_num, history=None, user_reply=None):
 # ============ 图片生成 ============
 
 def build_image_prompt(scene_desc, trust_value, location=None):
-    """构建水彩彩铅风格明信片 prompt"""
-    
+    """构建写实风格 prompt"""
+
     style = (
-        "watercolor and colored pencil illustration, postcard format, "
-        "soft pastel colors, gentle brush strokes, hand-drawn feel, "
-        "textured paper background, warm and cozy atmosphere, "
-        "white border around the image"
+        "realistic photography, photo, sharp focus, natural lighting, "
+        "shallow depth of field, bokeh background, "
+        "high detail, professional photography, 50mm lens"
     )
-    
+
     # 地点
     location_str = f", in {location}" if location else ""
-    
+
     # 避免完整人形：只保留局部肢体
     # 如果描述中有"human""person""man""woman"等，替换为局部
     scene = scene_desc.replace("a human ", "a hand ").replace("human ", "a hand ")
-    
+
     prompt = (
         f"{style}, {CHARACTER}, {scene}{location_str}, "
         f"the cat is the only main subject, "
         f"no full human figure visible, "
-        f"only partial body parts like hands or legs may appear, "
-        f"postcard layout with decorative border"
+        f"only partial body parts like hands or legs may appear"
     )
-    
+
     return prompt
 
 
@@ -426,145 +424,3 @@ def build_attachment_preview_html(attachment):
 </table>
 """
     return preview_html.strip()
-# -*- coding:# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格：realistic photography，写实
-一致性：固定# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格：realistic photography，写实
-一致性：固定角色特征 + seed，保证是同一只猫
-"""
-
-import os
-import json
-import random
-import requests
-from datetime import datetime
-from# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格：realistic photography，写实
-一致性：固定角色特征 + seed，保证是同一只猫
-"""
-
-import os
-import json
-import random
-import requests
-from datetime import datetime
-from logger import setup_logger
-
-logger = setup_logger("attachment")
-
-STATE_FILE = "state.json"
-
-## -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格：realistic photography，写实
-一致性：固定角色特征 + seed，保证是同一只猫
-"""
-
-import os
-import json
-import random
-import requests
-from datetime import datetime
-from logger import setup_logger
-
-logger = setup_logger("attachment")
-
-STATE_FILE = "state.json"
-
-# ============ 固定角色特征（确保同一只猫）============
-CHARACTER = (
-    "same consistent small orange tabby kitten with dark tiger stripes, "
-    "white chest fur, pink# -*- coding: utf-8 -*-
-"""
-附件系统：写实风格小猫状态图
-
-触发策略：不是每次都有，只在关键节点生成
-- 首次发信（第1封）
-- 信任等级跃迁（跨越20/40/60/80）
-- 用户互动（回复含摸/抱/喂/粮/水/吃）
-- 节日（元旦/情人节/儿童节/圣诞等）
-- 随机彩蛋（15%概率）
-
-图片风格：realistic photography，写实
-一致性：固定角色特征 + seed，保证是同一只猫
-"""
-
-import os
-import json
-import random
-import requests
-from datetime import datetime
-from logger import setup_logger
-
-logger = setup_logger("attachment")
-
-STATE_FILE = "state.json"
-
-# ============ 固定角色特征（确保同一只猫）============
-CHARACTER = (
-    "same consistent small orange tabby kitten with dark tiger stripes, "
-    "white chest fur, pink nose, large round amber eyes, "
-    "3 months old, same cat across all images, "
-    "consistent character design, no change in appearance"
-)
-
-# ============ 场景池（写实风格）============
-# 每行：(场景描述, 地点标注)
-# 描述中避免完整人形，只含局部肢体
