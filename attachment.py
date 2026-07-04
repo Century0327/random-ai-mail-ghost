@@ -426,3 +426,145 @@ def build_attachment_preview_html(attachment):
 </table>
 """
     return preview_html.strip()
+# -*- coding:# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：realistic photography，写实
+一致性：固定# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：realistic photography，写实
+一致性：固定角色特征 + seed，保证是同一只猫
+"""
+
+import os
+import json
+import random
+import requests
+from datetime import datetime
+from# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：realistic photography，写实
+一致性：固定角色特征 + seed，保证是同一只猫
+"""
+
+import os
+import json
+import random
+import requests
+from datetime import datetime
+from logger import setup_logger
+
+logger = setup_logger("attachment")
+
+STATE_FILE = "state.json"
+
+## -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：realistic photography，写实
+一致性：固定角色特征 + seed，保证是同一只猫
+"""
+
+import os
+import json
+import random
+import requests
+from datetime import datetime
+from logger import setup_logger
+
+logger = setup_logger("attachment")
+
+STATE_FILE = "state.json"
+
+# ============ 固定角色特征（确保同一只猫）============
+CHARACTER = (
+    "same consistent small orange tabby kitten with dark tiger stripes, "
+    "white chest fur, pink# -*- coding: utf-8 -*-
+"""
+附件系统：写实风格小猫状态图
+
+触发策略：不是每次都有，只在关键节点生成
+- 首次发信（第1封）
+- 信任等级跃迁（跨越20/40/60/80）
+- 用户互动（回复含摸/抱/喂/粮/水/吃）
+- 节日（元旦/情人节/儿童节/圣诞等）
+- 随机彩蛋（15%概率）
+
+图片风格：realistic photography，写实
+一致性：固定角色特征 + seed，保证是同一只猫
+"""
+
+import os
+import json
+import random
+import requests
+from datetime import datetime
+from logger import setup_logger
+
+logger = setup_logger("attachment")
+
+STATE_FILE = "state.json"
+
+# ============ 固定角色特征（确保同一只猫）============
+CHARACTER = (
+    "same consistent small orange tabby kitten with dark tiger stripes, "
+    "white chest fur, pink nose, large round amber eyes, "
+    "3 months old, same cat across all images, "
+    "consistent character design, no change in appearance"
+)
+
+# ============ 场景池（写实风格）============
+# 每行：(场景描述, 地点标注)
+# 描述中避免完整人形，只含局部肢体
