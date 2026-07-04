@@ -450,6 +450,18 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
 </div>
 
 <script>
+// 全局错误捕获：JS报错时在页面上显示
+window.onerror = function(msg, url, line, col, error) {
+  try {
+    var bar = document.getElementById('statusBar');
+    if (bar) {
+      bar.className = 'status-bar error';
+      bar.innerHTML = '<span class="status-icon">❌</span>JS 错误: ' + msg + ' (行 ' + line + ')';
+    }
+  } catch(e) {}
+  return false;
+};
+
 const STORAGE_KEY = 'ghostmail_config_cache';
 
 let personaList = [];
@@ -799,6 +811,7 @@ function switchScheduleMode(mode, btn) {
 }
 
 // 初始化：先读缓存，再拉远程
+showStatus('页面已加载，正在初始化...', 'info', false);
 applyConfig(defaultConfig);
 fillPersonaSelect(['kitty', 'maodie']);
 fillTemplateSelect(['default', 'cat', 'dark']);
