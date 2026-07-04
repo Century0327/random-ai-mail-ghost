@@ -1,11 +1,10 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/app.py", "use": "@vercel/python" }
+    { "src": "app.py", "use": "@vercel/python" }
   ],
   "routes": [
-    { "src": "/api/config", "dest": "/api/app.py" },
-    { "src": "/api/dispatch", "dest": "/api/app.py" }
+    { "src": "/api/(.*)", "dest": "app.py" }
   ],
   "cleanUrls": true
 }
