@@ -635,22 +635,32 @@ def render_template(text):
 
 
 # ============ AI 客户端（借鉴 ajaycc17 指数退避重试） ============
-def call_ai(prompt, persona_text, max_retries=MAX_RETRIES):
+def call_ai(prompt, persona_text, max_retries=MAX_RETRIES, persona_name=None):
     headers = {
         "Authorization": f"Bearer {AI_API_KEY}",
         "Content-Type": "application/json"
     }
+
+    # kitty 人设是纯猫叫+括号动作格式，不能强加 HTML/换行 等通用要求
+    # 否则小模型会混淆，输出人类词汇
+    if persona_name == "kitty":
+        system_content = (
+            f"{persona_text}\n\n"
+            "【输出要求】严格按上述格式输出，只能包含猫叫声和中文括号动作。"
+            "严禁出现任何人类语言词汇、完整句子、人称代词、HTML标签、markdown。"
+            "每行一个动作或猫叫，用换行符分隔。不要解释，不要主题。"
+        )
+    else:
+        system_content = (
+            f"{persona_text}\n\n"
+            "【格式要求】只输出邮件正文（HTML格式，用<br>换行），"
+            "不要输出主题、不要解释、不要markdown代码块。"
+        )
+
     payload = {
         "model": AI_MODEL,
         "messages": [
-            {
-                "role": "system",
-                "content": (
-                    f"{persona_text}\n\n"
-                    "【格式要求】只输出邮件正文（HTML格式，用<br>换行），"
-                    "不要输出主题、不要解释、不要markdown代码块。"
-                )
-            },
+            {"role": "system", "content": system_content},
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.85,
