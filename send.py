@@ -932,14 +932,31 @@ def generate_email():
             f"{relation_prompt}"
         )
 
-    body = call_ai(body_prompt, persona_text)
+    body = call_ai(body_prompt, persona_text, persona_name=persona_name)
     source = "ai"
+
+    # kitty 专用后处理：换行转 <br>（因为kitty人设下AI输出的是纯换行，不是HTML）
+    if body and persona_name == "kitty":
+        body = body.replace("\n", "<br>")
 
     # 内容质量检查（防止小模型生成占位符等严重问题）
     _bad_patterns = [
         "XX", "xxx", "某某", "某城市",  # 占位符
         "笑到合不拢嘴", "绝绝子", "yyds", "爆炸好看",  # 过度夸张的网络用语
     ]
+
+    # kitty 专用人类词汇黑名单：出现任何一个就降级到 fallback
+    # 注意：排除猫叫本身（咪/喵/呜/嗯/呼噜/哈）
+    _kitty_human_words = [
+        "你好", "谢谢", "今天", "明天", "昨天", "我", "你", "他", "她",
+        "们", "是", "的", "了", "吗", "呢", "啊", "吧", "哦",
+        "不", "有", "在", "和", "就", "都", "要", "会", "可以", "知道",
+        "感觉", "觉得", "想", "说",
+        "开心", "难过", "害怕", "喜欢", "讨厌",
+        "大家好", "亲爱的", "尊敬的", "祝好", "此致", "敬礼",
+        "大家", "朋友", "主人", "铲屎官",
+    ]
+
     _content_bad = False
     if body:
         for pat in _bad_patterns:
@@ -947,11 +964,23 @@ def generate_email():
                 _content_bad = True
                 logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
                 break
-        # 长度检查（耄耋人设特殊放宽）
+        # kitty 额外检查：是否有人类词汇
+        if not _content_bad and persona_name == "kitty":
+            for hw in _kitty_human_words:
+                if hw in body:
+                    _content_bad = True
+                    logger.warning(f"[SAFETY] kitty人设检测到人类词汇: {hw}")
+                    break
+        # 长度检查
         if persona_name == "maodie":
             if len(body) < 10 or len(body) > 800:
                 _content_bad = True
                 logger.warning(f"[SAFETY] 耄耋内容长度异常: {len(body)}")
+        elif persona_name == "kitty":
+            # kitty 很短，5-300字都正常
+            if len(body) < 3 or len(body) > 300:
+                _content_bad = True
+                logger.warning(f"[SAFETY] kitty内容长度异常: {len(body)}")
         else:
             if len(body) < 30 or len(body) > 500:
                 _content_bad = True
