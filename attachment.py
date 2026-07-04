@@ -200,8 +200,8 @@ def generate_image(prompt, trust_level_str, scene_idx, seed_base=32727):
     seed = seed_base + level_num * 1000 + scene_idx * 100
     
     encoded = requests.utils.quote(prompt, safe="")
-    # 明信片横版 600x400
-    url = f"https://image.pollinations.ai/prompt/{encoded}?width=600&height=400&seed={seed}&nologo=true"
+    # 正方形 512x512，避免猫被压扁
+    url = f"https://image.pollinations.ai/prompt/{encoded}?width=512&height=512&seed={seed}&nologo=true"
     
     try:
         logger.info(f"[ATTACHMENT] 生成图片... (seed={seed})")
