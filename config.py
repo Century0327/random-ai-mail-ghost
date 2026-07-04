@@ -26,7 +26,6 @@ EMAIL_TEMPLATE = "cat"
 # 邮件会发送给所有联系人，AI 会区分不同人的回复
 CONTACTS = [
     {"name": "小令狐", "email_env": "TO_EMAIL_1"},
-    {"name": "鼠鼠",   "email_env": "TO_EMAIL_2"},
 ]
 
 # ============ 标题（邮件主题） ============
@@ -40,11 +39,11 @@ MAX_DAYS = 3
 
 # ============ 署名（邮件正文结尾） ============
 # 为空时不署名；如果必须占位，用 "Ghost"
-SIGNATURE = ""
+SIGNATURE = "喵"
 
 # ============ 页脚（邮件末尾标识） ============
 # 显示在邮件正文下方，支持 HTML 链接
-FOOTER = "<a href=\"https://github.com/Century0327/random-ai-mail-ghost\" style=\"color:#999; text-decoration:none;\">— From Ghost Mail</a>"
+FOOTER = "<a href=\\"https://github.com/Century0327/random-ai-mail-ghost\\" style=\\"color:#999; text-decoration:none;\\">— From Ghost Mail</a>"
 
 # ============ API 重试配置 ============
 # AI API 调用失败后的重试次数
