@@ -4,6 +4,24 @@ on:
   schedule:
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      force_send:
+        description: '强制发送（忽略调度检查）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      attachment_mode:
+        description: '附件模式'
+        required: false
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - force_on
+          - force_off
 
 jobs:
   send:
@@ -43,13 +61,15 @@ jobs:
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
           CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
-        run: python send.py
+          FORCE_SEND: ${{ inputs.force_send || 'false' }}
+          ATTACHMENT_MODE: ${{ inputs.attachment_mode || 'normal' }}
+        run: python main.py
 
       - name: Commit state & history
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state.json history.json
-          if [ -f conversation.enc ]; then git add conversation.enc; fi
+          git add state.json history.json 2>/dev/null || true
+          git add conversation_*.enc 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore: update state & history [skip ci]"
           git push

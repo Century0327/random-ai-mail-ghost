@@ -1,2 +1,7 @@
 __pycache__/
 *.pyc
+state.json
+history.json
+conversation*.enc
+assets/
+*.log

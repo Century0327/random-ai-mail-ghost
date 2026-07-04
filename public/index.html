@@ -3,598 +3,646 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ghost Mail Dashboard</title>
+<title>Ghost Mail 控制台</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-:root {
-    --bg: #000000;
-    --card: #0a0a0a;
-    --border: #262626;
-    --text: #ffffff;
-    --text-secondary: #a3a3a3;
-    --accent: #10a37f;
-    --accent-hover: #1a7f64;
-    --danger: #ef4444;
-}
-@font-face {
-    font-family: 'Inter';
-    src: local('Inter'), local('Helvetica Neue'), local('Arial');
-}
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: #f6f8fa;
+  color: #24292f;
+  padding: 20px;
 }
-.nav {
-    border-bottom: 1px solid var(--border);
-    padding: 16px 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 100;
+.container { max-width: 1100px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
 }
-.nav-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 18px;
-    font-weight: 600;
+header h1 { font-size: 22px; font-weight: 600; }
+header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
 }
-.nav-brand svg {
-    width: 24px;
-    height: 24px;
-    fill: var(--text);
+.stat-card {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 16px;
 }
-.nav-links {
-    display: flex;
-    gap: 24px;
-    font-size: 14px;
+.stat-card .label { font-size: 12px; color: #656d76; margin-bottom: 6px; }
+.stat-card .value { font-size: 20px; font-weight: 600; }
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
-.nav-links a {
-    color: var(--text-secondary);
-    text-decoration: none;
+.panel {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: move;
 }
-.nav-links a:hover {
-    color: var(--text);
+.panel-header {
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.nav-actions {
-    display: flex;
-    gap: 12px;
+.panel-body { padding: 16px; }
+
+.form-group {
+  margin-bottom: 14px;
 }
+.form-group:last-child { margin-bottom: 0; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #24292f;
+}
+.form-group .hint {
+  font-size: 12px;
+  color: #656d76;
+  margin-top: 4px;
+}
+
+select, input[type="text"], input[type="number"], textarea {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #24292f;
+  outline: none;
+  transition: border-color 0.15s;
+}
+select:focus, input:focus, textarea:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+}
+textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size: 13px; }
+
+.row { display: flex; gap: 10px; }
+.row .form-group { flex: 1; }
+
 .btn {
-    padding: 10px 20px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    background: transparent;
-    color: var(--text);
-    transition: all 0.15s;
-}
-.btn:hover {
-    background: var(--card);
-    border-color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
+  background: #2da44e;
+  border-color: rgba(27, 31, 36, 0.15);
+  color: #fff;
 }
-.btn-primary:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+.btn-primary:hover { background: #2c974b; }
+.btn-secondary {
+  background: #f6f8fa;
+  border-color: rgba(27, 31, 36, 0.15);
+  color: #24292f;
 }
-.btn-sm {
-    padding: 6px 12px;
-    font-size: 13px;
+.btn-secondary:hover { background: #f3f4f6; }
+.btn-danger {
+  background: #f6f8fa;
+  border-color: rgba(27, 31, 36, 0.15);
+  color: #cf222e;
 }
-.main {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 48px 32px;
+.btn-danger:hover { background: #ffebe9; border-color: #ff8182; }
+
+.actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
-.section {
-    margin-bottom: 48px;
+
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
 }
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 20px;
+.toggle-switch input { display: none; }
+.toggle-slider {
+  width: 36px;
+  height: 20px;
+  background: #d0d7de;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.2s;
 }
-.section-title {
-    font-size: 24px;
-    font-weight: 600;
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
 }
-.section-desc {
-    font-size: 14px;
-    color: var(--text-secondary);
+.toggle-switch input:checked + .toggle-slider { background: #2da44e; }
+.toggle-switch input:checked + .toggle-slider::after { left: 18px; }
+
+.contact-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.grid {
-    display: grid;
-    gap: 16px;
+.contact-item input { flex: 1; }
+.contact-item .remove-btn {
+  padding: 6px 10px;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #cf222e;
 }
-.grid-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #d0d7de;
+  margin-bottom: 14px;
+}
+.tab-bar button {
+  padding: 8px 14px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: #656d76;
+}
+.tab-bar button.active {
+  color: #0969da;
+  border-bottom-color: #0969da;
+  font-weight: 500;
+}
+
+.status-bar {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: none;
+}
+.status-bar.success {
+  background: #dafbe1;
+  color: #1a7f37;
+  border: 1px solid #2da44e;
+  display: block;
+}
+.status-bar.error {
+  background: #ffebe9;
+  color: #cf222e;
+  border: 1px solid #ff8182;
+  display: block;
+}
+.status-bar.info {
+  background: #ddf4ff;
+  color: #0969da;
+  border: 1px solid #54aeff;
+  display: block;
+}
+
 @media (max-width: 768px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .panels { grid-template-columns: 1fr; }
+  .dashboard { grid-template-columns: 1fr; }
 }
-.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-}
-.card-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.card-title svg {
-    width: 16px;
-    height: 16px;
-    fill: var(--text-secondary);
-}
-.field {
-    margin-bottom: 16px;
-}
-.field:last-child { margin-bottom: 0; }
-.field-label {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    display: block;
-}
-.field-input {
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-size: 14px;
-    font-family: inherit;
-}
-.field-input:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-.field-input::placeholder {
-    color: var(--text-secondary);
-}
-.field-hint {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: 4px;
-}
-.field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-select.field-input {
-    cursor: pointer;
-}
-textarea.field-input {
-    resize: vertical;
-    min-height: 80px;
-}
-.checkbox-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-}
-.checkbox-wrap input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
-}
-.checkbox-wrap span {
-    font-size: 14px;
-}
-.contact-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.contact-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 8px;
-    align-items: center;
-}
-.contact-remove {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.contact-remove:hover {
-    color: var(--danger);
-    border-color: var(--danger);
-}
-.contact-add {
-    padding: 10px;
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 14px;
-    text-align: center;
-}
-.contact-add:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-.preview-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-    font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 12px;
-    color: var(--text-secondary);
-    overflow-x: auto;
-    white-space: pre;
-}
-.status-toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 14px;
-    display: none;
-    z-index: 1000;
-}
-.status-toast.success { border-color: var(--accent); color: var(--accent); }
-.status-toast.error { border-color: var(--danger); color: var(--danger); }
-.status-toast.show { display: block; }
-.drag-handle {
-    cursor: grab;
-    color: var(--text-secondary);
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-.drag-handle:hover { background: var(--border); }
-.card[draggable="true"] { cursor: grab; }
-.card.dragging { opacity: 0.5; }
-.card.over { border-color: var(--accent); }
 </style>
 </head>
 <body>
-<nav class="nav">
-    <div class="nav-brand">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2a4 4 0 0 0 0 8 4 4 0 0 0 0-8" fill="currentColor"/></svg>
-        Ghost Mail
+<div class="container">
+  <header>
+    <div>
+      <h1>📬 Ghost Mail 控制台</h1>
+      <div class="subtitle" id="repoInfo">加载中...</div>
     </div>
-    <div class="nav-links">
-        <a href="https://github.com/Century0327/random-ai-mail-ghost">GitHub</a>
-        <a href="#docs">Docs</a>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-secondary" onclick="loadConfig()">🔄 刷新</button>
+      <button class="btn btn-primary" onclick="testSend()">🚀 立即发送</button>
     </div>
-    <div class="nav-actions">
-        <button class="btn btn-sm" onclick="loadConfig()">Refresh</button>
-        <button class="btn btn-sm btn-primary" onclick="saveConfig()">Save</button>
+  </header>
+
+  <div class="dashboard">
+    <div class="stat-card">
+      <div class="label">当前人设</div>
+      <div class="value" id="statPersona">--</div>
     </div>
-</nav>
+    <div class="stat-card">
+      <div class="label">邮件模板</div>
+      <div class="value" id="statTemplate">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">联系人</div>
+      <div class="value" id="statContacts">--</div>
+    </div>
+  </div>
 
-<main class="main">
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Persona</h2>
-            <span class="section-desc">Select active persona and email template</span>
+  <div class="panels" id="panels">
+    <div class="panel" draggable="true">
+      <div class="panel-header">⚙️ 基础设置</div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>人设</label>
+          <select id="config-persona"></select>
+          <div class="hint">选择邮件人设风格</div>
         </div>
-        <div class="grid grid-2">
-            <div class="card" draggable="true">
-                <div class="card-title">
-                    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
-                    Active Persona
-                    <span class="drag-handle" style="margin-left:auto">⋮⋮</span>
-                </div>
-                <div class="field">
-                    <label class="field-label">Persona Name</label>
-                    <select class="field-input" id="persona">
-                        <option value="default">default — 温柔</option>
-                        <option value="maodie">maodie — 耄耋</option>
-                    </select>
-                    <div class="field-hint">personas/*.md 文件名</div>
-                </div>
-            </div>
-            <div class="card" draggable="true">
-                <div class="card-title">
-                    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>
-                    Email Template
-                    <span class="drag-handle" style="margin-left:auto">⋮⋮</span>
-                </div>
-                <div class="field">
-                    <label class="field-label">Template</label>
-                    <select class="field-input" id="template">
-                        <option value="">default — 内置</option>
-                        <option value="cat">cat — 猫猫</option>
-                        <option value="dark">dark — 深色</option>
-                    </select>
-                    <div class="field-hint">templates/*.html 文件名</div>
-                </div>
-            </div>
+        <div class="form-group">
+          <label>邮件模板</label>
+          <select id="config-template"></select>
+          <div class="hint">HTML 邮件样式</div>
         </div>
-    </section>
+        <div class="form-group">
+          <label>主题前缀</label>
+          <input type="text" id="config-subject" placeholder="【猫猫来信】">
+        </div>
+        <div class="form-group">
+          <label>署名</label>
+          <input type="text" id="config-signature" placeholder="留空则不署名">
+        </div>
+        <div class="form-group">
+          <label>附件水印地点</label>
+          <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示">
+        </div>
+      </div>
+    </div>
 
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Contacts</h2>
-            <span class="section-desc">Recipients configuration</span>
+    <div class="panel" draggable="true">
+      <div class="panel-header">⏰ 发送计划</div>
+      <div class="panel-body">
+        <div class="tab-bar">
+          <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
+          <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
         </div>
-        <div class="card" draggable="true">
-            <div class="card-title">
-                <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><path d="M0 14c0-2 2-4 4-4s4 2 4 4"/><path d="M8 14c0-2 2-4 4-4s4 2 4 4"/></svg>
-                Recipients
-                <span class="drag-handle" style="margin-left:auto">⋮⋮</span>
+        <div id="schedule-random">
+          <div class="row">
+            <div class="form-group">
+              <label>最少间隔（天）</label>
+              <input type="number" id="config-min-days" min="0" max="30">
             </div>
-            <div class="contact-list" id="contacts">
-                <div class="contact-row">
-                    <input class="field-input" type="text" placeholder="Name" value="小令狐">
-                    <input class="field-input" type="text" placeholder="Secret key" value="TO_EMAIL_1">
-                    <button class="contact-remove" onclick="removeContact(this)">×</button>
-                </div>
-                <div class="contact-row">
-                    <input class="field-input" type="text" placeholder="Name" value="鼠鼠">
-                    <input class="field-input" type="text" placeholder="Secret key" value="TO_EMAIL_2">
-                    <button class="contact-remove" onclick="removeContact(this)">×</button>
-                </div>
+            <div class="form-group">
+              <label>最大间隔（天）</label>
+              <input type="number" id="config-max-days" min="0" max="30">
             </div>
-            <button class="contact-add" onclick="addContact()">+ Add Contact</button>
-            <div class="field-hint">邮箱地址在 GitHub Secrets 配置（如 TO_EMAIL_1=xxx@qq.com）</div>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Email Settings</h2>
-            <span class="section-desc">Subject, signature and footer</span>
-        </div>
-        <div class="grid grid-3">
-            <div class="card">
-                <div class="card-title">Subject Prefix</div>
-                <input class="field-input" type="text" id="subject" value="【耄耋来信】">
-            </div>
-            <div class="card">
-                <div class="card-title">Signature</div>
-                <input class="field-input" type="text" id="signature" value="耄耋">
-                <div class="field-hint">署名，为空则不显示</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Footer</div>
-                <input class="field-input" type="text" id="footer" value="— From Ghost Mail">
-            </div>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Schedule</h2>
-            <span class="section-desc">Send interval and retries</span>
-        </div>
-        <div class="grid grid-3">
-            <div class="card">
-                <div class="card-title">Min Days</div>
-                <input class="field-input" type="number" id="minDays" value="0" min="0">
-            </div>
-            <div class="card">
-                <div class="card-title">Max Days</div>
-                <input class="field-input" type="number" id="maxDays" value="3" min="0">
-            </div>
-            <div class="card">
-                <div class="card-title">Retries</div>
-                <input class="field-input" type="number" id="retries" value="2" min="0">
-            </div>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Conversation Memory</h2>
-            <span class="section-desc">Continuous dialogue with encrypted history</span>
-        </div>
-        <div class="card">
-            <label class="checkbox-wrap">
-                <input type="checkbox" id="enableConv" checked>
-                <span>Enable continuous conversation</span>
+          </div>
+          <div class="form-group">
+            <label>附件模式</label>
+            <select id="config-attachment-mode">
+              <option value="normal">正常（按触发策略）</option>
+              <option value="force_on">强制有附件</option>
+              <option value="force_off">强制无附件</option>
+            </select>
+            <div class="hint">测试时可临时覆盖</div>
+          </div>
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="config-conversation">
+              <span class="toggle-slider"></span>
+              <span>连续对话（记住历史）</span>
             </label>
-            <div class="grid grid-2" style="margin-top:16px">
-                <div class="field">
-                    <label class="field-label">History File</label>
-                    <input class="field-input" type="text" id="convFile" value="conversation.enc">
-                </div>
-                <div class="field">
-                    <label class="field-label">Full History Size</label>
-                    <input class="field-input" type="number" id="fullSize" value="1">
-                </div>
+          </div>
+        </div>
+        <div id="schedule-fixed" style="display:none;">
+          <div class="form-group">
+            <label>指定日期</label>
+            <input type="date" id="config-fixed-date">
+          </div>
+          <div class="row">
+            <div class="form-group">
+              <label>时</label>
+              <input type="number" id="config-fixed-hour" min="0" max="23" value="0">
             </div>
-            <div class="grid grid-2" style="margin-top:12px">
-                <div class="field">
-                    <label class="field-label">Summary Trigger</label>
-                    <input class="field-input" type="number" id="summaryTrigger" value="5">
-                </div>
-                <div class="field">
-                    <label class="field-label">Summary Max Length</label>
-                    <input class="field-input" type="number" id="summaryMax" value="200">
-                </div>
+            <div class="form-group">
+              <label>分</label>
+              <input type="number" id="config-fixed-minute" min="0" max="59" value="0">
             </div>
+            <div class="form-group">
+              <label>秒</label>
+              <input type="number" id="config-fixed-second" min="0" max="59" value="0">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="hint">⚠️ 精确时间模式下，修改后点击「保存并部署」会设置下一次发送的精确时间。此功能配合 GitHub Actions cron 使用，时间为 UTC。</div>
+          </div>
         </div>
-    </section>
+      </div>
+    </div>
 
-    <section class="section">
-        <div class="section-header">
-            <h2 class="section-title">Config Preview</h2>
-            <span class="section-desc">Generated config.py content</span>
+    <div class="panel" draggable="true">
+      <div class="panel-header">👥 联系人</div>
+      <div class="panel-body">
+        <div id="contacts-list"></div>
+        <button class="btn btn-secondary" style="width:100%; margin-top:8px; justify-content:center;" onclick="addContact()">+ 添加联系人</button>
+        <div class="form-group" style="margin-top:12px;">
+          <label>页脚</label>
+          <textarea id="config-footer"></textarea>
         </div>
-        <div class="card">
-            <div class="preview-box" id="preview"></div>
-        </div>
-    </section>
-</main>
+      </div>
+    </div>
 
-<div class="status-toast" id="toast"></div>
+    <div class="panel" draggable="true">
+      <div class="panel-header">🔧 高级设置</div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>API 重试次数</label>
+          <input type="number" id="config-retries" min="0" max="5">
+        </div>
+        <div class="form-group">
+          <label>完整历史保留轮数</label>
+          <input type="number" id="config-history-size" min="1" max="20">
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>摘要触发阈值</label>
+            <input type="number" id="config-summary-trigger" min="2" max="20">
+          </div>
+          <div class="form-group">
+            <label>摘要最大长度</label>
+            <input type="number" id="config-summary-length" min="50" max="500">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="loadConfig()">重置</button>
+    <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
+    <button class="btn btn-primary" onclick="saveAndTest()">💾 保存并立即发送</button>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+</div>
 
 <script>
-function addContact() {
-    const list = document.getElementById('contacts');
-    const row = document.createElement('div');
-    row.className = 'contact-row';
-    row.innerHTML = `
-        <input class="field-input" type="text" placeholder="Name">
-        <input class="field-input" type="text" placeholder="Secret key" value="TO_EMAIL_${list.children.length + 1}">
-        <button class="contact-remove" onclick="removeContact(this)">×</button>
+let currentConfig = null;
+let personaList = [];
+let templateList = [];
+let scheduleMode = 'random';
+
+function api(endpoint, method='GET', body=null) {
+  const options = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) options.body = JSON.stringify(body);
+  return fetch(`/api${endpoint}`, options).then(r => r.json());
+}
+
+function showStatus(msg, type='info') {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + type;
+  bar.textContent = msg;
+  setTimeout(() => { bar.style.display = 'none'; }, 5000);
+}
+
+function loadConfig() {
+  showStatus('加载中...', 'info');
+  api('/config').then(data => {
+    if (data.error) {
+      showStatus('加载失败: ' + data.error, 'error');
+      return;
+    }
+    currentConfig = data.config;
+    personaList = data.personas;
+    templateList = data.templates;
+
+    document.getElementById('repoInfo').textContent = `${data.repo} · ${data.branch}`;
+
+    const personaSelect = document.getElementById('config-persona');
+    personaSelect.innerHTML = '';
+    personaList.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      personaSelect.appendChild(opt);
+    });
+    personaSelect.value = data.config.PERSONA || '';
+
+    const templateSelect = document.getElementById('config-template');
+    templateSelect.innerHTML = '';
+    templateList.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      templateSelect.appendChild(opt);
+    });
+    templateSelect.value = data.config.EMAIL_TEMPLATE || '';
+
+    document.getElementById('config-subject').value = data.config.SUBJECT_PREFIX || '';
+    document.getElementById('config-signature').value = data.config.SIGNATURE || '';
+    document.getElementById('config-location').value = data.config.ATTACHMENT_LOCATION || '';
+    document.getElementById('config-min-days').value = data.config.MIN_DAYS || 0;
+    document.getElementById('config-max-days').value = data.config.MAX_DAYS || 3;
+    document.getElementById('config-conversation').checked = data.config.ENABLE_CONVERSATION;
+    document.getElementById('config-retries').value = data.config.MAX_RETRIES || 2;
+    document.getElementById('config-history-size').value = data.config.FULL_HISTORY_SIZE || 3;
+    document.getElementById('config-summary-trigger').value = data.config.SUMMARY_TRIGGER || 5;
+    document.getElementById('config-summary-length').value = data.config.SUMMARY_MAX_LENGTH || 200;
+    document.getElementById('config-footer').value = data.config.FOOTER || '';
+
+    renderContacts(data.config.CONTACTS || []);
+    updateStats();
+    showStatus('配置已加载', 'success');
+  }).catch(err => {
+    showStatus('加载失败: ' + err.message, 'error');
+  });
+}
+
+function renderContacts(contacts) {
+  const list = document.getElementById('contacts-list');
+  list.innerHTML = '';
+  contacts.forEach((c, i) => {
+    const item = document.createElement('div');
+    item.className = 'contact-item';
+    item.innerHTML = `
+      <input type="text" placeholder="称呼" value="${c.name || ''}" data-idx="${i}" data-field="name">
+      <input type="text" placeholder="环境变量名" value="${c.email_env || ''}" data-idx="${i}" data-field="email_env">
+      <button class="remove-btn" onclick="removeContact(${i})">✕</button>
     `;
-    list.appendChild(row);
-    updatePreview();
+    list.appendChild(item);
+  });
 }
 
-function removeContact(btn) {
-    const list = document.getElementById('contacts');
-    if (list.children.length > 1) {
-        btn.parentElement.remove();
-        updatePreview();
+function addContact() {
+  const contacts = getContactsFromUI();
+  contacts.push({ name: '', email_env: 'TO_EMAIL_' + (contacts.length + 1) });
+  renderContacts(contacts);
+  updateStats();
+}
+
+function removeContact(idx) {
+  const contacts = getContactsFromUI();
+  contacts.splice(idx, 1);
+  renderContacts(contacts);
+  updateStats();
+}
+
+function getContactsFromUI() {
+  const items = document.querySelectorAll('.contact-item');
+  const contacts = [];
+  items.forEach(item => {
+    const name = item.querySelector('[data-field="name"]').value.trim();
+    const email_env = item.querySelector('[data-field="email_env"]').value.trim();
+    if (name && email_env) {
+      contacts.push({ name, email_env });
+    }
+  });
+  return contacts;
+}
+
+function updateStats() {
+  document.getElementById('statPersona').textContent = document.getElementById('config-persona').value || '--';
+  document.getElementById('statTemplate').textContent = document.getElementById('config-template').value || '--';
+  document.getElementById('statContacts').textContent = getContactsFromUI().length + ' 人';
+}
+
+function collectConfig() {
+  return {
+    PERSONA: document.getElementById('config-persona').value,
+    EMAIL_TEMPLATE: document.getElementById('config-template').value,
+    SUBJECT_PREFIX: document.getElementById('config-subject').value,
+    SIGNATURE: document.getElementById('config-signature').value,
+    ATTACHMENT_LOCATION: document.getElementById('config-location').value,
+    MIN_DAYS: parseInt(document.getElementById('config-min-days').value) || 0,
+    MAX_DAYS: parseInt(document.getElementById('config-max-days').value) || 3,
+    ENABLE_CONVERSATION: document.getElementById('config-conversation').checked,
+    MAX_RETRIES: parseInt(document.getElementById('config-retries').value) || 2,
+    FULL_HISTORY_SIZE: parseInt(document.getElementById('config-history-size').value) || 3,
+    SUMMARY_TRIGGER: parseInt(document.getElementById('config-summary-trigger').value) || 5,
+    SUMMARY_MAX_LENGTH: parseInt(document.getElementById('config-summary-length').value) || 200,
+    FOOTER: document.getElementById('config-footer').value,
+    CONTACTS: getContactsFromUI(),
+  };
+}
+
+function saveConfig() {
+  const config = collectConfig();
+  showStatus('保存中...', 'info');
+  api('/config', 'POST', { config }).then(data => {
+    if (data.error) {
+      showStatus('保存失败: ' + data.error, 'error');
     } else {
-        toast('至少保留一个联系人', 'error');
+      showStatus('配置已保存到仓库 ✓', 'success');
+      updateStats();
     }
+  }).catch(err => {
+    showStatus('保存失败: ' + err.message, 'error');
+  });
 }
 
-function collect() {
-    const contacts = [];
-    document.querySelectorAll('.contact-row').forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs[0].value && inputs[1].value) {
-            contacts.push({ name: inputs[0].value, email_env: inputs[1].value });
+function testSend() {
+  const attachmentMode = document.getElementById('config-attachment-mode').value;
+  showStatus('正在触发发送...', 'info');
+  api('/dispatch', 'POST', {
+    inputs: {
+      force_send: 'true',
+      attachment_mode: attachmentMode,
+    }
+  }).then(data => {
+    if (data.error) {
+      showStatus('触发失败: ' + data.error, 'error');
+    } else {
+      showStatus('已触发！约1-2分钟后收到邮件 ✓', 'success');
+    }
+  }).catch(err => {
+    showStatus('触发失败: ' + err.message, 'error');
+  });
+}
+
+function saveAndTest() {
+  const config = collectConfig();
+  const attachmentMode = document.getElementById('config-attachment-mode').value;
+  showStatus('保存并触发中...', 'info');
+  api('/config', 'POST', { config }).then(data => {
+    if (data.error) {
+      showStatus('保存失败: ' + data.error, 'error');
+      return;
+    }
+    setTimeout(() => {
+      api('/dispatch', 'POST', {
+        inputs: {
+          force_send: 'true',
+          attachment_mode: attachmentMode,
         }
-    });
-    return {
-        PERSONA: document.getElementById('persona').value,
-        EMAIL_TEMPLATE: document.getElementById('template').value,
-        CONTACTS: contacts,
-        SUBJECT_PREFIX: document.getElementById('subject').value,
-        SIGNATURE: document.getElementById('signature').value,
-        FOOTER: `<a href="https://github.com/Century0327/random-ai-mail-ghost" style="color:#999;text-decoration:none">${document.getElementById('footer').value}</a>`,
-        MIN_DAYS: parseInt(document.getElementById('minDays').value) || 0,
-        MAX_DAYS: parseInt(document.getElementById('maxDays').value) || 3,
-        MAX_RETRIES: parseInt(document.getElementById('retries').value) || 2,
-        ENABLE_CONVERSATION: document.getElementById('enableConv').checked,
-        CONVERSATION_FILE: document.getElementById('convFile').value,
-        FULL_HISTORY_SIZE: parseInt(document.getElementById('fullSize').value) || 1,
-        SUMMARY_TRIGGER: parseInt(document.getElementById('summaryTrigger').value) || 5,
-        SUMMARY_MAX_LENGTH: parseInt(document.getElementById('summaryMax').value) || 200,
-    };
-}
-
-function updatePreview() {
-    const cfg = collect();
-    document.getElementById('preview').textContent = JSON.stringify(cfg, null, 2);
-}
-
-async function loadConfig() {
-    try {
-        const r = await fetch('/api/config');
-        const d = await r.json();
-        if (d.success) populate(d.config);
-        toast('Loaded', 'success');
-    } catch (e) {
-        toast('Failed to load', 'error');
-    }
-}
-
-function populate(cfg) {
-    document.getElementById('persona').value = cfg.PERSONA || '';
-    document.getElementById('template').value = cfg.EMAIL_TEMPLATE || '';
-    document.getElementById('subject').value = cfg.SUBJECT_PREFIX || '';
-    document.getElementById('signature').value = cfg.SIGNATURE || '';
-    const footerMatch = cfg.FOOTER?.match(/>([^<]+)</);
-    document.getElementById('footer').value = footerMatch ? footerMatch[1] : '';
-    document.getElementById('minDays').value = cfg.MIN_DAYS || 0;
-    document.getElementById('maxDays').value = cfg.MAX_DAYS || 3;
-    document.getElementById('retries').value = cfg.MAX_RETRIES || 2;
-    document.getElementById('enableConv').checked = cfg.ENABLE_CONVERSATION || false;
-    document.getElementById('convFile').value = cfg.CONVERSATION_FILE || 'conversation.enc';
-    document.getElementById('fullSize').value = cfg.FULL_HISTORY_SIZE || 1;
-    document.getElementById('summaryTrigger').value = cfg.SUMMARY_TRIGGER || 5;
-    document.getElementById('summaryMax').value = cfg.SUMMARY_MAX_LENGTH || 200;
-    
-    const list = document.getElementById('contacts');
-    list.innerHTML = '';
-    (cfg.CONTACTS || []).forEach((c, i) => {
-        const row = document.createElement('div');
-        row.className = 'contact-row';
-        row.innerHTML = `
-            <input class="field-input" type="text" placeholder="Name" value="${c.name}">
-            <input class="field-input" type="text" placeholder="Secret key" value="${c.email_env}">
-            <button class="contact-remove" onclick="removeContact(this)">×</button>
-        `;
-        list.appendChild(row);
-    });
-    updatePreview();
-}
-
-async function saveConfig() {
-    try {
-        const r = await fetch('/api/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config: collect() })
-        });
-        const d = await r.json();
-        if (d.success) toast('Saved', 'success');
-        else toast(d.error || 'Failed', 'error');
-    } catch (e) {
-        toast('Failed to save', 'error');
-    }
-}
-
-function toast(msg, type) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `status-toast ${type} show`;
-    setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-document.addEventListener('input', updatePreview);
-
-// Drag & Drop
-const cards = document.querySelectorAll('.card[draggable="true"]');
-cards.forEach(card => {
-    card.addEventListener('dragstart', e => card.classList.add('dragging'));
-    card.addEventListener('dragend', e => card.classList.remove('dragging'));
-    card.addEventListener('dragover', e => e.preventDefault());
-    card.addEventListener('dragenter', e => { e.preventDefault(); card.classList.add('over'); });
-    card.addEventListener('dragleave', e => card.classList.remove('over'));
-    card.addEventListener('drop', e => {
-        e.preventDefault();
-        card.classList.remove('over');
-        const dragging = document.querySelector('.dragging');
-        if (dragging && dragging !== card) {
-            const parent = dragging.parentNode;
-            const next = card.nextSibling === dragging ? card : card.nextSibling;
-            parent.insertBefore(dragging, next);
+      }).then(d => {
+        if (d.error) {
+          showStatus('配置已保存，但触发失败: ' + d.error, 'error');
+        } else {
+          showStatus('配置已保存，发送已触发 ✓', 'success');
         }
-    });
+      });
+    }, 1000);
+  }).catch(err => {
+    showStatus('保存失败: ' + err.message, 'error');
+  });
+}
+
+function switchScheduleMode(mode, btn) {
+  scheduleMode = mode;
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('schedule-random').style.display = mode === 'random' ? 'block' : 'none';
+  document.getElementById('schedule-fixed').style.display = mode === 'fixed' ? 'block' : 'none';
+}
+
+// 拖拽排序
+let dragPanel = null;
+document.querySelectorAll('.panel').forEach(panel => {
+  panel.addEventListener('dragstart', e => {
+    dragPanel = panel;
+    panel.style.opacity = '0.5';
+  });
+  panel.addEventListener('dragend', e => {
+    panel.style.opacity = '1';
+    dragPanel = null;
+  });
+  panel.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (dragPanel && dragPanel !== panel) {
+      const rect = panel.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      if (after) {
+        panel.parentNode.insertBefore(dragPanel, panel.nextSibling);
+      } else {
+        panel.parentNode.insertBefore(dragPanel, panel);
+      }
+    }
+  });
 });
 
+// 实时更新统计
+document.querySelectorAll('select, input').forEach(el => {
+  el.addEventListener('change', updateStats);
+  el.addEventListener('input', updateStats);
+});
+
+// 初始加载
 loadConfig();
 </script>
 </body>

@@ -1,116 +1,327 @@
-from flask import Flask, request, jsonify
+# -*- coding: utf-8 -*-
+"""
+Vercel Serverless API - Ghost Mail 配置管理
+
+环境变量要求:
+  GITHUB_TOKEN: Personal Access Token (repo 权限)
+  GITHUB_REPO: 仓库名，如 "Century0327/random-ai-mail-ghost"
+  GITHUB_BRANCH: 分支，默认 main
+"""
+
 import os
-import ast
+import sys
+import re
 import json
+import base64
+from http.server import BaseHTTPRequestHandler
+from urllib import parse
 
-app = Flask(__name__)
+import requests
 
-# Vercel 环境下 config.py 在仓库根目录
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.py')
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
+GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
+WORKFLOW_FILE = os.environ.get("WORKFLOW_FILE", "ghost-mail.yml")
+
+CONFIG_PATH = "config.py"
+PERSONAS_DIR = "personas"
+TEMPLATES_DIR = "templates"
+
+GITHUB_API = "https://api.github.com"
 
 
-def parse_config():
-    """解析 config.py，提取所有配置项"""
+def _github_headers():
+    return {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+    }
+
+
+def _get_file_content(path):
+    """从 GitHub 获取文件内容"""
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}?ref={GITHUB_BRANCH}"
+    resp = requests.get(url, headers=_github_headers())
+    if resp.status_code != 200:
+        return None, None
+    data = resp.json()
+    content = base64.b64decode(data["content"]).decode("utf-8")
+    return content, data["sha"]
+
+
+def _list_directory(path):
+    """列出目录"""
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}?ref={GITHUB_BRANCH}"
+    resp = requests.get(url, headers=_github_headers())
+    if resp.status_code != 200:
+        return []
+    return [item["name"] for item in resp.json() if item["type"] == "file"]
+
+
+def _update_file(path, content, message):
+    """更新文件（commit）"""
+    old_content, sha = _get_file_content(path)
+    if old_content is None:
+        return False, "获取文件失败"
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}"
+    body = {
+        "message": message,
+        "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+        "sha": sha,
+        "branch": GITHUB_BRANCH,
+    }
+    resp = requests.put(url, headers=_github_headers(), json=body)
+    if resp.status_code in (200, 201):
+        return True, "更新成功"
+    return False, resp.text
+
+
+def _dispatch_workflow(inputs=None):
+    """触发 workflow_dispatch"""
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{WORKFLOW_FILE}/dispatches"
+    body = {
+        "ref": GITHUB_BRANCH,
+        "inputs": inputs or {},
+    }
+    resp = requests.post(url, headers=_github_headers(), json=body)
+    if resp.status_code == 204:
+        return True, "已触发"
+    return False, resp.text
+
+
+def _parse_config(content):
+    """解析 config.py 为字典"""
     config = {}
-    if not os.path.exists(CONFIG_FILE):
-        return config
-    
-    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    tree = ast.parse(content)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    name = target.id
-                    if name.isupper() and name not in ['False', 'True', 'None']:
-                        try:
-                            value = ast.literal_eval(node.value)
-                            config[name] = value
-                        except:
-                            continue
+    lines = content.splitlines()
+
+    simple_vars = [
+        "PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX",
+        "SIGNATURE", "FOOTER", "ATTACHMENT_LOCATION",
+        "MIN_DAYS", "MAX_DAYS", "MAX_RETRIES",
+        "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH",
+    ]
+    for var in simple_vars:
+        for line in lines:
+            m = re.match(rf'^{var}\s*=\s*(.+)$', line.strip())
+            if m:
+                val = m.group(1).strip()
+                if val.startswith('"') or val.startswith("'"):
+                    config[var] = val[1:-1]
+                elif val in ("True", "False"):
+                    config[var] = val == "True"
+                elif val.isdigit():
+                    config[var] = int(val)
+                elif val.startswith("[") or val.startswith("{"):
+                    try:
+                        config[var] = eval(val)
+                    except:
+                        pass
+                break
+
+    # CONTACTS 单独解析
+    in_contacts = False
+    contacts = []
+    current = {}
+    for line in lines:
+        s = line.strip()
+        if s.startswith("CONTACTS = ["):
+            in_contacts = True
+            continue
+        if in_contacts and s == "]":
+            break
+        if in_contacts:
+            m = re.match(r'\{"name":\s*"([^"]+)",\s*"email_env":\s*"([^"]+)"\}', s.rstrip(','))
+            if m:
+                contacts.append({"name": m.group(1), "email_env": m.group(2)})
+    config["CONTACTS"] = contacts
+
+    # ENABLE_CONVERSATION
+    for line in lines:
+        m = re.match(r'^ENABLE_CONVERSATION\s*=\s*(True|False)', line.strip())
+        if m:
+            config["ENABLE_CONVERSATION"] = m.group(1) == "True"
+            break
+
     return config
 
 
-def generate_config_py(data):
-    """根据数据生成 config.py 内容"""
-    lines = [
-        '# -*- coding: utf-8 -*-',
-        '"""',
-        'Ghost Mail 用户自定义配置',
-        '"""',
-        '',
-        '# ============ 人设 ============',
-        f'PERSONA = "{data.get("PERSONA", "")}"',
-        '',
-        '# ============ 邮件模板 ============',
-        f'EMAIL_TEMPLATE = "{data.get("EMAIL_TEMPLATE", "")}"',
-        '',
-        '# ============ 联系人 ============',
-    ]
-    
-    contacts = data.get('CONTACTS', [])
-    contacts_str = '[\n'
-    for c in contacts:
-        contacts_str += f"    {{'name': '{c['name']}', 'email_env': '{c['email_env']}'}},\n"
-    contacts_str += ']'
-    lines.append(f'CONTACTS = {contacts_str}')
-    
-    lines.extend([
-        '',
-        '# ============ 邮件主题 ============',
-        f"SUBJECT_PREFIX = '{data.get('SUBJECT_PREFIX', '')}'",
-        '',
-        '# ============ 发送间隔（天） ============',
-        f"MIN_DAYS = {data.get('MIN_DAYS', 0)}",
-        f"MAX_DAYS = {data.get('MAX_DAYS', 3)}",
-        '',
-        '# ============ 署名 ============',
-        f"SIGNATURE = '{data.get('SIGNATURE', '')}'",
-        '',
-        '# ============ 页脚 ============',
-        f"FOOTER = {repr(data.get('FOOTER', ''))}",
-        '',
-        '# ============ API 重试 ============',
-        f"MAX_RETRIES = {data.get('MAX_RETRIES', 2)}",
-        '',
-        '# ============ 连续对话 ============',
-        f"ENABLE_CONVERSATION = {data.get('ENABLE_CONVERSATION', False)}",
-        f"CONVERSATION_FILE = '{data.get('CONVERSATION_FILE', 'conversation.enc')}'",
-        f"FULL_HISTORY_SIZE = {data.get('FULL_HISTORY_SIZE', 1)}",
-        f"SUMMARY_TRIGGER = {data.get('SUMMARY_TRIGGER', 5)}",
-        f"SUMMARY_MAX_LENGTH = {data.get('SUMMARY_MAX_LENGTH', 200)}",
-    ])
-    
-    return '\n'.join(lines) + '\n'
+def _build_config(config):
+    """根据字典生成 config.py 内容（保留原有结构和注释）"""
+    content, _ = _get_file_content(CONFIG_PATH)
+    if not content:
+        return None
+
+    lines = content.splitlines()
+    out = []
+
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION"]
+    simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
+    simple_bool = ["ENABLE_CONVERSATION"]
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        s = line.strip()
+        replaced = False
+
+        for var in simple_str:
+            if s.startswith(f"{var} =") and var in config:
+                val = config[var]
+                indent = line[:len(line) - len(line.lstrip())]
+                out.append(f'{indent}{var} = "{val}"')
+                replaced = True
+                break
+
+        if not replaced:
+            for var in simple_int:
+                if s.startswith(f"{var} =") and var in config:
+                    indent = line[:len(line) - len(line.lstrip())]
+                    out.append(f'{indent}{var} = {config[var]}')
+                    replaced = True
+                    break
+
+        if not replaced:
+            for var in simple_bool:
+                if s.startswith(f"{var} =") and var in config:
+                    indent = line[:len(line) - len(line.lstrip())]
+                    out.append(f'{indent}{var} = {str(config[var])}')
+                    replaced = True
+                    break
+
+        # FOOTER 特殊处理（含引号和 HTML）
+        if not replaced and s.startswith("FOOTER =") and "FOOTER" in config:
+            indent = line[:len(line) - len(line.lstrip())]
+            val = config["FOOTER"].replace('"', '\\"')
+            out.append(f'{indent}FOOTER = "{val}"')
+            replaced = True
+
+        # CONTACTS 替换
+        if not replaced and s.startswith("CONTACTS = ["):
+            indent = line[:len(line) - len(line.lstrip())]
+            out.append(f"{indent}CONTACTS = [")
+            for c in config.get("CONTACTS", []):
+                out.append(f'{indent}    {{"name": "{c["name"]}", "email_env": "{c["email_env"]}"}},')
+            # 跳过多余的行直到找到 ]
+            while i < len(lines) and lines[i].strip() != "]":
+                i += 1
+            out.append(f"{indent}]")
+            replaced = True
+
+        if not replaced:
+            out.append(line)
+        i += 1
+
+    return "\n".join(out) + "\n"
 
 
-@app.route('/api/config', methods=['GET'])
 def get_config():
-    try:
-        config = parse_config()
-        return jsonify({'success': True, 'config': config})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    """GET /api/config — 读取配置和元数据"""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return 400, {"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO"}
+
+    content, _ = _get_file_content(CONFIG_PATH)
+    if not content:
+        return 500, {"error": "获取 config.py 失败"}
+
+    config = _parse_config(content)
+
+    # 列出人设
+    persona_files = _list_directory(PERSONAS_DIR)
+    personas = [f.replace(".md", "") for f in persona_files if f.endswith(".md") and not f.endswith("_fallback.md")]
+
+    # 列出模板
+    template_files = _list_directory(TEMPLATES_DIR)
+    templates = [f.replace(".html", "") for f in template_files if f.endswith(".html")]
+
+    return 200, {
+        "config": config,
+        "personas": personas,
+        "templates": templates,
+        "repo": GITHUB_REPO,
+        "branch": GITHUB_BRANCH,
+    }
 
 
-@app.route('/api/config', methods=['POST'])
-def save_config():
-    try:
-        data = request.get_json()
-        if not data or 'config' not in data:
-            return jsonify({'success': False, 'error': '缺少配置数据'}), 400
-        
-        # Vercel serverless 环境是只读的，无法保存到文件系统
-        # 这里返回提示，让用户知道需要通过 GitHub 修改
-        return jsonify({
-            'success': False, 
-            'error': 'Vercel 环境不支持保存配置。请修改 GitHub 仓库中的 config.py 文件，或使用本地部署。'
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+def update_config(body):
+    """POST /api/config — 更新配置"""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return 400, {"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO"}
+
+    new_config = body.get("config", {})
+    if not new_config:
+        return 400, {"error": "缺少 config 字段"}
+
+    new_content = _build_config(new_config)
+    if not new_content:
+        return 500, {"error": "生成 config.py 失败"}
+
+    ok, msg = _update_file(CONFIG_PATH, new_content, f"chore: 更新配置")
+    if not ok:
+        return 500, {"error": msg}
+
+    return 200, {"status": "ok", "message": msg}
 
 
-# Vercel 需要这个 handler
-handler = app
+def trigger_dispatch(body):
+    """POST /api/dispatch — 触发 workflow"""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return 400, {"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO"}
+
+    inputs = body.get("inputs", {}) if body else {}
+    ok, msg = _dispatch_workflow(inputs)
+    if not ok:
+        return 500, {"error": msg}
+
+    return 200, {"status": "ok", "message": msg}
+
+
+# ============ Vercel 兼容处理 ============
+
+def handler(event, context):
+    method = event.get("httpMethod", "GET")
+    path = event.get("path", "/")
+    body_raw = event.get("body", "")
+    body = {}
+    if body_raw:
+        try:
+            body = json.loads(body_raw)
+        except:
+            pass
+
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": "application/json",
+    }
+
+    if method == "OPTIONS":
+        return {"statusCode": 200, "headers": cors_headers, "body": ""}
+
+    if path.endswith("/config") or path == "/api/config" or path == "/config":
+        if method == "GET":
+            code, data = get_config()
+        elif method == "POST":
+            code, data = update_config(body)
+        else:
+            code, data = 405, {"error": "Method not allowed"}
+    elif path.endswith("/dispatch") or path == "/api/dispatch" or path == "/dispatch":
+        if method == "POST":
+            code, data = trigger_dispatch(body)
+        else:
+            code, data = 405, {"error": "Method not allowed"}
+    else:
+        code, data = 404, {"error": "Not found"}
+
+    return {
+        "statusCode": code,
+        "headers": cors_headers,
+        "body": json.dumps(data, ensure_ascii=False),
+    }
+
+
+# ============ 本地测试用 ============
+
+if __name__ == "__main__":
+    print("此文件由 Vercel Serverless Functions 运行")
+    print("环境变量: GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH")

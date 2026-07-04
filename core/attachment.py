@@ -21,7 +21,7 @@ import requests
 from datetime import datetime
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-from logger import setup_logger
+from core.logger import setup_logger
 
 logger = setup_logger("attachment")
 

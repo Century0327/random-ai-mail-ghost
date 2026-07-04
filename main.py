@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Ghost Mail 主入口
+参考设计：
+- ajaycc17/python-email-reminder: 健壮错误处理、环境变量配置
+- bunnysaini/Birthday-Mail-Sender: 模板变量替换、随机文案
+- SnehaDeshmukh28/SmartEmail-Personalizer-Agent: HTML邮件模板、上下文感知
+- spacejelly.dev: GitHub Actions缓存与超时最佳实践
+- earlyaidopters/claudeclaw: 多人人设、历史状态管理
+"""
+
+import os
+import sys
+import random
+from core.logger import setup_logger
+
+logger = setup_logger()
+
+# ============ 配置加载 ============
+from config import (
+    PERSONA, EMAIL_TEMPLATE, CONTACTS as CONTACT_CONFIG,
+    SUBJECT_PREFIX, MIN_DAYS, MAX_DAYS, SIGNATURE, FOOTER, MAX_RETRIES,
+    ENABLE_CONVERSATION, FULL_HISTORY_SIZE, SUMMARY_TRIGGER, SUMMARY_MAX_LENGTH,
+    ATTACHMENT_LOCATION,
+)
+
+QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
+QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
+AI_API_URL = os.environ.get(
+    "AI_API_URL",
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+)
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
+AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
+
+# 附件模式 override：来自环境变量（GitHub Actions 传入）
+ATTACHMENT_MODE = os.environ.get("ATTACHMENT_MODE", "normal")  # normal / force_on / force_off
+
+IMAP_SERVER = "imap.qq.com"
+IMAP_PORT = 993
+
+CONTACTS = []
+for c in CONTACT_CONFIG:
+    email_addr = os.environ.get(c["email_env"], "")
+    if email_addr:
+        CONTACTS.append({"name": c["name"], "email": email_addr})
+    else:
+        logger.warning(f"[CONFIG] 联系人 '{c['name']}' 的邮箱未设置 ({c['email_env']})")
+
+ALL_NAMES = [c["name"] for c in CONTACTS]
+
+smtp_config = {
+    "email": QQ_EMAIL,
+    "auth_code": QQ_AUTH_CODE,
+    "server": "smtp.qq.com",
+    "port": 465,
+}
+
+imap_config = {
+    "email": QQ_EMAIL,
+    "auth_code": QQ_AUTH_CODE,
+    "server": IMAP_SERVER,
+    "port": IMAP_PORT,
+}
+
+ai_config = {
+    "url": AI_API_URL,
+    "key": AI_API_KEY,
+    "model": AI_MODEL,
+    "max_retries": MAX_RETRIES,
+    "max_tokens": 300,
+    "temperature": 0.85,
+}
+
+summary_config = {
+    "trigger": SUMMARY_TRIGGER,
+    "full_size": FULL_HISTORY_SIZE,
+    "max_length": SUMMARY_MAX_LENGTH,
+}
+
+
+# ============ 核心生成 ============
+
+def generate_email(force_attachment=None):
+    """
+    生成一封邮件
+    
+    force_attachment: None=正常策略, True=强制有附件, False=强制无附件
+    """
+    from core.persona import load_persona, load_fallbacks, render_template
+    from core.ai_client import call_ai
+    from core.conversation import (
+        load_conversation_history, fetch_user_replies, add_to_history,
+        build_context_prompt, load_relation_value, save_relation_value,
+        calculate_relation_delta, get_current_level, render_relation_bar,
+    )
+
+    persona_name, persona_text, relation_config = load_persona(PERSONA)
+
+    # 加载历史 + 收取回复
+    history = load_conversation_history(ENABLE_CONVERSATION, persona_name)
+    last_send_time = None
+    if history.get("full"):
+        try:
+            last_send_time = __import__("datetime").datetime.fromisoformat(history["full"][-1]["time"])
+        except Exception:
+            last_send_time = None
+
+    replies = []
+    if ENABLE_CONVERSATION:
+        replies = fetch_user_replies(CONTACTS, imap_config, since_time=last_send_time)
+        for r in replies:
+            history = add_to_history(history, "user", r["body"], sender=r["sender"],
+                                      summary_config=summary_config)
+
+    # 关系值计算
+    relation_value = load_relation_value(history, relation_config)
+    relation_level_desc = ""
+    if relation_config and relation_value is not None:
+        relation_value += relation_config.get("decay", 0)
+        new_replies_for_rel = []
+        for item in reversed(history.get("full", [])):
+            if item.get("role") == "user":
+                new_replies_for_rel.append(item)
+            else:
+                break
+        new_replies_for_rel.reverse()
+        for r in new_replies_for_rel:
+            delta = calculate_relation_delta(r.get("content", ""), relation_config)
+            relation_value += delta
+            if delta != 0:
+                logger.info(f"[RELATION] 回复触发调整: {delta:+d}（{r.get('sender', '?')}）")
+        relation_value = max(relation_config["min_val"], min(relation_config["max_val"], relation_value))
+        history = save_relation_value(history, relation_value)
+        level = get_current_level(relation_value, relation_config)
+        if level:
+            relation_level_desc = f"当前{relation_config['name']}：{relation_value}/{relation_config['max_val']}（{level['label']}）"
+            logger.info(f"[RELATION] {relation_level_desc}")
+
+    # 第几封信
+    ghost_count = sum(1 for item in history.get("full", []) if item.get("role") == "ghost")
+    letter_num = ghost_count + 1
+
+    # 构建 prompt
+    context, new_replies = build_context_prompt(history)
+    names_str = "、".join(ALL_NAMES)
+
+    relation_prompt = f"\n\n【重要】{relation_level_desc}。你的回复风格必须符合这个等级。" if relation_level_desc else ""
+    base_info = f"这是你写的第{letter_num}封信。\n收信人：{names_str}"
+
+    topics = [
+        "最近天气变化，提醒对方注意身体",
+        "突然想到一个有趣的小事，分享给对方",
+        "好久不见，随口问候一下",
+        "最近看到的一句话，想分享给对方",
+        "没有任何理由，就是突然想发邮件",
+        "假装刚吃完一顿好吃的，想告诉对方"
+    ]
+
+    if new_replies:
+        reply_lines = []
+        for r in new_replies:
+            sender = r.get("sender", "朋友")
+            content = r.get("content", "")[:200]
+            reply_lines.append(f'{sender}说："{content}"')
+        replies_text = "\n\n".join(reply_lines)
+        body_prompt = f"{base_info}\n\n你收到了以下回信：\n\n{replies_text}\n\n请回信。{relation_prompt}"
+        if context:
+            body_prompt += f"\n\n{context}"
+    elif context:
+        body_prompt = f"{base_info}\n\n主动写一封邮件给他们。{relation_prompt}\n\n{context}"
+    else:
+        topic = random.choice(topics)
+        body_prompt = f"{base_info}\n\n主动写一封邮件给他们。{relation_prompt}"
+
+    body = call_ai(body_prompt, persona_text, ai_config, persona_name=persona_name)
+    source = "ai"
+
+    # kitty 专用后处理
+    if body and persona_name == "kitty":
+        body = body.replace("\n", "<br>")
+
+    # 内容质量检查
+    _bad_patterns = ["XX", "xxx", "某某", "某城市", "笑到合不拢嘴", "绝绝子", "yyds", "爆炸好看"]
+    _kitty_human_words = [
+        "你好", "谢谢", "今天", "明天", "昨天", "我", "你", "他", "她",
+        "们", "是", "的", "了", "吗", "呢", "啊", "吧", "哦",
+        "不", "有", "在", "和", "就", "都", "要", "会", "可以", "知道",
+        "感觉", "觉得", "想", "说",
+        "开心", "难过", "害怕", "喜欢", "讨厌",
+        "大家好", "亲爱的", "尊敬的", "祝好", "此致", "敬礼",
+        "大家", "朋友", "主人", "铲屎官",
+    ]
+    _content_bad = False
+    if body:
+        for pat in _bad_patterns:
+            if pat in body:
+                _content_bad = True
+                logger.warning(f"[SAFETY] 检测到禁止内容: {pat}")
+                break
+        if not _content_bad and persona_name == "kitty":
+            for hw in _kitty_human_words:
+                if hw in body:
+                    _content_bad = True
+                    logger.warning(f"[SAFETY] kitty人设检测到人类词汇: {hw}")
+                    break
+        if not _content_bad:
+            if persona_name == "maodie":
+                if len(body) < 10 or len(body) > 800:
+                    _content_bad = True
+                    logger.warning(f"[SAFETY] 耄耋内容长度异常: {len(body)}")
+            elif persona_name == "kitty":
+                if len(body) < 3 or len(body) > 300:
+                    _content_bad = True
+                    logger.warning(f"[SAFETY] kitty内容长度异常: {len(body)}")
+            else:
+                if len(body) < 30 or len(body) > 500:
+                    _content_bad = True
+                    logger.warning(f"[SAFETY] 内容长度异常: {len(body)}")
+    else:
+        _content_bad = True
+
+    if body is None or _content_bad:
+        fallbacks = load_fallbacks(persona_name, ALL_NAMES)
+        raw = fallbacks[0]
+        body = render_template(raw, ALL_NAMES)
+        source = "fallback"
+        logger.info(f"[FALLBACK] 已使用兜底文案（人设: {persona_name}）")
+
+    subject = SUBJECT_PREFIX or "~"
+
+    # 关系进度条
+    if relation_config and relation_value is not None:
+        bar_html = render_relation_bar(relation_value, relation_config)
+        if bar_html:
+            body += bar_html
+
+    # 记录到历史
+    if ENABLE_CONVERSATION:
+        from core.conversation import save_conversation_history as save_conv
+        history = add_to_history(history, "ghost", body, summary_config=summary_config)
+        save_conv(ENABLE_CONVERSATION, persona_name, history)
+
+    # 附件系统
+    attachment = None
+    if force_attachment is not None and not force_attachment:
+        # 强制无附件
+        pass
+    else:
+        try:
+            import core.attachment as attachment_mod
+            user_reply_text = ""
+            if replies:
+                user_reply_text = "\n".join([r.get("body", "") for r in replies])
+
+            if force_attachment:
+                # 强制有附件：修改 should_attach 的返回
+                attachment = _force_create_attachment(
+                    persona_name, relation_value, letter_num,
+                    user_reply_text, ATTACHMENT_LOCATION, body
+                )
+            else:
+                attachment = attachment_mod.create_attachment(
+                    persona_name=persona_name,
+                    trust_value=relation_value,
+                    letter_num=letter_num,
+                    history=history,
+                    user_reply=user_reply_text,
+                    location=ATTACHMENT_LOCATION if ATTACHMENT_LOCATION else None,
+                    email_body=body,
+                )
+        except Exception as e:
+            logger.warning(f"[ATTACHMENT] 附件生成失败，继续发信: {e}")
+
+    return subject, body, source, persona_name, attachment
+
+
+def _force_create_attachment(persona_name, trust_value, letter_num,
+                             user_reply_text, location, email_body):
+    """强制生成附件（绕过 should_attach 检查）"""
+    import core.attachment as attachment_mod
+    from core.attachment import SCENES, _trust_level_str, _pick_scene_by_content
+
+    level = _trust_level_str(trust_value)
+    scenes = SCENES[level]
+
+    if email_body:
+        scene_idx, scene_desc, _ = _pick_scene_by_content(scenes, email_body)
+    else:
+        import random
+        scene_idx = random.randint(0, len(scenes) - 1)
+        scene_desc, _, _ = scenes[scene_idx]
+
+    prompt = attachment_mod.build_image_prompt(scene_desc, trust_value, location)
+    img = attachment_mod.generate_image(prompt, level, scene_idx)
+    if not img:
+        return None
+
+    chibi = attachment_mod.load_or_create_chibi()
+    img = attachment_mod.add_watermark(img, chibi, location)
+
+    from io import BytesIO
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85)
+    buffer.seek(0)
+
+    return {
+        "image_bytes": buffer.getvalue(),
+        "number": letter_num,
+        "rarity": "forced",
+        "filename": f"cat-letter-{letter_num:03d}.jpg",
+    }
+
+
+# ============ 主流程 ============
+
+def main():
+    from core.state import load_state, log_history
+    from core.scheduler import should_send, schedule_next
+    from core.mailer import send_email
+
+    # 强制发送：环境变量 FORCE_SEND=1
+    force_send = os.environ.get("FORCE_SEND", "") == "1"
+
+    # 附件模式
+    force_attachment = None
+    if ATTACHMENT_MODE == "force_on":
+        force_attachment = True
+    elif ATTACHMENT_MODE == "force_off":
+        force_attachment = False
+
+    logger.info("=" * 50)
+    logger.info("Ghost Mail v2.0")
+    logger.info("=" * 50)
+
+    state = load_state()
+
+    if not should_send(state, force_send=force_send):
+        logger.info("[EXIT] 条件不满足，安静退出")
+        return
+
+    logger.info("[ACTION] 开始生成邮件...")
+    subject, body, source, persona, attachment = generate_email(force_attachment=force_attachment)
+
+    logger.info(f"[PREVIEW] 主题: {subject}")
+    logger.info(f"[PREVIEW] 正文: {body[:80]}...")
+    if attachment:
+        logger.info(f"[PREVIEW] 附件: {attachment['filename']} ({attachment['rarity']})")
+
+    if send_email(subject, body, smtp_config, CONTACTS,
+                  SIGNATURE, FOOTER, EMAIL_TEMPLATE, attachment):
+        log_history(subject, source, persona)
+        schedule_next(state, MIN_DAYS, MAX_DAYS)
+    else:
+        logger.error("[EXIT] 发送失败，状态不更新，下次重试")
+
+    logger.info("[EXIT] 完成")
+
+
+if __name__ == "__main__":
+    main()
