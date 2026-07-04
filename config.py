@@ -43,7 +43,7 @@ SIGNATURE = "喵"
 
 # ============ 页脚（邮件末尾标识） ============
 # 显示在邮件正文下方，支持 HTML 链接
-FOOTER = "<a href=\\"https://github.com/Century0327/random-ai-mail-ghost\\" style=\\"color:#999; text-decoration:none;\\">— From Ghost Mail</a>"
+FOOTER = '<a href="https://github.com/Century0327/random-ai-mail-ghost" style="color:#999; text-decoration:none;">— From Ghost Mail</a>'
 
 # ============ API 重试配置 ============
 # AI API 调用失败后的重试次数

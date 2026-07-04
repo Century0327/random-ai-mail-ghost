@@ -48,6 +48,8 @@ def _cors_resp(data, status=200):
 
 @app.route("/api/config", methods=["OPTIONS"])
 @app.route("/api/dispatch", methods=["OPTIONS"])
+@app.route("/api/runs", methods=["OPTIONS"])
+@app.route("/api/runs/<run_id>/logs", methods=["OPTIONS"])
 def _options():
     return _cors_resp({})
 
@@ -260,6 +262,78 @@ def dispatch():
         return _cors_resp({"error": msg}, 500)
 
     return _cors_resp({"status": "ok", "message": "已触发，约1-2分钟后收到邮件"})
+
+
+def _list_runs(limit=5):
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{WORKFLOW_FILE}/runs"
+    params = {"per_page": limit, "branch": GITHUB_BRANCH}
+    resp = requests.get(url, headers=_headers(), params=params)
+    if resp.status_code != 200:
+        return None, resp.text
+    runs = []
+    for r in resp.json().get("workflow_runs", []):
+        runs.append({
+            "id": r["id"],
+            "status": r["status"],
+            "conclusion": r.get("conclusion"),
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
+            "html_url": r["html_url"],
+            "name": r["name"],
+            "event": r["event"],
+        })
+    return runs, None
+
+
+def _get_run_logs(run_id):
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/runs/{run_id}/jobs"
+    resp = requests.get(url, headers=_headers())
+    if resp.status_code != 200:
+        return None, resp.text
+    jobs = resp.json().get("jobs", [])
+    result = []
+    for job in jobs:
+        steps = []
+        for s in job.get("steps", []):
+            steps.append({
+                "name": s["name"],
+                "status": s["status"],
+                "conclusion": s.get("conclusion"),
+                "number": s["number"],
+                "started_at": s.get("started_at"),
+                "completed_at": s.get("completed_at"),
+            })
+        result.append({
+            "id": job["id"],
+            "name": job["name"],
+            "status": job["status"],
+            "conclusion": job.get("conclusion"),
+            "started_at": job.get("started_at"),
+            "completed_at": job.get("completed_at"),
+            "steps": steps,
+        })
+    return result, None
+
+
+@app.route("/api/runs", methods=["GET"])
+def get_runs():
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
+    limit = request.args.get("limit", 5, type=int)
+    runs, err = _list_runs(limit)
+    if err:
+        return _cors_resp({"error": err}, 500)
+    return _cors_resp({"runs": runs})
+
+
+@app.route("/api/runs/<run_id>/logs", methods=["GET"])
+def get_run_logs(run_id):
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
+    logs, err = _get_run_logs(run_id)
+    if err:
+        return _cors_resp({"error": err}, 500)
+    return _cors_resp({"jobs": logs})
 
 
 if __name__ == "__main__":

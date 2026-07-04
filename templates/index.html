@@ -12,20 +12,20 @@ body {
   color: #24292f;
   padding: 20px;
 }
-.container { max-width: 1100px; margin: 0 auto; }
+.container { max-width: 1200px; margin: 0 auto; }
 
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 header h1 { font-size: 22px; font-weight: 600; }
 header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
 
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -33,14 +33,20 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   background: #fff;
   border: 1px solid #d0d7de;
   border-radius: 6px;
-  padding: 16px;
+  padding: 14px;
 }
 .stat-card .label { font-size: 12px; color: #656d76; margin-bottom: 6px; }
-.stat-card .value { font-size: 20px; font-weight: 600; }
+.stat-card .value { font-size: 18px; font-weight: 600; }
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 16px;
+}
 
 .panels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 .panel {
@@ -55,10 +61,13 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.panel-body { padding: 16px; }
+.panel-body { padding: 14px; }
 
-.form-group { margin-bottom: 14px; }
+.form-group { margin-bottom: 12px; }
 .form-group:last-child { margin-bottom: 0; }
 .form-group label {
   display: block;
@@ -73,7 +82,7 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   margin-top: 4px;
 }
 
-select, input[type="text"], input[type="number"], input[type="date"], textarea {
+select, input[type="text"], input[type="number"], input[type="date"], input[type="datetime-local"], textarea {
   width: 100%;
   padding: 6px 10px;
   font-size: 14px;
@@ -93,11 +102,6 @@ select {
   padding-right: 32px;
   cursor: pointer;
 }
-select:focus, input {
-  pointer-events: auto;
-  position: relative;
-  z-index: 1;
-}
 select:focus, input:focus, textarea:focus {
   border-color: #0969da;
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
@@ -106,6 +110,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
 
 .row { display: flex; gap: 10px; }
 .row .form-group { flex: 1; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .btn {
   display: inline-flex;
@@ -118,7 +123,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   border: 1px solid;
   cursor: pointer;
   transition: all 0.15s;
-  pointer-events: auto;
+  white-space: nowrap;
 }
 .btn-primary {
   background: #2da44e;
@@ -133,15 +138,10 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   color: #24292f;
 }
 .btn-secondary:hover { background: #f3f4f6; }
-.btn-danger {
-  background: #f6f8fa;
-  border-color: rgba(27, 31, 36, 0.15);
-  color: #cf222e;
-}
-.btn-danger:hover { background: #ffebe9; border-color: #ff8182; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
 
 .actions {
-  margin-top: 20px;
+  margin-top: 16px;
   display: flex;
   gap: 10px;
   justify-content: flex-end;
@@ -177,7 +177,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   left: 2px;
   transition: left 0.2s;
 }
-.toggle-switch span:last-child {
+.toggle-switch span.label-text {
   font-size: 13px;
   font-weight: 500;
   color: #24292f;
@@ -189,8 +189,9 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+  align-items: flex-start;
 }
-.contact-item input { flex: 1; min-width: 0; }
+.contact-item select, .contact-item input { flex: 1; min-width: 0; }
 .contact-item .remove-btn {
   padding: 6px 10px;
   background: #f6f8fa;
@@ -199,12 +200,13 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   cursor: pointer;
   color: #cf222e;
   flex-shrink: 0;
+  font-size: 12px;
 }
 
 .tab-bar {
   display: flex;
   border-bottom: 1px solid #d0d7de;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .tab-bar button {
   padding: 8px 14px;
@@ -267,7 +269,6 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   background: #d0d7de;
   margin-right: 6px;
   vertical-align: middle;
-  animation: pulse 1.5s infinite;
 }
 .loading-dot.loading { background: #f0883e; animation: pulse 1s infinite; }
 @keyframes pulse {
@@ -275,9 +276,89 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   50% { opacity: 0.4; }
 }
 
-@media (max-width: 768px) {
-  .panels { grid-template-columns: 1fr; }
-  .dashboard { grid-template-columns: 1fr; }
+.preview-panel {
+  position: sticky;
+  top: 20px;
+}
+.preview-content {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.preview-row {
+  display: flex;
+  padding: 6px 0;
+  border-bottom: 1px solid #d0d7de;
+}
+.preview-row:last-child { border-bottom: none; }
+.preview-key {
+  width: 100px;
+  color: #656d76;
+  flex-shrink: 0;
+}
+.preview-val {
+  flex: 1;
+  color: #24292f;
+  word-break: break-all;
+}
+.preview-val code {
+  background: #f6f8fa;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.run-log {
+  margin-top: 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.run-log-header {
+  background: #f6f8fa;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.run-log-body {
+  display: none;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.run-log-body.open { display: block; }
+.job-item { margin-bottom: 10px; }
+.job-name {
+  color: #58a6ff;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.step-item {
+  padding: 2px 0 2px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.step-item .step-status { font-size: 11px; }
+.step-item.success .step-status { color: #3fb950; }
+.step-item.failure .step-status { color: #f85149; }
+.step-item.pending .step-status { color: #d29922; }
+.step-item.in-progress .step-status { color: #58a6ff; }
+
+.quick-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+.quick-btns .btn { flex: 1; justify-content: center; }
+
+@media (max-width: 900px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .dashboard { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
 </head>
@@ -289,7 +370,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
       <div class="subtitle" id="repoInfo"><span class="loading-dot loading"></span>加载中...</div>
     </div>
     <div style="display:flex; gap:8px;">
-      <button class="btn btn-secondary" onclick="loadConfig()">🔄 刷新</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadConfig()">🔄 刷新</button>
       <button class="btn btn-primary" id="testBtn" onclick="testSend()">🚀 立即发送</button>
     </div>
   </header>
@@ -307,134 +388,172 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
       <div class="label">联系人</div>
       <div class="value" id="statContacts">--</div>
     </div>
+    <div class="stat-card">
+      <div class="label">发送间隔</div>
+      <div class="value" id="statInterval">--</div>
+    </div>
   </div>
 
-  <div class="panels">
-    <div class="panel">
-      <div class="panel-header">⚙️ 基础设置</div>
-      <div class="panel-body">
-        <div class="form-group">
-          <label>人设</label>
-          <select id="config-persona" onchange="updateStats()">
-            <option value="">加载中...</option>
-          </select>
-          <div class="hint">选择邮件人设风格</div>
-        </div>
-        <div class="form-group">
-          <label>邮件模板</label>
-          <select id="config-template" onchange="updateStats()">
-            <option value="">加载中...</option>
-          </select>
-          <div class="hint">HTML 邮件样式</div>
-        </div>
-        <div class="form-group">
-          <label>主题前缀</label>
-          <input type="text" id="config-subject" placeholder="【猫猫来信】" oninput="updateStats()">
-        </div>
-        <div class="form-group">
-          <label>署名</label>
-          <input type="text" id="config-signature" placeholder="留空则不署名" oninput="updateStats()">
-        </div>
-        <div class="form-group">
-          <label>附件水印地点</label>
-          <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示" oninput="updateStats()">
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">⏰ 发送计划</div>
-      <div class="panel-body">
-        <div class="tab-bar">
-        <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
-        <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
-        </div>
-        <div id="schedule-random">
-          <div class="row">
+  <div class="main-grid">
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">👤 基础设置</div>
+        <div class="panel-body">
+          <div class="row-2">
             <div class="form-group">
-              <label>最少间隔（天）</label>
-              <input type="number" id="config-min-days" min="0" max="30" oninput="updateStats()">
+              <label>人设</label>
+              <select id="config-persona" onchange="updatePreview()">
+                <option value="">加载中...</option>
+              </select>
             </div>
             <div class="form-group">
-              <label>最大间隔（天）</label>
-              <input type="number" id="config-max-days" min="0" max="30" oninput="updateStats()">
+              <label>邮件模板</label>
+              <select id="config-template" onchange="updatePreview()">
+                <option value="">加载中...</option>
+              </select>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label>主题前缀</label>
+              <input type="text" id="config-subject" placeholder="【猫猫来信】" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label>署名</label>
+              <input type="text" id="config-signature" placeholder="留空则不署名" oninput="updatePreview()">
             </div>
           </div>
           <div class="form-group">
-            <label>附件模式</label>
-            <select id="config-attachment-mode" onchange="updateStats()">
-              <option value="normal">正常（按触发策略）</option>
-              <option value="force_on">强制有附件</option>
-              <option value="force_off">强制无附件</option>
-            </select>
-            <div class="hint">测试时可临时覆盖</div>
+            <label>附件水印地点</label>
+            <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示" oninput="updatePreview()">
           </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">⏰ 发送计划</div>
+        <div class="panel-body">
+          <div class="tab-bar">
+            <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
+            <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
+          </div>
+          <div id="schedule-random">
+            <div class="row">
+              <div class="form-group">
+                <label>最少间隔（天）</label>
+                <input type="number" id="config-min-days" min="0" max="30" oninput="updatePreview()">
+              </div>
+              <div class="form-group">
+                <label>最大间隔（天）</label>
+                <input type="number" id="config-max-days" min="0" max="30" oninput="updatePreview()">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>附件模式</label>
+              <select id="config-attachment-mode" onchange="updatePreview()">
+                <option value="normal">正常（按触发策略）</option>
+                <option value="force_on">强制有附件</option>
+                <option value="force_off">强制无附件</option>
+              </select>
+              <div class="hint">测试时可临时覆盖</div>
+            </div>
+          </div>
+          <div id="schedule-fixed" style="display:none;">
+            <div class="quick-btns">
+              <button class="btn btn-secondary btn-sm" onclick="setToday()">📅 今天</button>
+              <button class="btn btn-secondary btn-sm" onclick="setNow()">🕐 当前时间</button>
+            </div>
+            <div class="form-group">
+              <label>日期时间（北京时间）</label>
+              <input type="datetime-local" id="config-fixed-datetime" onchange="updatePreview()">
+            </div>
+            <div class="hint">⚠️ 精确时间配合 GitHub Actions cron 使用</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">💬 连续对话</div>
+        <div class="panel-body">
           <div class="form-group">
             <label class="toggle-switch">
-              <input type="checkbox" id="config-conversation" onchange="updateStats()">
+              <input type="checkbox" id="config-conversation" onchange="updatePreview()">
               <span class="toggle-slider"></span>
-              <span>连续对话（记住历史）</span>
+              <span class="label-text">启用连续对话（记住历史消息）</span>
             </label>
+            <div class="hint" style="margin-top:8px;">开启后 AI 会参考之前的邮件内容，保持话题连贯性</div>
           </div>
         </div>
-        <div id="schedule-fixed" style="display:none;">
-          <div class="form-group">
-            <label>指定日期</label>
-            <input type="date" id="config-fixed-date" onchange="updateStats()">
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">👥 联系人</div>
+        <div class="panel-body">
+          <div id="contacts-list"></div>
+          <button class="btn btn-secondary btn-sm" style="width:100%; margin-top:8px; justify-content:center;" onclick="addContact()">+ 添加联系人</button>
+          <div class="hint" style="margin-top:8px;">邮箱由 GitHub Secrets 配置，这里只能选择和改昵称</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">📎 页脚设置</div>
+        <div class="panel-body">
+          <div class="row-2">
+            <div class="form-group">
+              <label>显示文字</label>
+              <input type="text" id="config-footer-text" placeholder="— From Ghost Mail" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label>链接地址</label>
+              <input type="text" id="config-footer-link" placeholder="https://github.com/..." oninput="updatePreview()">
+            </div>
           </div>
-          <div class="row">
+          <div class="hint">页脚会显示为可点击的链接，留空则不显示</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">🔧 高级设置</div>
+        <div class="panel-body">
+          <div class="row-2">
             <div class="form-group">
-              <label>时</label>
-              <input type="number" id="config-fixed-hour" min="0" max="23" value="0" oninput="updateStats()">
+              <label>API 重试次数</label>
+              <input type="number" id="config-retries" min="0" max="5" oninput="updatePreview()">
             </div>
             <div class="form-group">
-              <label>分</label>
-              <input type="number" id="config-fixed-minute" min="0" max="59" value="0" oninput="updateStats()">
-            </div>
-            <div class="form-group">
-              <label>秒</label>
-              <input type="number" id="config-fixed-second" min="0" max="59" value="0" oninput="updateStats()">
+              <label>完整历史保留</label>
+              <input type="number" id="config-history-size" min="1" max="20" oninput="updatePreview()">
             </div>
           </div>
-          <div class="form-group">
-            <div class="hint">⚠️ 精确时间需要配合 GitHub Actions cron 使用，时间为 UTC。</div>
+          <div class="row-2">
+            <div class="form-group">
+              <label>摘要触发阈值</label>
+              <input type="number" id="config-summary-trigger" min="2" max="20" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+              <label>摘要最大长度</label>
+              <input type="number" id="config-summary-length" min="50" max="500" oninput="updatePreview()">
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-header">👥 联系人</div>
-      <div class="panel-body">
-        <div id="contacts-list"></div>
-        <button class="btn btn-secondary" style="width:100%; margin-top:8px; justify-content:center;" onclick="addContact()">+ 添加联系人</button>
-        <div class="form-group" style="margin-top:12px;">
-          <label>页脚</label>
-          <textarea id="config-footer" oninput="updateStats()"></textarea>
+    <div class="preview-panel">
+      <div class="panel">
+        <div class="panel-header">📋 当前配置预览</div>
+        <div class="panel-body">
+          <div class="preview-content" id="previewContent"></div>
         </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <div class="panel-header">🔧 高级设置</div>
-      <div class="panel-body">
-        <div class="form-group">
-          <label>API 重试次数</label>
-          <input type="number" id="config-retries" min="0" max="5" oninput="updateStats()">
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-header">
+          <span>📊 最近运行</span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="loadRuns()">刷新</button>
         </div>
-        <div class="form-group">
-          <label>完整历史保留轮数</label>
-          <input type="number" id="config-history-size" min="1" max="20" oninput="updateStats()">
-        </div>
-        <div class="row">
-          <div class="form-group">
-            <label>摘要触发阈值</label>
-            <input type="number" id="config-summary-trigger" min="2" max="20" oninput="updateStats()">
-          </div>
-          <div class="form-group">
-            <label>摘要最大长度</label>
-            <input type="number" id="config-summary-length" min="50" max="500" oninput="updateStats()">
-          </div>
+        <div class="panel-body">
+          <div id="runsList"><span style="color:#656d76;font-size:13px;">加载中...</span></div>
         </div>
       </div>
     </div>
@@ -447,10 +566,19 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   </div>
 
   <div class="status-bar" id="statusBar"></div>
+
+  <div id="logModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; padding:40px;">
+    <div style="background:#fff; border-radius:8px; max-width:900px; margin:0 auto; max-height:calc(100vh - 80px); display:flex; flex-direction:column;">
+      <div style="padding:14px 16px; border-bottom:1px solid #d0d7de; display:flex; align-items:center; justify-content:space-between;">
+        <strong id="logTitle">运行日志</strong>
+        <button class="btn btn-secondary btn-sm" onclick="closeLogModal()">关闭</button>
+      </div>
+      <div id="logContent" style="flex:1; overflow-y:auto; padding:12px; background:#0d1117; color:#c9d1d9; font-family:monospace; font-size:12px; line-height:1.6;"></div>
+    </div>
+  </div>
 </div>
 
 <script>
-// 全局错误捕获：JS报错时在页面上显示
 window.onerror = function(msg, url, line, col, error) {
   try {
     var bar = document.getElementById('statusBar');
@@ -463,13 +591,15 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 const STORAGE_KEY = 'ghostmail_config_cache';
+const EMAIL_ENV_OPTIONS = ['TO_EMAIL_1', 'TO_EMAIL_2', 'TO_EMAIL_3', 'TO_EMAIL_4', 'TO_EMAIL_5'];
 
 let personaList = [];
 let templateList = [];
 let scheduleMode = 'random';
 let isLoading = false;
+let currentRunId = null;
+let pollTimer = null;
 
-// 默认值
 const defaultConfig = {
   PERSONA: '',
   EMAIL_TEMPLATE: '',
@@ -483,12 +613,14 @@ const defaultConfig = {
   FULL_HISTORY_SIZE: 1,
   SUMMARY_TRIGGER: 5,
   SUMMARY_MAX_LENGTH: 200,
-  FOOTER: '',
+  FOOTER_TEXT: '— From Ghost Mail',
+  FOOTER_LINK: 'https://github.com/Century0327/random-ai-mail-ghost',
   CONTACTS: [
     { name: '小令狐', email_env: 'TO_EMAIL_1' },
     { name: '鼠鼠', email_env: 'TO_EMAIL_2' },
   ],
   ATTACHMENT_MODE: 'normal',
+  FIXED_DATETIME: '',
 };
 
 function api(endpoint, method='GET', body=null) {
@@ -516,7 +648,7 @@ function showStatus(msg, type='info', autoHide=true) {
   const icon = icons[type] || 'ℹ️';
   bar.innerHTML = '<span class="status-icon">' + icon + '</span>' + msg;
   if (autoHide) {
-    setTimeout(() => { bar.style.display = 'none'; }, 8000);
+    setTimeout(() => { bar.style.display = 'none'; }, 10000);
   }
 }
 
@@ -535,7 +667,7 @@ function loadFromCache() {
       if (data.repo) {
         document.getElementById('repoInfo').innerHTML = `<span class="loading-dot loading"></span>${data.repo} · ${data.branch || 'main'}（缓存中）`;
       }
-      updateStats();
+      updatePreview();
       return true;
     }
   } catch(e) { console.warn('缓存读取失败', e); }
@@ -580,6 +712,22 @@ function fillTemplateSelect(templates) {
   }
 }
 
+function parseFooterToTextLink(footerHtml) {
+  if (!footerHtml) return { text: '', link: '' };
+  const m = footerHtml.match(/<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
+  if (m) return { text: m[2], link: m[1] };
+  return { text: footerHtml.replace(/<[^>]+>/g, ''), link: '' };
+}
+
+function buildFooterHtml(text, link) {
+  if (!text && !link) return '';
+  const t = text || '— From Ghost Mail';
+  if (link) {
+    return `<a href="${link}" style="color:#999; text-decoration:none;">${t}</a>`;
+  }
+  return t;
+}
+
 function applyConfig(config) {
   document.getElementById('config-persona').value = config.PERSONA || '';
   document.getElementById('config-template').value = config.EMAIL_TEMPLATE || '';
@@ -593,7 +741,11 @@ function applyConfig(config) {
   document.getElementById('config-history-size').value = config.FULL_HISTORY_SIZE != null ? config.FULL_HISTORY_SIZE : 1;
   document.getElementById('config-summary-trigger').value = config.SUMMARY_TRIGGER != null ? config.SUMMARY_TRIGGER : 5;
   document.getElementById('config-summary-length').value = config.SUMMARY_MAX_LENGTH != null ? config.SUMMARY_MAX_LENGTH : 200;
-  document.getElementById('config-footer').value = config.FOOTER || '';
+
+  const footerParsed = parseFooterToTextLink(config.FOOTER || '');
+  document.getElementById('config-footer-text').value = footerParsed.text || '';
+  document.getElementById('config-footer-link').value = footerParsed.link || '';
+
   if (config.ATTACHMENT_MODE) {
     document.getElementById('config-attachment-mode').value = config.ATTACHMENT_MODE;
   }
@@ -606,9 +758,12 @@ function renderContacts(contacts) {
   contacts.forEach((c, i) => {
     const item = document.createElement('div');
     item.className = 'contact-item';
+    const envOptions = EMAIL_ENV_OPTIONS.map(e =>
+      `<option value="${e}" ${e === c.email_env ? 'selected' : ''}>${e}</option>`
+    ).join('');
     item.innerHTML = `
-      <input type="text" placeholder="称呼" value="${escape(c.name || '')}" data-idx="${i}" data-field="name" oninput="updateStats()">
-      <input type="text" placeholder="环境变量名" value="${escape(c.email_env || '')}" data-idx="${i}" data-field="email_env" oninput="updateStats()">
+      <input type="text" placeholder="昵称" value="${escape(c.name || '')}" data-idx="${i}" data-field="name" oninput="updatePreview()">
+      <select data-idx="${i}" data-field="email_env" onchange="updatePreview()">${envOptions}</select>
       <button class="remove-btn" onclick="removeContact(${i})">✕</button>
     `;
     list.appendChild(item);
@@ -621,16 +776,17 @@ function escape(s) {
 
 function addContact() {
   const contacts = getContactsFromUI();
-  contacts.push({ name: '', email_env: 'TO_EMAIL_' + (contacts.length + 1) });
+  const nextNum = contacts.length + 1;
+  contacts.push({ name: '', email_env: 'TO_EMAIL_' + nextNum });
   renderContacts(contacts);
-  updateStats();
+  updatePreview();
 }
 
 function removeContact(idx) {
   const contacts = getContactsFromUI();
   contacts.splice(idx, 1);
   renderContacts(contacts);
-  updateStats();
+  updatePreview();
 }
 
 function getContactsFromUI() {
@@ -646,15 +802,78 @@ function getContactsFromUI() {
   return contacts;
 }
 
-function updateStats() {
+function getBeijingTime() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const beijing = new Date(utc + 8 * 3600 * 1000);
+  return beijing;
+}
+
+function formatDateTimeLocal(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function setToday() {
+  const now = getBeijingTime();
+  now.setHours(0, 0, 0, 0);
+  document.getElementById('config-fixed-datetime').value = formatDateTimeLocal(now);
+  updatePreview();
+}
+
+function setNow() {
+  document.getElementById('config-fixed-datetime').value = formatDateTimeLocal(getBeijingTime());
+  updatePreview();
+}
+
+function updatePreview() {
   const persona = document.getElementById('config-persona').value;
-  document.getElementById('statPersona').textContent = persona || '--';
   const template = document.getElementById('config-template').value;
+  const subject = document.getElementById('config-subject').value;
+  const signature = document.getElementById('config-signature').value;
+  const location = document.getElementById('config-location').value;
+  const minDays = document.getElementById('config-min-days').value;
+  const maxDays = document.getElementById('config-max-days').value;
+  const conv = document.getElementById('config-conversation').checked;
+  const attMode = document.getElementById('config-attachment-mode').value;
+  const footerText = document.getElementById('config-footer-text').value;
+  const footerLink = document.getElementById('config-footer-link').value;
+  const contacts = getContactsFromUI();
+  const retries = document.getElementById('config-retries').value;
+  const historySize = document.getElementById('config-history-size').value;
+
+  document.getElementById('statPersona').textContent = persona || '--';
   document.getElementById('statTemplate').textContent = template || '--';
-  document.getElementById('statContacts').textContent = getContactsFromUI().length + ' 人';
+  document.getElementById('statContacts').textContent = contacts.length + ' 人';
+  document.getElementById('statInterval').textContent = scheduleMode === 'random'
+    ? `${minDays}-${maxDays} 天`
+    : '精确时间';
+
+  const rows = [
+    ['人设', persona || '--'],
+    ['模板', template || '--'],
+    ['主题前缀', subject || '（无）'],
+    ['署名', signature || '（无）'],
+    ['附件地点', location || '（无）'],
+    ['发送模式', scheduleMode === 'random' ? '随机间隔' : '精确时间'],
+    ['间隔', scheduleMode === 'random' ? `${minDays}-${maxDays} 天` : document.getElementById('config-fixed-datetime').value || '未设置'],
+    ['附件模式', {normal:'正常',force_on:'强制有附件',force_off:'强制无附件'}[attMode] || '正常'],
+    ['连续对话', conv ? '✅ 开启' : '❌ 关闭'],
+    ['联系人', contacts.map(c => `${c.name} (${c.email_env})`).join('<br>') || '（无）'],
+    ['页脚文字', footerText || '（无）'],
+    ['页脚链接', footerLink || '（无）'],
+    ['重试次数', retries + ' 次'],
+    ['历史保留', historySize + ' 轮'],
+  ];
+
+  document.getElementById('previewContent').innerHTML = rows.map(r =>
+    `<div class="preview-row"><div class="preview-key">${r[0]}</div><div class="preview-val">${r[1]}</div></div>`
+  ).join('');
 }
 
 function collectConfig() {
+  const footerText = document.getElementById('config-footer-text').value;
+  const footerLink = document.getElementById('config-footer-link').value;
   return {
     PERSONA: document.getElementById('config-persona').value,
     EMAIL_TEMPLATE: document.getElementById('config-template').value,
@@ -668,8 +887,9 @@ function collectConfig() {
     FULL_HISTORY_SIZE: parseInt(document.getElementById('config-history-size').value) || 1,
     SUMMARY_TRIGGER: parseInt(document.getElementById('config-summary-trigger').value) || 5,
     SUMMARY_MAX_LENGTH: parseInt(document.getElementById('config-summary-length').value) || 200,
-    FOOTER: document.getElementById('config-footer').value,
+    FOOTER: buildFooterHtml(footerText, footerLink),
     CONTACTS: getContactsFromUI(),
+    ATTACHMENT_MODE: document.getElementById('config-attachment-mode').value,
   };
 }
 
@@ -686,18 +906,15 @@ function loadConfig() {
   setButtonsDisabled(true);
 
   api('/api/config', 'GET').then(data => {
-    if (data.error) {
-      throw new Error(data.error);
-    }
+    if (data.error) throw new Error(data.error);
 
     fillPersonaSelect(data.personas);
     fillTemplateSelect(data.templates);
     applyConfig(data.config);
-    updateStats();
+    updatePreview();
 
     document.getElementById('repoInfo').textContent = `${data.repo} · ${data.branch}`;
 
-    // 缓存
     saveToCache({
       config: data.config,
       personas: data.personas,
@@ -709,6 +926,7 @@ function loadConfig() {
     showStatus('配置已加载 ✓', 'success');
     isLoading = false;
     setButtonsDisabled(false);
+    loadRuns();
   }).catch(err => {
     console.error(err);
     isLoading = false;
@@ -731,16 +949,101 @@ function saveConfig() {
 
   api('/api/config', 'POST', { config }).then(data => {
     if (data.error) throw new Error(data.error);
-    // 更新缓存
     const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     cached.config = config;
     saveToCache(cached);
     showStatus('配置已保存到仓库 ✓', 'success');
     setButtonsDisabled(false);
-    updateStats();
+    updatePreview();
   }).catch(err => {
     setButtonsDisabled(false);
     showStatus('保存失败: ' + err.message, 'error');
+  });
+}
+
+function statusLabel(s, conclusion) {
+  if (s === 'completed') {
+    return conclusion === 'success' ? '✅ 成功' : conclusion === 'failure' ? '❌ 失败' : '⏹ ' + (conclusion || s);
+  }
+  if (s === 'in_progress') return '🔄 运行中';
+  if (s === 'queued' || s === 'waiting') return '⏳ 排队中';
+  if (s === 'pending') return '⏳ 等待中';
+  return '❓ ' + s;
+}
+
+function loadRuns() {
+  api('/api/runs?limit=5').then(data => {
+    const runs = data.runs || [];
+    const list = document.getElementById('runsList');
+    if (runs.length === 0) {
+      list.innerHTML = '<span style="color:#656d76;font-size:13px;">暂无运行记录</span>';
+      return;
+    }
+    list.innerHTML = runs.map(r => {
+      const time = new Date(r.created_at).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'});
+      const label = statusLabel(r.status, r.conclusion);
+      return `
+        <div style="padding:8px 0; border-bottom:1px solid #d0d7de; font-size:13px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="font-weight:500;">${label}</span>
+            <a href="${r.html_url}" target="_blank" style="font-size:12px; color:#0969da;">查看 →</a>
+          </div>
+          <div style="color:#656d76; font-size:12px; margin-top:2px;">${time}</div>
+          ${r.status === 'in_progress' ? `<button class="btn btn-secondary btn-sm" style="margin-top:4px; width:100%; justify-content:center;" onclick="showRunLog(${r.id})">📜 查看实时日志</button>` : ''}
+        </div>
+      `;
+    }).join('');
+  }).catch(err => {
+    document.getElementById('runsList').innerHTML = '<span style="color:#cf222e;font-size:13px;">加载失败: ' + err.message + '</span>';
+  });
+}
+
+function showRunLog(runId) {
+  currentRunId = runId;
+  document.getElementById('logModal').style.display = 'block';
+  document.getElementById('logTitle').textContent = '运行日志 #' + runId;
+  document.getElementById('logContent').innerHTML = '加载中...';
+  fetchLogDetail(runId);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (currentRunId) fetchLogDetail(currentRunId, true);
+  }, 5000);
+}
+
+function closeLogModal() {
+  document.getElementById('logModal').style.display = 'none';
+  currentRunId = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function fetchLogDetail(runId, silent=false) {
+  api(`/api/runs/${runId}/logs`).then(data => {
+    const jobs = data.jobs || [];
+    let allDone = true;
+    let html = jobs.map(job => {
+      const steps = (job.steps || []).map(s => {
+        let cls = 'pending', icon = '○';
+        if (s.status === 'completed') {
+          cls = s.conclusion === 'success' ? 'success' : 'failure';
+          icon = s.conclusion === 'success' ? '✓' : '✗';
+        } else if (s.status === 'in_progress') {
+          cls = 'in_progress';
+          icon = '●';
+          allDone = false;
+        }
+        return `<div class="step-item ${cls}"><span class="step-status">${icon}</span>${escape(s.name)}</div>`;
+      }).join('');
+      if (job.status !== 'completed') allDone = false;
+      return `<div class="job-item"><div class="job-name">${escape(job.name)} (${statusLabel(job.status, job.conclusion)})</div>${steps}</div>`;
+    }).join('');
+    if (!html) html = '暂无日志数据...';
+    document.getElementById('logContent').innerHTML = html;
+    if (allDone && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }).catch(err => {
+    if (!silent) document.getElementById('logContent').innerHTML = '<span style="color:#f85149;">加载失败: ' + err.message + '</span>';
   });
 }
 
@@ -756,8 +1059,9 @@ function testSend() {
     }
   }).then(data => {
     if (data.error) throw new Error(data.error);
-    showStatus('发送已触发 ✓ 约 1-2 分钟后查收邮件。可在 GitHub Actions 页面查看进度。', 'success');
+    showStatus('发送已触发 ✓ 下方可查看实时进度，约 1-2 分钟后收到邮件', 'success');
     setButtonsDisabled(false);
+    setTimeout(() => loadRuns(), 2000);
   }).catch(err => {
     setButtonsDisabled(false);
     showStatus('触发失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN 和 GITHUB_REPO 是否已配置。', 'error');
@@ -788,9 +1092,10 @@ function saveAndTest() {
         if (d.error) {
           showStatus('配置已保存 ✓ 但触发失败: ' + d.error + '。请检查 GITHUB_TOKEN 权限。', 'error');
         } else {
-          showStatus('配置已保存，发送已触发 ✓ 约 1-2 分钟后查收邮件', 'success');
+          showStatus('配置已保存，发送已触发 ✓ 下方可查看进度，约 1-2 分钟后查收', 'success');
         }
         setButtonsDisabled(false);
+        setTimeout(() => loadRuns(), 2000);
       }).catch(err => {
           setButtonsDisabled(false);
           showStatus('配置已保存 ✓ 但触发失败: ' + err.message + '。请检查 Vercel 环境变量。', 'error');
@@ -808,20 +1113,17 @@ function switchScheduleMode(mode, btn) {
   btn.classList.add('active');
   document.getElementById('schedule-random').style.display = mode === 'random' ? 'block' : 'none';
   document.getElementById('schedule-fixed').style.display = mode === 'fixed' ? 'block' : 'none';
+  updatePreview();
 }
 
-// 初始化：先读缓存，再拉远程
 showStatus('页面已加载，正在初始化...', 'info', false);
 applyConfig(defaultConfig);
 fillPersonaSelect(['kitty', 'maodie']);
 fillTemplateSelect(['default', 'cat', 'dark']);
 renderContacts(defaultConfig.CONTACTS);
-updateStats();
+updatePreview();
 
-// 有缓存先用缓存
 const hasCache = loadFromCache();
-
-// 然后拉远程最新
 loadConfig();
 </script>
 </body>
