@@ -48,7 +48,6 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   border: 1px solid #d0d7de;
   border-radius: 6px;
   overflow: hidden;
-  cursor: move;
 }
 .panel-header {
   background: #f6f8fa;
@@ -56,15 +55,10 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .panel-body { padding: 16px; }
 
-.form-group {
-  margin-bottom: 14px;
-}
+.form-group { margin-bottom: 14px; }
 .form-group:last-child { margin-bottom: 0; }
 .form-group label {
   display: block;
@@ -79,7 +73,7 @@ header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
   margin-top: 4px;
 }
 
-select, input[type="text"], input[type="number"], textarea {
+select, input[type="text"], input[type="number"], input[type="date"], textarea {
   width: 100%;
   padding: 6px 10px;
   font-size: 14px;
@@ -89,6 +83,20 @@ select, input[type="text"], input[type="number"], textarea {
   color: #24292f;
   outline: none;
   transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%23656d76' d='M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+select:focus, input {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 select:focus, input:focus, textarea:focus {
   border-color: #0969da;
@@ -110,6 +118,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   border: 1px solid;
   cursor: pointer;
   transition: all 0.15s;
+  pointer-events: auto;
 }
 .btn-primary {
   background: #2da44e;
@@ -117,6 +126,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   color: #fff;
 }
 .btn-primary:hover { background: #2c974b; }
+.btn-primary:disabled { background: #94d3a2; cursor: not-allowed; }
 .btn-secondary {
   background: #f6f8fa;
   border-color: rgba(27, 31, 36, 0.15);
@@ -173,7 +183,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   gap: 8px;
   margin-bottom: 8px;
 }
-.contact-item input { flex: 1; }
+.contact-item input { flex: 1; min-width: 0; }
 .contact-item .remove-btn {
   padding: 6px 10px;
   background: #f6f8fa;
@@ -181,6 +191,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   border-radius: 6px;
   cursor: pointer;
   color: #cf222e;
+  flex-shrink: 0;
 }
 
 .tab-bar {
@@ -228,6 +239,28 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   border: 1px solid #54aeff;
   display: block;
 }
+.status-bar.warning {
+  background: #fff8c5;
+  color: #9a6700;
+  border: 1px solid #d4a72c;
+  display: block;
+}
+
+.loading-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d0d7de;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: pulse 1.5s infinite;
+}
+.loading-dot.loading { background: #f0883e; animation: pulse 1s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 
 @media (max-width: 768px) {
   .panels { grid-template-columns: 1fr; }
@@ -240,11 +273,11 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
   <header>
     <div>
       <h1>📬 Ghost Mail 控制台</h1>
-      <div class="subtitle" id="repoInfo">加载中...</div>
+      <div class="subtitle" id="repoInfo"><span class="loading-dot loading"></span>加载中...</div>
     </div>
     <div style="display:flex; gap:8px;">
       <button class="btn btn-secondary" onclick="loadConfig()">🔄 刷新</button>
-      <button class="btn btn-primary" onclick="testSend()">🚀 立即发送</button>
+      <button class="btn btn-primary" id="testBtn" onclick="testSend()">🚀 立即发送</button>
     </div>
   </header>
 
@@ -263,56 +296,60 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
     </div>
   </div>
 
-  <div class="panels" id="panels">
-    <div class="panel" draggable="true">
+  <div class="panels">
+    <div class="panel">
       <div class="panel-header">⚙️ 基础设置</div>
       <div class="panel-body">
         <div class="form-group">
           <label>人设</label>
-          <select id="config-persona"></select>
+          <select id="config-persona" onchange="updateStats()">
+            <option value="">加载中...</option>
+          </select>
           <div class="hint">选择邮件人设风格</div>
         </div>
         <div class="form-group">
           <label>邮件模板</label>
-          <select id="config-template"></select>
+          <select id="config-template" onchange="updateStats()">
+            <option value="">加载中...</option>
+          </select>
           <div class="hint">HTML 邮件样式</div>
         </div>
         <div class="form-group">
           <label>主题前缀</label>
-          <input type="text" id="config-subject" placeholder="【猫猫来信】">
+          <input type="text" id="config-subject" placeholder="【猫猫来信】" oninput="updateStats()">
         </div>
         <div class="form-group">
           <label>署名</label>
-          <input type="text" id="config-signature" placeholder="留空则不署名">
+          <input type="text" id="config-signature" placeholder="留空则不署名" oninput="updateStats()">
         </div>
         <div class="form-group">
           <label>附件水印地点</label>
-          <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示">
+          <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示" oninput="updateStats()">
         </div>
       </div>
     </div>
 
-    <div class="panel" draggable="true">
+    <div class="panel">
       <div class="panel-header">⏰ 发送计划</div>
       <div class="panel-body">
         <div class="tab-bar">
-          <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
-          <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
+        <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
+        <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
         </div>
         <div id="schedule-random">
           <div class="row">
             <div class="form-group">
               <label>最少间隔（天）</label>
-              <input type="number" id="config-min-days" min="0" max="30">
+              <input type="number" id="config-min-days" min="0" max="30" oninput="updateStats()">
             </div>
             <div class="form-group">
               <label>最大间隔（天）</label>
-              <input type="number" id="config-max-days" min="0" max="30">
+              <input type="number" id="config-max-days" min="0" max="30" oninput="updateStats()">
             </div>
           </div>
           <div class="form-group">
             <label>附件模式</label>
-            <select id="config-attachment-mode">
+            <select id="config-attachment-mode" onchange="updateStats()">
               <option value="normal">正常（按触发策略）</option>
               <option value="force_on">强制有附件</option>
               <option value="force_off">强制无附件</option>
@@ -321,7 +358,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
           </div>
           <div class="form-group">
             <label class="toggle-switch">
-              <input type="checkbox" id="config-conversation">
+              <input type="checkbox" id="config-conversation" onchange="updateStats()">
               <span class="toggle-slider"></span>
               <span>连续对话（记住历史）</span>
             </label>
@@ -330,60 +367,60 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
         <div id="schedule-fixed" style="display:none;">
           <div class="form-group">
             <label>指定日期</label>
-            <input type="date" id="config-fixed-date">
+            <input type="date" id="config-fixed-date" onchange="updateStats()">
           </div>
           <div class="row">
             <div class="form-group">
               <label>时</label>
-              <input type="number" id="config-fixed-hour" min="0" max="23" value="0">
+              <input type="number" id="config-fixed-hour" min="0" max="23" value="0" oninput="updateStats()">
             </div>
             <div class="form-group">
               <label>分</label>
-              <input type="number" id="config-fixed-minute" min="0" max="59" value="0">
+              <input type="number" id="config-fixed-minute" min="0" max="59" value="0" oninput="updateStats()">
             </div>
             <div class="form-group">
               <label>秒</label>
-              <input type="number" id="config-fixed-second" min="0" max="59" value="0">
+              <input type="number" id="config-fixed-second" min="0" max="59" value="0" oninput="updateStats()">
             </div>
           </div>
           <div class="form-group">
-            <div class="hint">⚠️ 精确时间模式下，修改后点击「保存并部署」会设置下一次发送的精确时间。此功能配合 GitHub Actions cron 使用，时间为 UTC。</div>
+            <div class="hint">⚠️ 精确时间需要配合 GitHub Actions cron 使用，时间为 UTC。</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="panel" draggable="true">
+    <div class="panel">
       <div class="panel-header">👥 联系人</div>
       <div class="panel-body">
         <div id="contacts-list"></div>
         <button class="btn btn-secondary" style="width:100%; margin-top:8px; justify-content:center;" onclick="addContact()">+ 添加联系人</button>
         <div class="form-group" style="margin-top:12px;">
           <label>页脚</label>
-          <textarea id="config-footer"></textarea>
+          <textarea id="config-footer" oninput="updateStats()"></textarea>
         </div>
       </div>
     </div>
 
-    <div class="panel" draggable="true">
+    <div class="panel">
       <div class="panel-header">🔧 高级设置</div>
       <div class="panel-body">
         <div class="form-group">
           <label>API 重试次数</label>
-          <input type="number" id="config-retries" min="0" max="5">
+          <input type="number" id="config-retries" min="0" max="5" oninput="updateStats()">
         </div>
         <div class="form-group">
           <label>完整历史保留轮数</label>
-          <input type="number" id="config-history-size" min="1" max="20">
+          <input type="number" id="config-history-size" min="1" max="20" oninput="updateStats()">
         </div>
         <div class="row">
           <div class="form-group">
             <label>摘要触发阈值</label>
-            <input type="number" id="config-summary-trigger" min="2" max="20">
+            <input type="number" id="config-summary-trigger" min="2" max="20" oninput="updateStats()">
           </div>
           <div class="form-group">
             <label>摘要最大长度</label>
-            <input type="number" id="config-summary-length" min="50" max="500">
+            <input type="number" id="config-summary-length" min="50" max="500" oninput="updateStats()">
           </div>
         </div>
       </div>
@@ -392,18 +429,42 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
 
   <div class="actions">
     <button class="btn btn-secondary" onclick="loadConfig()">重置</button>
-    <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
-    <button class="btn btn-primary" onclick="saveAndTest()">💾 保存并立即发送</button>
+    <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 保存配置</button>
+    <button class="btn btn-primary" id="saveTestBtn" onclick="saveAndTest()">💾 保存并立即发送</button>
   </div>
 
   <div class="status-bar" id="statusBar"></div>
 </div>
 
 <script>
-let currentConfig = null;
+const STORAGE_KEY = 'ghostmail_config_cache';
+
 let personaList = [];
 let templateList = [];
 let scheduleMode = 'random';
+let isLoading = false;
+
+// 默认值
+const defaultConfig = {
+  PERSONA: '',
+  EMAIL_TEMPLATE: '',
+  SUBJECT_PREFIX: '',
+  SIGNATURE: '',
+  ATTACHMENT_LOCATION: '',
+  MIN_DAYS: 0,
+  MAX_DAYS: 3,
+  ENABLE_CONVERSATION: true,
+  MAX_RETRIES: 2,
+  FULL_HISTORY_SIZE: 1,
+  SUMMARY_TRIGGER: 5,
+  SUMMARY_MAX_LENGTH: 200,
+  FOOTER: '',
+  CONTACTS: [
+    { name: '小令狐', email_env: 'TO_EMAIL_1' },
+    { name: '鼠鼠', email_env: 'TO_EMAIL_2' },
+  ],
+  ATTACHMENT_MODE: 'normal',
+};
 
 function api(endpoint, method='GET', body=null) {
   const options = {
@@ -411,67 +472,99 @@ function api(endpoint, method='GET', body=null) {
     headers: { 'Content-Type': 'application/json' },
   };
   if (body) options.body = JSON.stringify(body);
-  return fetch(`/api${endpoint}`, options).then(r => r.json());
+  return fetch(endpoint, options).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
 }
 
-function showStatus(msg, type='info') {
+function showStatus(msg, type='info', autoHide=true) {
   const bar = document.getElementById('statusBar');
   bar.className = 'status-bar ' + type;
   bar.textContent = msg;
-  setTimeout(() => { bar.style.display = 'none'; }, 5000);
+  if (autoHide) {
+    setTimeout(() => { bar.style.display = 'none'; }, 5000);
+  }
 }
 
-function loadConfig() {
-  showStatus('加载中...', 'info');
-  api('/config').then(data => {
-    if (data.error) {
-      showStatus('加载失败: ' + data.error, 'error');
-      return;
+function hideStatus() {
+  document.getElementById('statusBar').style.display = 'none';
+}
+
+function loadFromCache() {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      if (data.config) applyConfig(data.config);
+      if (data.personas) fillPersonaSelect(data.personas);
+      if (data.templates) fillTemplateSelect(data.templates);
+      if (data.repo) {
+        document.getElementById('repoInfo').innerHTML = `<span class="loading-dot loading"></span>${data.repo} · ${data.branch || 'main'}（缓存中）`;
+      }
+      updateStats();
+      return true;
     }
-    currentConfig = data.config;
-    personaList = data.personas;
-    templateList = data.templates;
+  } catch(e) { console.warn('缓存读取失败', e); }
+  return false;
+}
 
-    document.getElementById('repoInfo').textContent = `${data.repo} · ${data.branch}`;
+function saveToCache(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
 
-    const personaSelect = document.getElementById('config-persona');
-    personaSelect.innerHTML = '';
-    personaList.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p;
-      opt.textContent = p;
-      personaSelect.appendChild(opt);
-    });
-    personaSelect.value = data.config.PERSONA || '';
-
-    const templateSelect = document.getElementById('config-template');
-    templateSelect.innerHTML = '';
-    templateList.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t;
-      opt.textContent = t;
-      templateSelect.appendChild(opt);
-    });
-    templateSelect.value = data.config.EMAIL_TEMPLATE || '';
-
-    document.getElementById('config-subject').value = data.config.SUBJECT_PREFIX || '';
-    document.getElementById('config-signature').value = data.config.SIGNATURE || '';
-    document.getElementById('config-location').value = data.config.ATTACHMENT_LOCATION || '';
-    document.getElementById('config-min-days').value = data.config.MIN_DAYS || 0;
-    document.getElementById('config-max-days').value = data.config.MAX_DAYS || 3;
-    document.getElementById('config-conversation').checked = data.config.ENABLE_CONVERSATION;
-    document.getElementById('config-retries').value = data.config.MAX_RETRIES || 2;
-    document.getElementById('config-history-size').value = data.config.FULL_HISTORY_SIZE || 3;
-    document.getElementById('config-summary-trigger').value = data.config.SUMMARY_TRIGGER || 5;
-    document.getElementById('config-summary-length').value = data.config.SUMMARY_MAX_LENGTH || 200;
-    document.getElementById('config-footer').value = data.config.FOOTER || '';
-
-    renderContacts(data.config.CONTACTS || []);
-    updateStats();
-    showStatus('配置已加载', 'success');
-  }).catch(err => {
-    showStatus('加载失败: ' + err.message, 'error');
+function fillPersonaSelect(personas) {
+  personaList = personas;
+  const sel = document.getElementById('config-persona');
+  const current = sel.value;
+  sel.innerHTML = '';
+  personas.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    sel.appendChild(opt);
   });
+  if (current && personas.includes(current)) {
+    sel.value = current;
+  }
+}
+
+function fillTemplateSelect(templates) {
+  templateList = templates;
+  const sel = document.getElementById('config-template');
+  const current = sel.value;
+  sel.innerHTML = '';
+  templates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    sel.appendChild(opt);
+  });
+  if (current && templates.includes(current)) {
+    sel.value = current;
+  }
+}
+
+function applyConfig(config) {
+  document.getElementById('config-persona').value = config.PERSONA || '';
+  document.getElementById('config-template').value = config.EMAIL_TEMPLATE || '';
+  document.getElementById('config-subject').value = config.SUBJECT_PREFIX || '';
+  document.getElementById('config-signature').value = config.SIGNATURE || '';
+  document.getElementById('config-location').value = config.ATTACHMENT_LOCATION || '';
+  document.getElementById('config-min-days').value = config.MIN_DAYS != null ? config.MIN_DAYS : 0;
+  document.getElementById('config-max-days').value = config.MAX_DAYS != null ? config.MAX_DAYS : 3;
+  document.getElementById('config-conversation').checked = config.ENABLE_CONVERSATION !== false;
+  document.getElementById('config-retries').value = config.MAX_RETRIES != null ? config.MAX_RETRIES : 2;
+  document.getElementById('config-history-size').value = config.FULL_HISTORY_SIZE != null ? config.FULL_HISTORY_SIZE : 1;
+  document.getElementById('config-summary-trigger').value = config.SUMMARY_TRIGGER != null ? config.SUMMARY_TRIGGER : 5;
+  document.getElementById('config-summary-length').value = config.SUMMARY_MAX_LENGTH != null ? config.SUMMARY_MAX_LENGTH : 200;
+  document.getElementById('config-footer').value = config.FOOTER || '';
+  if (config.ATTACHMENT_MODE) {
+    document.getElementById('config-attachment-mode').value = config.ATTACHMENT_MODE;
+  }
+  renderContacts(config.CONTACTS || []);
 }
 
 function renderContacts(contacts) {
@@ -481,12 +574,16 @@ function renderContacts(contacts) {
     const item = document.createElement('div');
     item.className = 'contact-item';
     item.innerHTML = `
-      <input type="text" placeholder="称呼" value="${c.name || ''}" data-idx="${i}" data-field="name">
-      <input type="text" placeholder="环境变量名" value="${c.email_env || ''}" data-idx="${i}" data-field="email_env">
+      <input type="text" placeholder="称呼" value="${escape(c.name || '')}" data-idx="${i}" data-field="name" oninput="updateStats()">
+      <input type="text" placeholder="环境变量名" value="${escape(c.email_env || '')}" data-idx="${i}" data-field="email_env" oninput="updateStats()">
       <button class="remove-btn" onclick="removeContact(${i})">✕</button>
     `;
     list.appendChild(item);
   });
+}
+
+function escape(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 }
 
 function addContact() {
@@ -517,8 +614,10 @@ function getContactsFromUI() {
 }
 
 function updateStats() {
-  document.getElementById('statPersona').textContent = document.getElementById('config-persona').value || '--';
-  document.getElementById('statTemplate').textContent = document.getElementById('config-template').value || '--';
+  const persona = document.getElementById('config-persona').value;
+  document.getElementById('statPersona').textContent = persona || '--';
+  const template = document.getElementById('config-template').value;
+  document.getElementById('statTemplate').textContent = template || '--';
   document.getElementById('statContacts').textContent = getContactsFromUI().length + ' 人';
 }
 
@@ -533,7 +632,7 @@ function collectConfig() {
     MAX_DAYS: parseInt(document.getElementById('config-max-days').value) || 3,
     ENABLE_CONVERSATION: document.getElementById('config-conversation').checked,
     MAX_RETRIES: parseInt(document.getElementById('config-retries').value) || 2,
-    FULL_HISTORY_SIZE: parseInt(document.getElementById('config-history-size').value) || 3,
+    FULL_HISTORY_SIZE: parseInt(document.getElementById('config-history-size').value) || 1,
     SUMMARY_TRIGGER: parseInt(document.getElementById('config-summary-trigger').value) || 5,
     SUMMARY_MAX_LENGTH: parseInt(document.getElementById('config-summary-length').value) || 200,
     FOOTER: document.getElementById('config-footer').value,
@@ -541,36 +640,93 @@ function collectConfig() {
   };
 }
 
+function setButtonsDisabled(disabled) {
+  document.getElementById('testBtn').disabled = disabled;
+  document.getElementById('saveBtn').disabled = disabled;
+  document.getElementById('saveTestBtn').disabled = disabled;
+}
+
+function loadConfig() {
+  hideStatus();
+  showStatus('正在加载配置...', 'info', false);
+  isLoading = true;
+  setButtonsDisabled(true);
+
+  api('/api/config', 'GET').then(data => {
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    fillPersonaSelect(data.personas);
+    fillTemplateSelect(data.templates);
+    applyConfig(data.config);
+    updateStats();
+
+    document.getElementById('repoInfo').textContent = `${data.repo} · ${data.branch}`;
+
+    // 缓存
+    saveToCache({
+      config: data.config,
+      personas: data.personas,
+      templates: data.templates,
+      repo: data.repo,
+      branch: data.branch,
+    });
+
+    showStatus('配置已加载 ✓', 'success');
+    isLoading = false;
+    setButtonsDisabled(false);
+  }).catch(err => {
+    console.error(err);
+    isLoading = false;
+    setButtonsDisabled(false);
+    const hasCache = personaList.length > 0 || document.getElementById('config-persona').options.length > 1;
+    if (hasCache) {
+      showStatus('加载失败，使用本地缓存（修改后点保存即可更新到仓库）', 'warning', false);
+      document.getElementById('repoInfo').textContent = '离线模式（缓存）';
+    } else {
+      showStatus('加载失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN / GITHUB_REPO 是否配置正确', 'error', false);
+      document.getElementById('repoInfo').textContent = '加载失败';
+    }
+  });
+}
+
 function saveConfig() {
   const config = collectConfig();
-  showStatus('保存中...', 'info');
-  api('/config', 'POST', { config }).then(data => {
-    if (data.error) {
-      showStatus('保存失败: ' + data.error, 'error');
-    } else {
-      showStatus('配置已保存到仓库 ✓', 'success');
-      updateStats();
-    }
+  showStatus('保存中...', 'info', false);
+  setButtonsDisabled(true);
+
+  api('/api/config', 'POST', { config }).then(data => {
+    if (data.error) throw new Error(data.error);
+    // 更新缓存
+    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cached.config = config;
+    saveToCache(cached);
+    showStatus('配置已保存到仓库 ✓', 'success');
+    setButtonsDisabled(false);
+    updateStats();
   }).catch(err => {
+    setButtonsDisabled(false);
     showStatus('保存失败: ' + err.message, 'error');
   });
 }
 
 function testSend() {
   const attachmentMode = document.getElementById('config-attachment-mode').value;
-  showStatus('正在触发发送...', 'info');
-  api('/dispatch', 'POST', {
+  showStatus('正在触发发送...', 'info', false);
+  setButtonsDisabled(true);
+
+  api('/api/dispatch', 'POST', {
     inputs: {
       force_send: 'true',
       attachment_mode: attachmentMode,
     }
   }).then(data => {
-    if (data.error) {
-      showStatus('触发失败: ' + data.error, 'error');
-    } else {
-      showStatus('已触发！约1-2分钟后收到邮件 ✓', 'success');
-    }
+    if (data.error) throw new Error(data.error);
+    showStatus('已触发！约1-2分钟后收到邮件 ✓', 'success');
+    setButtonsDisabled(false);
   }).catch(err => {
+    setButtonsDisabled(false);
     showStatus('触发失败: ' + err.message, 'error');
   });
 }
@@ -578,14 +734,18 @@ function testSend() {
 function saveAndTest() {
   const config = collectConfig();
   const attachmentMode = document.getElementById('config-attachment-mode').value;
-  showStatus('保存并触发中...', 'info');
-  api('/config', 'POST', { config }).then(data => {
-    if (data.error) {
-      showStatus('保存失败: ' + data.error, 'error');
-      return;
-    }
+  showStatus('保存并触发中...', 'info', false);
+  setButtonsDisabled(true);
+
+  api('/api/config', 'POST', { config }).then(data => {
+    if (data.error) throw new Error(data.error);
+    // 更新缓存
+    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cached.config = config;
+    saveToCache(cached);
+
     setTimeout(() => {
-      api('/dispatch', 'POST', {
+      api('/api/dispatch', 'POST', {
         inputs: {
           force_send: 'true',
           attachment_mode: attachmentMode,
@@ -596,9 +756,14 @@ function saveAndTest() {
         } else {
           showStatus('配置已保存，发送已触发 ✓', 'success');
         }
-      });
+        setButtonsDisabled(false);
+      }).catch(err => {
+          setButtonsDisabled(false);
+          showStatus('配置已保存，但触发失败: ' + err.message, 'error');
+        });
     }, 1000);
   }).catch(err => {
+    setButtonsDisabled(false);
     showStatus('保存失败: ' + err.message, 'error');
   });
 }
@@ -611,38 +776,17 @@ function switchScheduleMode(mode, btn) {
   document.getElementById('schedule-fixed').style.display = mode === 'fixed' ? 'block' : 'none';
 }
 
-// 拖拽排序
-let dragPanel = null;
-document.querySelectorAll('.panel').forEach(panel => {
-  panel.addEventListener('dragstart', e => {
-    dragPanel = panel;
-    panel.style.opacity = '0.5';
-  });
-  panel.addEventListener('dragend', e => {
-    panel.style.opacity = '1';
-    dragPanel = null;
-  });
-  panel.addEventListener('dragover', e => {
-    e.preventDefault();
-    if (dragPanel && dragPanel !== panel) {
-      const rect = panel.getBoundingClientRect();
-      const after = e.clientY > rect.top + rect.height / 2;
-      if (after) {
-        panel.parentNode.insertBefore(dragPanel, panel.nextSibling);
-      } else {
-        panel.parentNode.insertBefore(dragPanel, panel);
-      }
-    }
-  });
-});
+// 初始化：先读缓存，再拉远程
+applyConfig(defaultConfig);
+fillPersonaSelect(['kitty', 'maodie']);
+fillTemplateSelect(['default', 'cat', 'dark']);
+renderContacts(defaultConfig.CONTACTS);
+updateStats();
 
-// 实时更新统计
-document.querySelectorAll('select, input').forEach(el => {
-  el.addEventListener('change', updateStats);
-  el.addEventListener('input', updateStats);
-});
+// 有缓存先用缓存
+const hasCache = loadFromCache();
 
-// 初始加载
+// 然后拉远程最新
 loadConfig();
 </script>
 </body>
