@@ -970,7 +970,7 @@ def generate_email():
         history = add_to_history(history, "ghost", body)
         save_conversation_history(history)
 
-    # ============ 附件系统：水彩彩铅明信片 + Q版水印 ============
+    # ============ 附件系统：写实风格小猫状态图 + Q版水印 ============
     attachment = None
     try:
         # 收集用户最新回复文本
@@ -987,6 +987,7 @@ def generate_email():
             history=history,
             user_reply=user_reply_text,
             location=ATTACHMENT_LOCATION if ATTACHMENT_LOCATION else None,
+            email_body=body,  # 传入邮件正文，让图片场景与内容匹配
         )
     except Exception as e:
         logger.warning(f"[ATTACHMENT] 附件生成失败，继续发信: {e}")

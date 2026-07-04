@@ -38,43 +38,69 @@ CHARACTER = (
 )
 
 # ============ 场景池（写实风格）============
-# 每行：(场景描述, 地点标注)
+# 每项：(场景描述, 地点标注, 关键词标签列表)
 # 描述中避免完整人形，只含局部肢体（hand/finger/knee）
+# 关键词用于和邮件正文匹配，让画面与内容一致
 SCENES = {
     "0-20": [
-        ("curled up trembling in a dark cardboard box corner, only big frightened eyes visible through a gap", "纸箱缝隙"),
-        ("shivering with ears pressed flat against head, paws gripping the cardboard edge tightly", "纸箱边缘"),
-        ("head buried under paws, only ear tips sticking out, hiding in the deepest corner", "纸箱深处"),
-        ("peeking through a narrow gap in the box, eyes wide with fear, whiskers trembling", "纸箱缝隙"),
-        ("pressed against the box wall, body curled into a tight ball, tail wrapped around paws", "纸箱角落"),
+        ("curled up trembling in a dark cardboard box corner, only big frightened eyes visible through a gap",
+         "纸箱缝隙", ["缩", "抖", "怕", "恐惧", "角落", "缝隙"]),
+        ("shivering with ears pressed flat against head, paws gripping the cardboard edge tightly",
+         "纸箱边缘", ["抖", "耳朵贴", "爪子", "抓", "边缘"]),
+        ("head buried under paws, only ear tips sticking out, hiding in the deepest corner",
+         "纸箱深处", ["躲", "藏", "埋", "深处", "耳朵"]),
+        ("peeking through a narrow gap in the box, eyes wide with fear, whiskers trembling",
+         "纸箱缝隙", ["偷看", "看", "眼睛", "抖", "缝隙", "胡须"]),
+        ("pressed against the box wall, body curled into a tight ball, tail wrapped around paws",
+         "纸箱角落", ["缩", "蜷", "尾巴", "团", "角落"]),
     ],
     "21-40": [
-        ("cautiously poking head out of the box, ears perked up listening to sounds outside", "纸箱口"),
-        ("sneaking to a water bowl, small pink tongue lapping cautiously, looking around nervously", "水碗边"),
-        ("hiding under a sofa, only the tail tip visible, whiskers twitching", "沙发底"),
-        ("sitting on a windowsill, staring intently at a bird outside, tail wrapped around body", "窗台上"),
-        ("sniffing a pile of cat food on the floor, hesitant to take a bite, one paw raised", "食盆旁"),
+        ("cautiously poking head out of the box, ears perked up listening to sounds outside",
+         "纸箱口", ["探头", "听", "耳朵", "竖", "纸箱", "外面"]),
+        ("sneaking to a water bowl, small pink tongue lapping cautiously, looking around nervously",
+         "水碗边", ["喝", "水", "舔", "吃", "食", "粮"]),
+        ("hiding under a sofa, only the tail tip visible, whiskers twitching",
+         "沙发底", ["躲", "藏", "尾巴", "沙发", "底下"]),
+        ("sitting on a windowsill, staring intently at a bird outside, tail wrapped around body",
+         "窗台上", ["看", "窗外", "鸟", "窗台", "望"]),
+        ("sniffing a pile of cat food on the floor, hesitant to take a bite, one paw raised",
+         "食盆旁", ["吃", "粮", "食", "闻", "犹豫", "举爪"]),
     ],
     "41-60": [
-        ("bending down to eat cat food, occasionally looking up at a nearby finger", "食盆旁"),
-        ("sniffing a human finger extended toward it, tail wagging gently", "地板上"),
-        ("lying on a windowsill, completely focused on watching a bird outside, one ear twitching", "窗台上"),
-        ("tentatively touching a ball of yarn with one paw, the other paw raised in curiosity", "地毯上"),
-        ("stretching with back arched, then slowly relaxing body on a warm patch of floor", "阳光下"),
+        ("bending down to eat cat food, occasionally looking up at a nearby finger",
+         "食盆旁", ["吃", "粮", "食", "吃粮", "低头"]),
+        ("sniffing a human finger extended toward it, tail wagging gently",
+         "地板上", ["闻", "手", "指", "尾巴", "摇", "接近"]),
+        ("lying on a windowsill, completely focused on watching a bird outside, one ear twitching",
+         "窗台上", ["看", "窗外", "鸟", "窗台", "趴", "耳朵"]),
+        ("tentatively touching a ball of yarn with one paw, the other paw raised in curiosity",
+         "地毯上", ["玩", "毛线", "爪子", "碰", "好奇"]),
+        ("stretching with back arched, then slowly relaxing body on a warm patch of floor",
+         "阳光下", ["伸懒腰", "舒展", "晒", "阳光", "放松"]),
     ],
     "61-80": [
-        ("rolling on back in a sunbeam on the windowsill, eyes half closed, belly exposed", "窗台上"),
-        ("rubbing against a table leg, tail raised high and fluffy", "桌腿旁"),
-        ("dozing on a soft cushion, half-open eyes, tail swaying lazily", "垫子上"),
-        ("sitting on a low cabinet, looking down at the room from above, tail hanging over the edge", "矮柜上"),
-        ("chasing its own tail in circles on a rug, then stopping to lick a paw", "地毯中央"),
+        ("rolling on back in a sunbeam on the windowsill, eyes half closed, belly exposed",
+         "窗台上", ["翻肚皮", "晒", "阳光", "窗台", "眯眼", "躺"]),
+        ("rubbing against a table leg, tail raised high and fluffy",
+         "桌腿旁", ["蹭", "尾巴翘", "标记", "蹭腿", "桌子"]),
+        ("dozing on a soft cushion, half-open eyes, tail swaying lazily",
+         "垫子上", ["睡", "打盹", "眯", "垫子", "尾巴摇", "懒"]),
+        ("sitting on a low cabinet, looking down at the room from above, tail hanging over the edge",
+         "矮柜上", ["看", "高处", "观察", "柜子", "尾巴垂"]),
+        ("chasing its own tail in circles on a rug, then stopping to lick a paw",
+         "地毯中央", ["玩", "跑", "追尾巴", "舔", "活泼"]),
     ],
     "81-100": [
-        ("curled into a fluffy ball on a human knee, tail wrapped around body", "膝盖上"),
-        ("rubbing head against a human hand, eyes half-closed in contentment", "人身边"),
-        ("kneading on a soft blanket with paws, one paw after another rhythmically", "软垫上"),
-        ("running toward a human hand with a small toy mouse in mouth", "地板上"),
-        ("lying side by side with a human on the windowsill, tail intertwined with a sleeve", "窗台上"),
+        ("curled into a fluffy ball on a human knee, tail wrapped around body",
+         "膝盖上", ["睡", "蜷", "膝盖", "腿上", "团", "趴"]),
+        ("rubbing head against a human hand, eyes half-closed in contentment",
+         "人身边", ["蹭", "头", "手", "呼噜", "眯眼", "满足", "亲近"]),
+        ("kneading on a soft blanket with paws, one paw after another rhythmically",
+         "软垫上", ["踩奶", "呼噜", "软垫", "爪子", "踩"]),
+        ("running toward a human hand with a small toy mouse in mouth",
+         "地板上", ["玩", "跑", "叼", "玩具", "迎接", "活泼"]),
+        ("lying side by side with a human on the windowsill, tail intertwined with a sleeve",
+         "窗台上", ["躺", "依偎", "窗台", "尾巴", "陪伴", "靠"]),
     ],
 }
 
@@ -90,6 +116,89 @@ def _trust_level_str(trust_value):
         if low <= trust_value <= high:
             return level
     return "81-100"
+
+
+def _extract_action_keywords(email_body):
+    """从邮件正文（尤其是括号内的动作）中提取关键词
+    
+    kitty人设格式：猫叫+（动作），如"咪……（缩成一团）（耳朵贴紧）"
+    返回：关键词列表（去重）
+    """
+    if not email_body:
+        return []
+    
+    import re
+    keywords = []
+    
+    # 提取所有中文括号内的内容
+    bracket_pattern = re.compile(r'[（(]([^）)]+)[）)]')
+    for m in bracket_pattern.finditer(email_body):
+        action = m.group(1)
+        keywords.append(action)
+    
+    # 也提取正文中出现的关键单字（猫叫本身也带情绪）
+    # 比如"呼噜"、"哈"、"嗯"等
+    cat_sounds = {
+        "呼噜": ["呼噜", "踩奶", "满足", "亲近", "放松"],
+        "哈": ["凶", "怕", "炸毛", "警告"],
+        "呜": ["怕", "委屈", "难过"],
+        "咪": ["试探", "不安"],
+        "喵": ["注意", "好奇"],
+        "嗯": ["放松", "舒服", "满意"],
+    }
+    for sound, related in cat_sounds.items():
+        if sound in email_body:
+            keywords.extend(related)
+    
+    # 去重并返回
+    return list(set(keywords))
+
+
+def _pick_scene_by_content(level_scenes, email_body):
+    """根据邮件正文内容选择最匹配的场景
+    
+    计算每个场景关键词与正文关键词的匹配数，选匹配度最高的。
+    如果正文为空或无匹配，则随机选择。
+    
+    返回：(场景索引, 场景描述, 地点标注)
+    """
+    if not level_scenes:
+        return 0, "", ""
+    
+    body_keywords = _extract_action_keywords(email_body)
+    
+    if not body_keywords:
+        idx = random.randint(0, len(level_scenes) - 1)
+        scene_desc, location, _ = level_scenes[idx]
+        return idx, scene_desc, location
+    
+    # 计算每个场景的匹配分数
+    scores = []
+    for i, scene in enumerate(level_scenes):
+        _, _, scene_keywords = scene
+        score = 0
+        for bk in body_keywords:
+            for sk in scene_keywords:
+                if sk in bk or bk in sk:
+                    score += 1
+                    break
+        scores.append((score, i))
+    
+    # 按分数降序排列
+    scores.sort(reverse=True)
+    
+    best_score = scores[0][0]
+    if best_score == 0:
+        # 完全没匹配，随机选
+        idx = random.randint(0, len(level_scenes) - 1)
+    else:
+        # 在最高分的场景中随机选一个（可能有多个同分）
+        best_indices = [i for s, i in scores if s == best_score]
+        idx = random.choice(best_indices)
+    
+    scene_desc, location, _ = level_scenes[idx]
+    logger.info(f"[ATTACHMENT] 场景匹配: 关键词={body_keywords[:5]}, 选择=场景{idx}（匹配分={best_score}）")
+    return idx, scene_desc, location
 
 
 def _load_state():
@@ -331,7 +440,7 @@ def add_watermark(img, chibi, location=None):
 
 # ============ 主入口 ============
 
-def create_attachment(persona_name, trust_value, letter_num, history=None, user_reply=None, location=None):
+def create_attachment(persona_name, trust_value, letter_num, history=None, user_reply=None, location=None, email_body=None):
     """
     创建附件（或返回 None）
     
@@ -342,6 +451,7 @@ def create_attachment(persona_name, trust_value, letter_num, history=None, user_
         history: 对话历史（可选）
         user_reply: 用户最新回复文本（可选）
         location: 地点水印（可选，默认从 config 读取）
+        email_body: 邮件正文内容（可选，用于场景匹配，让画面与内容一致）
     
     返回:
         dict 或 None: {image_bytes, number, rarity, filename}
@@ -353,11 +463,15 @@ def create_attachment(persona_name, trust_value, letter_num, history=None, user_
     
     logger.info(f"[ATTACHMENT] 触发附件: {reason}")
     
-    # 选择场景
+    # 选择场景（优先根据邮件正文内容匹配）
     level = _trust_level_str(trust_value)
     scenes = SCENES[level]
-    scene_idx = random.randint(0, len(scenes) - 1)
-    scene_desc, _ = scenes[scene_idx]
+    
+    if email_body:
+        scene_idx, scene_desc, _ = _pick_scene_by_content(scenes, email_body)
+    else:
+        scene_idx = random.randint(0, len(scenes) - 1)
+        scene_desc, _, _ = scenes[scene_idx]
     
     # 生成图片
     prompt = build_image_prompt(scene_desc, trust_value, location)
