@@ -320,8 +320,9 @@ def main():
     from core.scheduler import should_send, schedule_next
     from core.mailer import send_email
 
-    # 强制发送：环境变量 FORCE_SEND=1
-    force_send = os.environ.get("FORCE_SEND", "") == "1"
+    # 强制发送：环境变量 FORCE_SEND=1/true/yes/on
+    force_send_val = os.environ.get("FORCE_SEND", "").lower().strip()
+    force_send = force_send_val in ("1", "true", "yes", "on")
 
     # 附件模式
     force_attachment = None
