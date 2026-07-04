@@ -1,4 +1,12 @@
 {
   "version": 2,
+  "builds": [
+    { "src": "api/config.py", "use": "@vercel/python" },
+    { "src": "api/dispatch.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/api/config", "dest": "/api/config.py" },
+    { "src": "/api/dispatch", "dest": "/api/dispatch.py" }
+  ],
   "cleanUrls": true
 }
