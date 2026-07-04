@@ -99,7 +99,7 @@ def _dispatch_workflow(inputs=None):
 def _parse_config(content):
     config = {}
     lines = content.splitlines()
-    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "FOOTER", "ATTACHMENT_LOCATION"]
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION"]
     simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
     for var in simple_str + simple_int:
         for line in lines:
@@ -111,6 +111,15 @@ def _parse_config(content):
                 elif val.isdigit():
                     config[var] = int(val)
                 break
+    for line in lines:
+        m = re.match(r'^FOOTER\s*=\s*(.+)$', line.strip())
+        if m:
+            val = m.group(1).strip()
+            if val.startswith('"') and val.endswith('"'):
+                inner = val[1:-1]
+                inner = inner.replace('\\"', '"')
+                config["FOOTER"] = inner
+            break
     for line in lines:
         m = re.match(r'^ENABLE_CONVERSATION\s*=\s*(True|False)', line.strip())
         if m:
