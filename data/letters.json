@@ -1,5 +1,14 @@
 [
   {
+    "id": "l5",
+    "character_id": "kitty",
+    "subject": "【猫猫来信】",
+    "body": "嗯嗯！（跳上膝盖）  <br>呼噜……（用头蹭）  <br>（尾巴翘）  <br>嗯嗯！（踩奶）<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top: 20px; padding-top: 15px; border-top: 1px dashed #eee; font-size: 12px; color: #666;\">\n<tr><td>\n<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n<tr>\n<td align=\"left\" style=\"font-size: 12px; color: #666;\">信任值</td>\n<td align=\"right\" style=\"font-size: 12px; color: #666;\">初步信任（79/100）</td>\n</tr>\n</table>\n</td></tr>\n<tr><td style=\"padding-top: 6px;\">\n<table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width: 100%; height: 10px; background: #eee; border-radius: 4px; overflow: hidden;\">\n<tr>\n<td width=\"474\" bgcolor=\"#FF9800\" height=\"10\" style=\"background: #FF9800; height: 10px; line-height: 10px; font-size: 0;\">&nbsp;</td>\n<td width=\"126\" height=\"10\" style=\"background: #eee; height: 10px; line-height: 10px; font-size: 0;\">&nbsp;</td>\n</tr>\n</table>\n</td></tr>\n</table>",
+    "source": "ai",
+    "attachment_url": "/assets/cat-letter-001.jpg",
+    "created_at": "2026-07-05T19:18:28.167777Z"
+  },
+  {
     "id": "l1",
     "character_id": "maodie",
     "subject": "第一次见面",
