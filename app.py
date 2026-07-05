@@ -93,44 +93,6 @@ def _cors_resp(data, status=200):
     return resp
 
 
-# ============ 文件数据读取（JSON 数据库）=============
-
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-
-def _load_json_data(filename, default=None):
-    """从 data/ 目录读取 JSON 文件"""
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path):
-        return default if default is not None else []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[DATA ERROR] {e}")
-        return default if default is not None else []
-
-def _save_json_data(filename, data):
-    """写入 JSON 文件到 data/ 目录"""
-    path = os.path.join(DATA_DIR, filename)
-    try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"[DATA ERROR] {e}")
-        return False
-
-
-
-@app.route("/api/config", methods=["OPTIONS"])
-@app.route("/api/dispatch", methods=["OPTIONS"])
-@app.route("/api/runs", methods=["OPTIONS"])
-@app.route("/api/runs/<run_id>/logs", methods=["OPTIONS"])
-def _options():
-    return _cors_resp({})
-
-
 def _get_file(path):
     url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}?ref={GITHUB_BRANCH}"
     resp = requests.get(url, headers=_headers())
@@ -173,6 +135,73 @@ def _dispatch_workflow(inputs=None):
     if resp.status_code == 204:
         return True, "已触发"
     return False, resp.text
+
+
+# ============ 文件数据读取（JSON 数据库）=============
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+def _load_json_data(filename, default=None):
+    """从 data/ 目录读取 JSON 文件，优先从 GitHub 读取（持久化）"""
+    # 如果有 GitHub token，优先从 GitHub 读取（持久化）
+    if GITHUB_TOKEN and GITHUB_REPO:
+        path = f"data/{filename}"
+        content, _ = _get_file(path)
+        if content:
+            try:
+                return json.loads(content)
+            except Exception as e:
+                print(f"[DATA ERROR] GitHub {filename} 解析失败: {e}")
+    
+    # 本地文件兜底
+    path = os.path.join(DATA_DIR, filename)
+    if not os.path.exists(path):
+        return default if default is not None else []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[DATA ERROR] {e}")
+        return default if default is not None else []
+
+def _save_json_data(filename, data):
+    """写入 JSON 文件，同时写入 GitHub（持久化）和本地"""
+    content = json.dumps(data, indent=2, ensure_ascii=False)
+    
+    # 如果有 GitHub token，写入 GitHub（持久化）
+    if GITHUB_TOKEN and GITHUB_REPO:
+        path = f"data/{filename}"
+        ok, msg = _update_file(path, content, f"chore: 更新 {filename}")
+        if ok:
+            # 也写入本地缓存
+            try:
+                os.makedirs(DATA_DIR, exist_ok=True)
+                with open(os.path.join(DATA_DIR, filename), "w", encoding="utf-8") as f:
+                    f.write(content)
+            except:
+                pass
+            return True
+        else:
+            print(f"[DATA ERROR] GitHub 写入 {filename} 失败: {msg}")
+    
+    # 本地文件兜底
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(os.path.join(DATA_DIR, filename), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"[DATA ERROR] {e}")
+        return False
+
+
+@app.route("/api/config", methods=["OPTIONS"])
+@app.route("/api/dispatch", methods=["OPTIONS"])
+@app.route("/api/runs", methods=["OPTIONS"])
+@app.route("/api/runs/<run_id>/logs", methods=["OPTIONS"])
+def _options():
+    return _cors_resp({})
+
 
 
 def _parse_config(content):
