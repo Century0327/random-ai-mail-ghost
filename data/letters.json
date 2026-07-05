@@ -1,0 +1,38 @@
+[
+  {
+    "id": "l1",
+    "character_id": "maodie",
+    "subject": "第一次见面",
+    "body": "那天你推开门，我就决定留下来陪你了。",
+    "source": "ai",
+    "attachment_url": null,
+    "created_at": "2026-03-15T08:00:00Z"
+  },
+  {
+    "id": "l2",
+    "character_id": "maodie",
+    "subject": "下雨的午后",
+    "body": "外面在下雨，我们一起听雨声，很安心。",
+    "source": "ai",
+    "attachment_url": null,
+    "created_at": "2026-03-27T14:00:00Z"
+  },
+  {
+    "id": "l3",
+    "character_id": "maodie",
+    "subject": "你加班的夜晚",
+    "body": "你回来得很晚，我一直守着那盏小灯没有睡。看到你疲惫的样子，我蹭了蹭你的脚踝。别太累了，家永远为你留着灯。",
+    "source": "ai",
+    "attachment_url": null,
+    "created_at": "2026-04-02T22:00:00Z"
+  },
+  {
+    "id": "l4",
+    "character_id": "maodie",
+    "subject": "一起看的第一场雪",
+    "body": "窗外飘起了今年的第一场雪，白白的、静静的。你抱着我站在窗边，我们看了好久好久，谁都没有说话。有些幸福，是不需要语言的。",
+    "source": "ai",
+    "attachment_url": null,
+    "created_at": "2026-01-20T09:00:00Z"
+  }
+]
