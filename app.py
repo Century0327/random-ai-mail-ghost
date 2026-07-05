@@ -782,12 +782,18 @@ def generate_schedule():
         schedule: [日程列表]
         summary: 生成的历史摘要
         prev_schedule: 上次日程参考
+        job_id: 任务ID（用于监控）
     """
     if request.method == "OPTIONS":
         return _cors_resp({})
     
     body = request.get_json(silent=True) or {}
     character_id = body.get("character_id", "maodie")
+    
+    # 创建任务记录
+    job_id, _ = _create_schedule_job(character_id, trigger="api")
+    _update_schedule_job(job_id, status="running", progress=10)
+    _add_schedule_log(job_id, "开始生成日程...")
     
     # 从 JSON 文件读取历史日程
     schedules_data = _load_json_data("schedules.json", {})
@@ -802,12 +808,16 @@ def generate_schedule():
             prev_date = dates[0]
             prev_schedule = character_schedules[prev_date]
     
+    _update_schedule_job(job_id, progress=20)
+    _add_schedule_log(job_id, f"上次日程日期: {prev_date or '无'}")
+    
     # 从前端获取用户状态上下文
     last_schedule_frontend = body.get("last_schedule", [])  # 前端当前日程
     history_summary = body.get("history_summary", "")  # 前端累计摘要
     interact_count = body.get("interact_count", 0)
     
     # 读取最近信件（角色与用户之间的往来）
+    _add_schedule_log(job_id, "读取最近信件...")
     letters_data = _load_json_data("letters.json", [])
     recent_letters = []
     if isinstance(letters_data, list):
@@ -831,10 +841,7 @@ def generate_schedule():
     else:
         letters_text = "（没有最近信件）"
     
-    # 构造上次日程文本
-    last_schedule_frontend = body.get("last_schedule", [])  # 前端当前日程
-    history_summary = body.get("history_summary", "")  # 前端累计摘要
-    interact_count = body.get("interact_count", 0)
+    _add_schedule_log(job_id, f"最近信件: {len(recent_letters)} 封")
     
     # 构造上次日程文本
     prev_schedule_text = ""
@@ -853,6 +860,10 @@ def generate_schedule():
     now = datetime.now()
     current_time = now.strftime("%H:%M")
     current_date = now.strftime("%Y-%m-%d")
+    
+    _update_schedule_job(job_id, progress=30)
+    _add_schedule_log(job_id, f"当前时间: {current_time}")
+    _add_schedule_log(job_id, "调用 AI 生成日程...")
     
     # 构造 AI Prompt
     system_context = f"""你是'{character_id}'的日程规划助手。你熟悉这个角色的性格和习惯。
@@ -904,8 +915,12 @@ def generate_schedule():
     # 调用 AI
     ai_response, error = _call_ai(prompt, system_context)
     
+    _update_schedule_job(job_id, progress=60)
+    
     if error:
         print(f"[AI ERROR] {error}")
+        _add_schedule_log(job_id, f"AI 调用失败: {error}", "error")
+        _add_schedule_log(job_id, "使用默认日程兜底", "warn")
         default_schedule = [
             {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
             {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
@@ -917,12 +932,24 @@ def generate_schedule():
             {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
             {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
         ]
+        _update_schedule_job(
+            job_id,
+            status="success",
+            progress=100,
+            itemsCount=len(default_schedule),
+            finishedAt=datetime.now().isoformat(),
+            error=error
+        )
         return _cors_resp({
             "schedule": default_schedule,
             "summary": "角色状态平稳，日常作息规律。",
             "prev_schedule": prev_schedule,
-            "error": error
+            "error": error,
+            "job_id": job_id
         })
+    
+    _add_schedule_log(job_id, "AI 响应成功，解析中...")
+    _update_schedule_job(job_id, progress=70)
     
     # 解析 AI 返回
     schedule_items = []
@@ -946,8 +973,12 @@ def generate_schedule():
         # 如果没有提取到，尝试直接解析整个响应
         if not schedule_items:
             schedule_items = json.loads(json_part)
+        
+        _add_schedule_log(job_id, f"解析成功，生成 {len(schedule_items)} 条日程")
     except Exception as e:
         print(f"[PARSE ERROR] {e}")
+        _add_schedule_log(job_id, f"解析失败: {e}", "error")
+        _add_schedule_log(job_id, "使用默认日程兜底", "warn")
         schedule_items = [
             {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
             {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
@@ -960,11 +991,15 @@ def generate_schedule():
             {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
         ]
     
+    _update_schedule_job(job_id, progress=85)
+    
     # 确保每条日程有必要的字段
     for item in schedule_items:
         item.setdefault("done", False)
         item.setdefault("location", "")
         item.setdefault("thought", "")
+    
+    _add_schedule_log(job_id, "处理日程数据...")
     
     # 自动标记已过时间的日程为已完成（如果还没标记）
     now = datetime.now()
@@ -976,6 +1011,9 @@ def generate_schedule():
     
     # 按时间排序
     schedule_items.sort(key=lambda x: x.get("time", "00:00"))
+    
+    _update_schedule_job(job_id, progress=90)
+    _add_schedule_log(job_id, "保存日程到文件...")
     
     # 保存到 JSON 文件（持久化）
     try:
@@ -990,14 +1028,26 @@ def generate_schedule():
             "generatedAt": now.isoformat()
         }
         _save_json_data("schedules.json", schedules_data)
+        _add_schedule_log(job_id, f"保存成功，共 {len(schedule_items)} 条日程")
     except Exception as e:
         print(f"[SAVE ERROR] 保存日程失败: {e}")
+        _add_schedule_log(job_id, f"保存失败: {e}", "error")
+    
+    _update_schedule_job(
+        job_id,
+        status="success",
+        progress=100,
+        itemsCount=len(schedule_items),
+        finishedAt=datetime.now().isoformat()
+    )
+    _add_schedule_log(job_id, "任务完成 ✅")
     
     return _cors_resp({
         "schedule": schedule_items,
         "summary": summary or "角色度过了平常的一天。",
         "prev_schedule": prev_schedule,
-        "raw_response": ai_response  # 调试用
+        "raw_response": ai_response,  # 调试用
+        "job_id": job_id
     })
 
 
@@ -1031,6 +1081,122 @@ def companion_attachments():
     if character_id:
         all_attachments = [a for a in all_attachments if a.get("character_id") == character_id]
     return _cors_resp({"attachments": all_attachments})
+
+
+# ============ 日程生成状态监控 API ============
+
+def _get_schedule_status_path():
+    return os.path.join(DATA_DIR, "schedule_jobs.json")
+
+
+def _load_schedule_jobs():
+    path = _get_schedule_status_path()
+    if not os.path.exists(path):
+        return {"jobs": []}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"jobs": []}
+
+
+def _save_schedule_jobs(data):
+    path = _get_schedule_status_path()
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"[DATA ERROR] {e}")
+        return False
+
+
+def _add_schedule_log(job_id, message, level="info"):
+    """给任务添加日志"""
+    jobs_data = _load_schedule_jobs()
+    for job in jobs_data.get("jobs", []):
+        if job.get("id") == job_id:
+            job["logs"].append({
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "level": level,
+                "message": message
+            })
+            _save_schedule_jobs(jobs_data)
+            return
+    print(f"[WARN] Job {job_id} not found")
+
+
+def _update_schedule_job(job_id, **kwargs):
+    """更新任务状态"""
+    jobs_data = _load_schedule_jobs()
+    for job in jobs_data.get("jobs", []):
+        if job.get("id") == job_id:
+            job.update(kwargs)
+            _save_schedule_jobs(jobs_data)
+            return
+    print(f"[WARN] Job {job_id} not found")
+
+
+@app.route("/api/admin/schedule-jobs", methods=["GET", "OPTIONS"])
+def admin_schedule_jobs():
+    """获取日程生成任务列表（最近10条）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    jobs_data = _load_schedule_jobs()
+    jobs = jobs_data.get("jobs", [])
+    # 按时间倒序，取最近20条
+    jobs.sort(key=lambda x: x.get("startedAt", ""), reverse=True)
+    return _cors_resp({"jobs": jobs[:20]})
+
+
+@app.route("/api/admin/schedule-jobs/<job_id>", methods=["GET", "OPTIONS"])
+def admin_schedule_job_detail(job_id):
+    """获取单个任务详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    jobs_data = _load_schedule_jobs()
+    for job in jobs_data.get("jobs", []):
+        if job.get("id") == job_id:
+            return _cors_resp({"job": job})
+    return _cors_resp({"error": "任务不存在"}, 404)
+
+
+def _create_schedule_job(character_id, trigger="manual"):
+    """创建一个新的日程生成任务"""
+    import uuid
+    job_id = str(uuid.uuid4())[:8]
+    now = datetime.now()
+    
+    job = {
+        "id": job_id,
+        "characterId": character_id,
+        "status": "pending",  # pending, running, success, failed
+        "progress": 0,
+        "trigger": trigger,  # manual, cron, api
+        "startedAt": now.isoformat(),
+        "finishedAt": None,
+        "itemsCount": 0,
+        "error": None,
+        "logs": [
+            {
+                "time": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "level": "info",
+                "message": f"任务创建，角色: {character_id}"
+            }
+        ]
+    }
+    
+    jobs_data = _load_schedule_jobs()
+    jobs_data.setdefault("jobs", []).append(job)
+    # 只保留最近50条
+    if len(jobs_data["jobs"]) > 50:
+        jobs_data["jobs"] = jobs_data["jobs"][-50:]
+    _save_schedule_jobs(jobs_data)
+    
+    return job_id, job
 
 
 if __name__ == "__main__":

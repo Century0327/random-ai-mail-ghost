@@ -543,6 +543,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
         <div class="panel-body">
           <div class="tab-bar">
             <button class="active" onclick="switchTestTab('schedule', this)">日程生成</button>
+            <button onclick="switchTestTab('monitor', this)">生成监控</button>
             <button onclick="switchTestTab('frontend', this)">前端状态</button>
             <button onclick="switchTestTab('backend', this)">后端数据</button>
           </div>
@@ -564,6 +565,27 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
               <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 生成结果</div>
               <div id="schedule-test-summary" style="font-size:12px; color:#656d76; margin-bottom:8px;"></div>
               <div id="schedule-test-items" style="font-size:13px;"></div>
+            </div>
+          </div>
+
+          <div id="test-monitor" style="display:none;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+              <button class="btn btn-secondary btn-sm" onclick="loadScheduleJobs()" style="flex:1;">🔄 刷新任务列表</button>
+              <span id="monitor-status" style="font-size:12px; color:#656d76;">点击刷新加载</span>
+            </div>
+            
+            <div id="schedule-jobs-list" style="margin-bottom:12px;">
+              <span style="color:#656d76; font-size:13px;">暂无任务记录</span>
+            </div>
+            
+            <div id="job-detail-panel" style="display:none; border-top:1px solid #d0d7de; padding-top:12px;">
+              <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 任务详情</div>
+              <div id="job-detail-info" style="font-size:12px; color:#656d76; margin-bottom:8px;"></div>
+              <div style="height:6px; background:#d0d7de; border-radius:3px; overflow:hidden; margin-bottom:10px;">
+                <div id="job-progress-bar" style="height:100%; background:#2da44e; width:0%; transition:width 0.3s;"></div>
+              </div>
+              <div style="font-weight:600; font-size:12px; margin-bottom:6px;">📝 日志</div>
+              <div id="job-logs" style="font-family:monospace; font-size:11px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:250px; overflow-y:auto; white-space:pre-wrap;"></div>
             </div>
           </div>
 
@@ -1164,12 +1186,13 @@ function switchScheduleMode(mode, btn) {
 // ===== Test & Monitor Panel =====
 
 function switchTestTab(tab, btn) {
-  document.querySelectorAll('#test-schedule, #test-frontend, #test-backend').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#test-schedule, #test-monitor, #test-frontend, #test-backend').forEach(el => el.style.display = 'none');
   document.getElementById('test-' + tab).style.display = 'block';
   const parent = btn.parentElement;
   parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (tab === 'schedule') loadTestCharacters();
+  if (tab === 'monitor') loadScheduleJobs();
 }
 
 let testCharacterData = {};
@@ -1340,6 +1363,170 @@ function loadBackendData(type) {
   }).catch(err => {
     display.textContent = '加载失败: ' + err.message + '\n\n请确保后端 API 已部署并支持此接口。';
   });
+}
+
+// ===== 日程生成监控 =====
+
+let currentJobId = null;
+let jobPollingTimer = null;
+
+function getStatusBadge(status) {
+  const colors = {
+    pending: 'background:#d0d7de;color:#24292f',
+    running: 'background:#bf8700;color:#fff',
+    success: 'background:#2da44e;color:#fff',
+    failed: 'background:#cf222e;color:#fff'
+  };
+  const labels = {
+    pending: '等待中',
+    running: '运行中',
+    success: '成功',
+    failed: '失败'
+  };
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${colors[status] || colors.pending}">${labels[status] || status}</span>`;
+}
+
+function formatTime(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function loadScheduleJobs() {
+  const listEl = document.getElementById('schedule-jobs-list');
+  const statusEl = document.getElementById('monitor-status');
+  statusEl.textContent = '加载中...';
+  
+  api('/api/admin/schedule-jobs').then(data => {
+    const jobs = data.jobs || [];
+    statusEl.textContent = `共 ${jobs.length} 个任务`;
+    
+    if (jobs.length === 0) {
+      listEl.innerHTML = '<span style="color:#656d76; font-size:13px;">暂无任务记录</span>';
+      return;
+    }
+    
+    let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+    jobs.forEach(job => {
+      const duration = job.finishedAt
+        ? ((new Date(job.finishedAt) - new Date(job.startedAt)) / 1000).toFixed(1) + 's'
+        : job.status === 'running' ? '进行中...' : '-';
+      
+      html += `
+        <div onclick="viewJobDetail('${job.id}')" style="cursor:pointer; padding:10px 12px; border:1px solid #d0d7de; border-radius:6px; background:#f6f8fa; transition:background 0.2s;"
+             onmouseover="this.style.background='#eaeef2'" onmouseout="this.style.background='#f6f8fa'">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${getStatusBadge(job.status)}
+              <span style="font-size:13px; font-weight:600;">${job.characterId}</span>
+            </div>
+            <span style="font-size:11px; color:#656d76;">${formatTime(job.startedAt)}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; margin-top:4px; font-size:11px; color:#656d76;">
+            <span>进度: ${job.progress || 0}%</span>
+            <span>${job.itemsCount || 0} 条日程</span>
+            <span>耗时: ${duration}</span>
+            <span style="margin-left:auto; font-size:10px;">#${job.id}</span>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+  }).catch(err => {
+    statusEl.textContent = '加载失败';
+    listEl.innerHTML = '<span style="color:#cf222e; font-size:13px;">加载失败: ' + err.message + '</span>';
+  });
+}
+
+function viewJobDetail(jobId) {
+  currentJobId = jobId;
+  
+  // 清除之前的轮询
+  if (jobPollingTimer) {
+    clearInterval(jobPollingTimer);
+    jobPollingTimer = null;
+  }
+  
+  const panel = document.getElementById('job-detail-panel');
+  panel.style.display = 'block';
+  
+  loadJobDetail(jobId);
+  
+  // 如果是运行中，开始轮询
+  setTimeout(() => {
+    checkJobRunning(jobId);
+  }, 500);
+}
+
+function loadJobDetail(jobId) {
+  api('/api/admin/schedule-jobs/' + jobId).then(data => {
+    const job = data.job;
+    if (!job) return;
+    
+    const infoEl = document.getElementById('job-detail-info');
+    const progressEl = document.getElementById('job-progress-bar');
+    const logsEl = document.getElementById('job-logs');
+    
+    // 信息
+    const duration = job.finishedAt
+      ? ((new Date(job.finishedAt) - new Date(job.startedAt)) / 1000).toFixed(1) + 's'
+      : '进行中';
+    infoEl.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        ${getStatusBadge(job.status)}
+        <span style="font-weight:600; color:#24292f;">${job.characterId}</span>
+        <span style="margin-left:auto;">#${job.id}</span>
+      </div>
+      <div>开始: ${formatTime(job.startedAt)} | 耗时: ${duration} | ${job.itemsCount || 0} 条日程</div>
+      ${job.error ? '<div style="color:#cf222e; margin-top:4px;">错误: ' + job.error + '</div>' : ''}
+    `;
+    
+    // 进度条
+    progressEl.style.width = (job.progress || 0) + '%';
+    if (job.status === 'failed') {
+      progressEl.style.background = '#cf222e';
+    } else if (job.status === 'running') {
+      progressEl.style.background = '#bf8700';
+    } else {
+      progressEl.style.background = '#2da44e';
+    }
+    
+    // 日志
+    const logs = job.logs || [];
+    let logsHtml = logs.map(log => {
+      const colors = {
+        info: '#c9d1d9',
+        warn: '#d29922',
+        error: '#f85149'
+      };
+      return `<span style="color:${colors[log.level] || colors.info}">[${log.time}] [${log.level.toUpperCase()}] ${log.message}</span>`;
+    }).join('\n');
+    logsEl.innerHTML = logsHtml || '暂无日志';
+    logsEl.scrollTop = logsEl.scrollHeight;
+    
+  }).catch(err => {
+    console.error('加载任务详情失败:', err);
+  });
+}
+
+function checkJobRunning(jobId) {
+  if (jobPollingTimer) clearInterval(jobPollingTimer);
+  
+  jobPollingTimer = setInterval(() => {
+    api('/api/admin/schedule-jobs/' + jobId).then(data => {
+      const job = data.job;
+      if (!job) return;
+      
+      loadJobDetail(jobId);
+      
+      if (job.status !== 'running' && job.status !== 'pending') {
+        clearInterval(jobPollingTimer);
+        jobPollingTimer = null;
+        // 更新列表
+        loadScheduleJobs();
+      }
+    }).catch(() => {});
+  }, 2000);
 }
 
 showStatus('页面已加载，正在初始化...', 'info', false);
