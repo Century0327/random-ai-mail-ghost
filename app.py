@@ -392,5 +392,3 @@ if __name__ == "__main__":
 
 
 # ============ 陪伴系统注册 ============
-from companion_backend import register_companion_blueprint
-register_companion_blueprint(app)
