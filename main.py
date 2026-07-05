@@ -353,6 +353,115 @@ def main():
                   SIGNATURE, FOOTER, EMAIL_TEMPLATE, attachment):
         log_history(subject, source, persona)
         schedule_next(state, MIN_DAYS, MAX_DAYS)
+        
+        # 写入 data/letters.json（供前端 API 读取）
+        try:
+            import json as _json
+            import os as _os
+            from datetime import datetime as _dt
+            
+            data_dir = _os.path.join(_os.path.dirname(__file__), "data")
+            _os.makedirs(data_dir, exist_ok=True)
+            
+            letters_path = _os.path.join(data_dir, "letters.json")
+            all_letters = []
+            if _os.path.exists(letters_path):
+                with open(letters_path, "r", encoding="utf-8") as f:
+                    all_letters = _json.load(f)
+            
+            # 生成新信件 ID
+            letter_id = f"l{len(all_letters) + 1}"
+            
+            new_letter = {
+                "id": letter_id,
+                "character_id": persona,
+                "subject": subject,
+                "body": body,
+                "source": source,
+                "attachment_url": None,
+                "created_at": _dt.utcnow().isoformat() + "Z"
+            }
+            
+            # 如果有附件，记录附件 URL（实际上附件是图片字节，需要上传后才有 URL）
+            if attachment and attachment.get("filename"):
+                new_letter["attachment_url"] = f"/assets/{attachment['filename']}"
+            
+            all_letters.insert(0, new_letter)
+            
+            with open(letters_path, "w", encoding="utf-8") as f:
+                _json.dump(all_letters, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"[DATA] 已写入 letters.json: {letter_id}")
+            
+        except Exception as e:
+            logger.warning(f"[DATA] 写入 letters.json 失败: {e}")
+        
+        # 生成 AI 日程并写入 data/schedules.json
+        try:
+            import json as _json
+            import os as _os
+            from datetime import datetime as _dt
+            
+            data_dir = _os.path.join(_os.path.dirname(__file__), "data")
+            _os.makedirs(data_dir, exist_ok=True)
+            
+            schedules_path = _os.path.join(data_dir, "schedules.json")
+            all_schedules = {}
+            if _os.path.exists(schedules_path):
+                with open(schedules_path, "r", encoding="utf-8") as f:
+                    all_schedules = _json.load(f)
+            
+            # 调用 AI 生成日程（复用 generate_email 中的 call_ai）
+            from core.ai_client import call_ai
+            from core.persona import load_persona
+            
+            persona_name, persona_text, _ = load_persona(PERSONA)
+            
+            schedule_prompt = f"""请为'{persona_name}'生成今天的日程安排。生成3-5条日程，每条包含：
+- time: 时间（如 "08:00"）
+- activity: 活动描述（15字以内）
+- location: 地点（5字以内）
+- thought: 内心想法（20字以内）
+
+请只返回 JSON 数组格式，不要其他文字。例如：
+[
+  {{"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳真舒服"}},
+  {{"time": "10:00", "activity": "观察窗外", "location": "窗台前", "thought": "蝴蝶真好看"}}
+]
+"""
+            
+            schedule_response = call_ai(schedule_prompt, persona_text, ai_config, persona_name=persona_name)
+            
+            # 解析 AI 返回的 JSON
+            schedule_items = []
+            if schedule_response:
+                # 尝试提取 JSON 数组
+                import re as _re
+                json_match = _re.search(r'\[.*\]', schedule_response, re.DOTALL)
+                if json_match:
+                    try:
+                        schedule_items = _json.loads(json_match.group())
+                    except:
+                        pass
+            
+            if not schedule_items:
+                # AI 生成失败，使用默认日程
+                schedule_items = [
+                    {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
+                    {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
+                    {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
+                ]
+            
+            all_schedules[persona_name] = schedule_items
+            
+            with open(schedules_path, "w", encoding="utf-8") as f:
+                _json.dump(all_schedules, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"[DATA] 已生成并写入 schedules.json: {persona_name} ({len(schedule_items)} 条)")
+            
+        except Exception as e:
+            logger.warning(f"[DATA] 生成日程失败: {e}")
+            
     else:
         logger.error("[EXIT] 发送失败，状态不更新，下次重试")
 
