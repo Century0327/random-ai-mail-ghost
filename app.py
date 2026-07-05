@@ -341,8 +341,5 @@ if __name__ == "__main__":
 
 
 # ============ 陪伴系统注册 ============
-try:
-    from companion_backend import register_companion_blueprint
-    register_companion_blueprint(app)
-except Exception as e:
-    print(f"Companion system not loaded: {e}")
+from companion_backend import register_companion_blueprint
+register_companion_blueprint(app)
