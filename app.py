@@ -547,6 +547,23 @@ def companion_items():
     })
 
 
+# ============ Schedules API ============
+
+@app.route("/api/companion/schedules", methods=["GET", "OPTIONS"])
+def companion_schedules():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    character_id = request.args.get("character_id")
+    
+    # 数据库不可用，读取 JSON 文件
+    schedules_data = _load_json_data("schedules.json", {})
+    if character_id and isinstance(schedules_data, dict):
+        schedules_data = schedules_data.get(character_id, {})
+    
+    return _cors_resp({"schedules": schedules_data})
+
+
 # ============ Letters API ============
 
 @app.route("/api/companion/letters", methods=["GET", "OPTIONS"])
@@ -668,36 +685,6 @@ def create_conversation():
     return _cors_resp({"status": "ok", "message": "Conversation recorded"})
 
 
-# ============ Attachments API ============
-
-@app.route("/api/companion/attachments", methods=["GET", "OPTIONS"])
-def companion_attachments():
-    if request.method == "OPTIONS":
-        return _cors_resp({})
-    
-    character_id = request.args.get("character_id")
-    
-    # 尝试数据库
-    if DATABASE_URL:
-        if character_id:
-            rows = _db_query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
-                (character_id,)
-            )
-        else:
-            rows = _db_query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
-            )
-        if rows is not None:
-            return _cors_resp({"attachments": [dict(r) for r in rows]})
-    
-    # 数据库不可用，读取 JSON 文件
-    all_attachments = _load_json_data("attachments.json", [])
-    if character_id:
-        all_attachments = [a for a in all_attachments if a.get("character_id") == character_id]
-    return _cors_resp({"attachments": all_attachments})
-
-
 # ============ AI 日程生成 API ============
 
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
@@ -798,7 +785,12 @@ def generate_schedule():
             created = letter.get("created_at", "")[:10]
             letters_text += f"- [{created}] {direction}《{subject}》：{body_preview}...\n"
     else:
-        letters_text = "（没有最近信件）
+        letters_text = "（没有最近信件）"
+    
+    # 构造上次日程文本
+    last_schedule_frontend = body.get("last_schedule", [])  # 前端当前日程
+    history_summary = body.get("history_summary", "")  # 前端累计摘要
+    interact_count = body.get("interact_count", 0)
     
     # 构造上次日程文本
     prev_schedule_text = ""
@@ -836,6 +828,10 @@ def generate_schedule():
 
 ## 用户互动统计
 - 今天互动次数: {interact_count}
+{history_summary or '（没有历史摘要）'}
+
+## 用户互动统计
+- 今天互动次数: {interact_count}
 
 ## 当前时间
 今天是 {current_date}，当前时间 {current_time}。
@@ -848,6 +844,8 @@ def generate_schedule():
 5. 如果用户互动多，可以安排一些互动相关活动
 6. 参考最近信件内容，角色可能会因为来信/回信的内容而调整心情和计划
 7. 如果已经过了当前时间，后面的日程要留空/待安排
+5. 如果用户互动多，可以安排一些互动相关活动
+6. 如果已经过了当前时间，后面的日程要留空/待安排
 
 ## 输出格式
 只返回 JSON 数组，不要其他文字：
@@ -891,6 +889,7 @@ def generate_schedule():
             json_part = ai_response
         
         # 提取 JSON 数组
+        import re
         json_match = re.search(r'\[.*\]', json_part, re.DOTALL)
         if json_match:
             schedule_items = json.loads(json_match.group())
@@ -917,6 +916,38 @@ def generate_schedule():
         "prev_schedule": prev_schedule,
         "raw_response": ai_response  # 调试用
     })
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+@app.route("/api/companion/attachments", methods=["GET", "OPTIONS"])
+def companion_attachments():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    character_id = request.args.get("character_id")
+    
+    # 尝试数据库
+    if DATABASE_URL:
+        if character_id:
+            rows = _db_query(
+                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
+                (character_id,)
+            )
+        else:
+            rows = _db_query(
+                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
+            )
+        if rows is not None:
+            return _cors_resp({"attachments": [dict(r) for r in rows]})
+    
+    # 数据库不可用，读取 JSON 文件
+    all_attachments = _load_json_data("attachments.json", [])
+    if character_id:
+        all_attachments = [a for a in all_attachments if a.get("character_id") == character_id]
+    return _cors_resp({"attachments": all_attachments})
 
 
 if __name__ == "__main__":
