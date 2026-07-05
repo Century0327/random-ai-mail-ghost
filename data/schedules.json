@@ -1,0 +1,36 @@
+{
+  "maodie": [
+    {
+      "time": "08:00",
+      "activity": "在窗台发呆",
+      "location": "窗台",
+      "thought": "太阳照在身上真舒服"
+    },
+    {
+      "time": "10:00",
+      "activity": "观察窗外风景",
+      "location": "窗台前",
+      "thought": "那些蝴蝶真好看"
+    },
+    {
+      "time": "14:00",
+      "activity": "在沙发上散步",
+      "location": "地毯上",
+      "thought": "地毯的触感很温暖"
+    }
+  ],
+  "kitty": [
+    {
+      "time": "07:00",
+      "activity": "伸懒腰",
+      "location": "猫窝",
+      "thought": "新的一天开始啦"
+    },
+    {
+      "time": "12:00",
+      "activity": "追逐毛线球",
+      "location": "客厅",
+      "thought": "这个毛线球真好玩"
+    }
+  ]
+}
