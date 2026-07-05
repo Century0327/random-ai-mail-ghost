@@ -19,7 +19,11 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 def _db_conn():
     if not DATABASE_URL:
         return None
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+    try:
+        return psycopg2.connect(DATABASE_URL, sslmode="require")
+    except Exception as e:
+        print(f"[DB CONN ERROR] {e}")
+        return None
 
 def _db_query(sql, params=None, fetch_one=False):
     conn = _db_conn()
@@ -87,6 +91,36 @@ def _cors_resp(data, status=200):
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     resp.status_code = status
     return resp
+
+
+# ============ 文件数据读取（JSON 数据库）=============
+
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+def _load_json_data(filename, default=None):
+    """从 data/ 目录读取 JSON 文件"""
+    path = os.path.join(DATA_DIR, filename)
+    if not os.path.exists(path):
+        return default if default is not None else []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[DATA ERROR] {e}")
+        return default if default is not None else []
+
+def _save_json_data(filename, data):
+    """写入 JSON 文件到 data/ 目录"""
+    path = os.path.join(DATA_DIR, filename)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"[DATA ERROR] {e}")
+        return False
+
 
 
 @app.route("/api/config", methods=["OPTIONS"])
@@ -405,51 +439,58 @@ def companion_status(character_id):
     
     device_id = request.headers.get("X-Device-ID", "anonymous")
     
-    char = _db_query(
-        'SELECT id, name, personality, stat_name as "statName", stat_color as "statColor" FROM characters WHERE id = %s',
-        (character_id,), fetch_one=True
-    )
-    
-    if char is None and not DATABASE_URL:
-        return _cors_resp({
-            "character": {"id": character_id, "name": "耄聋", "personality": "深沉", "statName": "哈气值", "statColor": "#c9785c"},
-            "userState": {
-                "statValue": 72, "stage": "二阶段", "mood": "平静",
-                "position": {"x": 50, "y": 60},
-                "schedule": [
-                    {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
-                    {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
-                    {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
-                ]
-            }
-        })
+    # 尝试数据库查询角色配置
+    char = None
+    if DATABASE_URL:
+        char = _db_query(
+            'SELECT id, name, personality, stat_name as "statName", stat_color as "statColor" FROM characters WHERE id = %s',
+            (character_id,), fetch_one=True
+        )
     
     if char is None:
-        return _cors_resp({"error": "Character not found"}, 404)
+        # 数据库不可用，使用硬编码角色配置
+        char_map = {
+            "kitty": {"id": "kitty", "name": "Kitty", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0"},
+            "puppy": {"id": "puppy", "name": "Puppy", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
+            "foxy": {"id": "foxy", "name": "Foxy", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
+            "birb": {"id": "birb", "name": "Birb", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
+            "maodie": {"id": "maodie", "name": "耄聋", "personality": "深沉、神秘", "statName": "哈气值", "statColor": "#c9785c"},
+        }
+        char = char_map.get(character_id, {"id": character_id, "name": character_id, "personality": "", "statName": "好感度", "statColor": "#c9785c"})
     
-    state = _db_query(
-        "SELECT stat_value, position_x, position_y, mood FROM user_states WHERE device_id = %s AND character_id = %s",
-        (device_id, character_id), fetch_one=True
-    )
-    if state is None:
-        _db_execute(
-            "INSERT INTO user_states (device_id, character_id) VALUES (%s, %s)",
-            (device_id, character_id)
+    # 尝试数据库查询用户状态
+    state = None
+    schedule = []
+    if DATABASE_URL:
+        state = _db_query(
+            "SELECT stat_value, position_x, position_y, mood FROM user_states WHERE device_id = %s AND character_id = %s",
+            (device_id, character_id), fetch_one=True
         )
+        schedule_rows = _db_query(
+            "SELECT time, activity, location, thought, done FROM schedules WHERE character_id = %s AND date = CURRENT_DATE ORDER BY time",
+            (character_id,)
+        )
+        if schedule_rows is not None:
+            schedule = [dict(r) for r in schedule_rows]
+    
+    if state is None:
         state = {"stat_value": 50, "position_x": 50, "position_y": 60, "mood": "平静"}
     
-    schedule_rows = _db_query(
-        "SELECT time, activity, location, thought, done FROM schedules WHERE character_id = %s AND date = CURRENT_DATE ORDER BY time",
-        (character_id,)
-    )
-    schedule = [dict(r) for r in schedule_rows] if schedule_rows else []
+    # 如果数据库没有日程，从 JSON 文件读取
+    if not schedule:
+        schedules_data = _load_json_data("schedules.json", {})
+        schedule = schedules_data.get(character_id, [
+            {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
+            {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
+            {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
+        ])
     
     return _cors_resp({
-        "character": dict(char),
+        "character": dict(char) if hasattr(char, '__iter__') and not isinstance(char, dict) else char,
         "userState": {
-            "statValue": state["stat_value"],
-            "position": {"x": state["position_x"], "y": state["position_y"]},
-            "mood": state["mood"],
+            "statValue": state["stat_value"] if isinstance(state, dict) else state.stat_value,
+            "position": {"x": state["position_x"] if isinstance(state, dict) else state.position_x, "y": state["position_y"] if isinstance(state, dict) else state.position_y},
+            "mood": state["mood"] if isinstance(state, dict) else state.mood,
             "schedule": schedule
         }
     })
@@ -514,23 +555,29 @@ def companion_letters():
         return _cors_resp({})
     
     character_id = request.args.get("character_id")
-    limit = request.args.get("limit", 50, type=int)
     
+    # 尝试数据库
+    if DATABASE_URL:
+        limit = request.args.get("limit", 50, type=int)
+        if character_id:
+            rows = _db_query(
+                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
+                (character_id, limit)
+            )
+        else:
+            rows = _db_query(
+                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
+                (limit,)
+            )
+        if rows is not None:
+            return _cors_resp({"letters": [dict(r) for r in rows]})
+    
+    # 数据库不可用，读取 JSON 文件
+    all_letters = _load_json_data("letters.json", [])
     if character_id:
-        rows = _db_query(
-            "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
-            (character_id, limit)
-        )
-    else:
-        rows = _db_query(
-            "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
-            (limit,)
-        )
-    
-    if rows is None:
-        return _cors_resp({"letters": []})
-    
-    return _cors_resp({"letters": [dict(r) for r in rows]})
+        all_letters = [l for l in all_letters if l.get("character_id") == character_id]
+    return _cors_resp({"letters": all_letters})
+
 
 
 @app.route("/api/companion/letters", methods=["POST", "OPTIONS"])
@@ -548,12 +595,28 @@ def create_letter():
     if not character_id or not letter_body:
         return _cors_resp({"error": "character_id and body are required"}, 400)
     
-    _db_execute(
-        "INSERT INTO letters (character_id, subject, body, source, attachment_url) VALUES (%s, %s, %s, %s, %s)",
-        (character_id, subject, letter_body, source, attachment_url)
-    )
+    # 尝试数据库
+    if DATABASE_URL:
+        _db_execute(
+            "INSERT INTO letters (character_id, subject, body, source, attachment_url) VALUES (%s, %s, %s, %s, %s)",
+            (character_id, subject, letter_body, source, attachment_url)
+        )
     
-    return _cors_resp({"status": "ok", "message": "Letter created"})
+    # 同时写入 JSON 文件
+    all_letters = _load_json_data("letters.json", [])
+    new_letter = {
+        "id": f"l{len(all_letters) + 1}",
+        "character_id": character_id,
+        "subject": subject,
+        "body": letter_body,
+        "source": source,
+        "attachment_url": attachment_url,
+        "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z"
+    }
+    all_letters.insert(0, new_letter)
+    _save_json_data("letters.json", all_letters)
+    
+    return _cors_resp({"status": "ok", "message": "Letter created", "letter": new_letter})
 
 
 # ============ Conversations API ============
@@ -614,20 +677,25 @@ def companion_attachments():
     
     character_id = request.args.get("character_id")
     
+    # 尝试数据库
+    if DATABASE_URL:
+        if character_id:
+            rows = _db_query(
+                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
+                (character_id,)
+            )
+        else:
+            rows = _db_query(
+                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
+            )
+        if rows is not None:
+            return _cors_resp({"attachments": [dict(r) for r in rows]})
+    
+    # 数据库不可用，读取 JSON 文件
+    all_attachments = _load_json_data("attachments.json", [])
     if character_id:
-        rows = _db_query(
-            "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
-            (character_id,)
-        )
-    else:
-        rows = _db_query(
-            "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
-        )
-    
-    if rows is None:
-        return _cors_resp({"attachments": []})
-    
-    return _cors_resp({"attachments": [dict(r) for r in rows]})
+        all_attachments = [a for a in all_attachments if a.get("character_id") == character_id]
+    return _cors_resp({"attachments": all_attachments})
 
 
 if __name__ == "__main__":
