@@ -537,6 +537,60 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
           </div>
         </div>
       </div>
+
+      <div class="panel">
+        <div class="panel-header">🧪 测试 &amp; 监控</div>
+        <div class="panel-body">
+          <div class="tab-bar">
+            <button class="active" onclick="switchTestTab('schedule', this)">日程生成</button>
+            <button onclick="switchTestTab('frontend', this)">前端状态</button>
+            <button onclick="switchTestTab('backend', this)">后端数据</button>
+          </div>
+
+          <div id="test-schedule">
+            <div class="form-group">
+              <label>角色 ID</label>
+              <input type="text" id="test-character-id" placeholder="如：kitty" value="kitty">
+            </div>
+            <div class="form-group">
+              <label>上次日程（JSON，可选）</label>
+              <textarea id="test-last-schedule" placeholder='{"date":"2024-07-05","items":[...]}' rows="3"></textarea>
+            </div>
+            <div class="row-2">
+              <div class="form-group">
+                <label>历史摘要（可选）</label>
+                <input type="text" id="test-history-summary" placeholder="200字内历史摘要">
+              </div>
+              <div class="form-group">
+                <label>互动次数（可选）</label>
+                <input type="number" id="test-interact-count" placeholder="0" min="0">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="testGenerateSchedule()" id="testGenScheduleBtn">✨ 生成日程（仅测试，不发邮件）</button>
+            <div class="hint" style="margin-top:8px;">调用 AI 生成日程，回顾完成情况并思考接下来的安排</div>
+            
+            <div id="schedule-test-result" style="display:none; margin-top:12px; padding:12px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:6px;">
+              <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 生成结果</div>
+              <div id="schedule-test-summary" style="font-size:12px; color:#656d76; margin-bottom:8px;"></div>
+              <div id="schedule-test-items" style="font-size:13px;"></div>
+            </div>
+          </div>
+
+          <div id="test-frontend" style="display:none;">
+            <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:8px;" onclick="inspectFrontendState()">🔍 读取 localStorage</button>
+            <div id="frontend-state-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">点击上方按钮查看前端状态...</div>
+          </div>
+
+          <div id="test-backend" style="display:none;">
+            <div class="quick-btns">
+              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('letters')">💌 信件</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('schedules')">📅 日程</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('attachments')">📎 附件</button>
+            </div>
+            <div id="backend-data-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">点击上方按钮查看后端数据...</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="preview-panel">
@@ -1114,6 +1168,108 @@ function switchScheduleMode(mode, btn) {
   document.getElementById('schedule-random').style.display = mode === 'random' ? 'block' : 'none';
   document.getElementById('schedule-fixed').style.display = mode === 'fixed' ? 'block' : 'none';
   updatePreview();
+}
+
+// ===== Test & Monitor Panel =====
+
+function switchTestTab(tab, btn) {
+  document.querySelectorAll('#test-schedule, #test-frontend, #test-backend').forEach(el => el.style.display = 'none');
+  document.getElementById('test-' + tab).style.display = 'block';
+  const parent = btn.parentElement;
+  parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function testGenerateSchedule() {
+  const characterId = document.getElementById('test-character-id').value.trim();
+  const lastScheduleRaw = document.getElementById('test-last-schedule').value.trim();
+  const historySummary = document.getElementById('test-history-summary').value.trim();
+  const interactCount = document.getElementById('test-interact-count').value.trim();
+  
+  if (!characterId) {
+    showStatus('请输入角色 ID', 'warning');
+    return;
+  }
+  
+  const btn = document.getElementById('testGenScheduleBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+  showStatus('正在调用 AI 生成日程...', 'info', false);
+  
+  const body = { character_id: characterId };
+  if (lastScheduleRaw) {
+    try { body.last_schedule = JSON.parse(lastScheduleRaw); } catch(e) {}
+  }
+  if (historySummary) body.history_summary = historySummary;
+  if (interactCount) body.interact_count = parseInt(interactCount, 10) || 0;
+  
+  api('/api/companion/generate-schedule', 'POST', body).then(data => {
+    btn.disabled = false;
+    btn.textContent = '✨ 生成日程（仅测试，不发邮件）';
+    
+    if (data.error) throw new Error(data.error);
+    
+    const schedule = data.schedule || [];
+    const summary = data.summary || '';
+    
+    document.getElementById('schedule-test-summary').textContent = summary ? '摘要：' + summary : '';
+    
+    if (schedule.length === 0) {
+      document.getElementById('schedule-test-items').innerHTML = '<div style="color:#656d76;">未返回日程项</div>';
+    } else {
+      const itemsHtml = schedule.map((item, i) => {
+        const time = item.time || '--:--';
+        const title = item.title || '无标题';
+        const desc = item.description || '';
+        return `<div style="padding:6px 0; border-bottom:1px solid #d0d7de;">
+          <div style="font-weight:500;">${escape(time)} · ${escape(title)}</div>
+          ${desc ? `<div style="color:#656d76; font-size:12px; margin-top:2px;">${escape(desc)}</div>` : ''}
+        </div>`;
+      }).join('');
+      document.getElementById('schedule-test-items').innerHTML = itemsHtml;
+    }
+    
+    document.getElementById('schedule-test-result').style.display = 'block';
+    showStatus('日程生成成功 ✓', 'success');
+  }).catch(err => {
+    btn.disabled = false;
+    btn.textContent = '✨ 生成日程（仅测试，不发邮件）';
+    showStatus('生成失败: ' + err.message, 'error');
+  });
+}
+
+function inspectFrontendState() {
+  const display = document.getElementById('frontend-state-display');
+  try {
+    const keys = Object.keys(localStorage);
+    const data = {};
+    keys.forEach(k => {
+      try { data[k] = JSON.parse(localStorage.getItem(k)); } catch(e) { data[k] = localStorage.getItem(k); }
+    });
+    display.textContent = JSON.stringify(data, null, 2);
+  } catch(e) {
+    display.textContent = '读取失败: ' + e.message;
+  }
+}
+
+function loadBackendData(type) {
+  const display = document.getElementById('backend-data-display');
+  display.textContent = '加载中...';
+  
+  let endpoint = '';
+  if (type === 'letters') endpoint = '/api/companion/letters';
+  else if (type === 'schedules') endpoint = '/api/companion/schedules';
+  else if (type === 'attachments') endpoint = '/api/companion/attachments';
+  else {
+    display.textContent = '未知类型: ' + type;
+    return;
+  }
+  
+  api(endpoint).then(data => {
+    display.textContent = JSON.stringify(data, null, 2);
+  }).catch(err => {
+    display.textContent = '加载失败: ' + err.message + '\n\n请确保后端 API 已部署并支持此接口。';
+  });
 }
 
 showStatus('页面已加载，正在初始化...', 'info', false);
