@@ -335,6 +335,57 @@ def get_run_logs(run_id):
         return _cors_resp({"error": err}, 500)
     return _cors_resp({"jobs": logs})
 
+# ============ 陪伴系统 API（内联，不依赖外部文件） ============
+
+@app.route("/api/companion/characters", methods=["GET", "OPTIONS"])
+def companion_characters():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    return _cors_resp({
+        "characters": [
+            {"id": "kitty", "name": "Kitty", "description": "温柔的小猫", "personality": "温柔、安静", "statName": "好感度", "statColor": "#e8a0a0"},
+            {"id": "puppy", "name": "Puppy", "description": "活泼的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
+            {"id": "foxy", "name": "Foxy", "description": "聪明的小狐狸", "personality": "聪明、神秘", "statName": "好感度", "statColor": "#c9785c"},
+            {"id": "birb", "name": "Birb", "description": "爱唱歌的小鸟", "personality": "快乐、爱唱歌", "statName": "好感度", "statColor": "#a0c4d9"},
+            {"id": "maodie", "name": "耄耋", "description": "悠闲的老猫", "personality": "悠闲、沉稳", "statName": "哈气值", "statColor": "#c9785c"},
+        ]
+    })
+
+@app.route("/api/companion/user/characters/<character_id>/status", methods=["GET", "OPTIONS"])
+def companion_status(character_id):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    return _cors_resp({
+        "character": {"id": character_id, "name": "耄耋", "personality": "悠闲", "statName": "哈气值", "statColor": "#c9785c"},
+        "userState": {
+            "statValue": 72, "stage": "悠闲阶段", "mood": "平静",
+            "position": {"x": 50, "y": 60},
+            "schedule": [
+                {"time": "08:00", "activity": "在窗台看云", "location": "窗边", "thought": "今天的云像棉花糖"},
+                {"time": "10:00", "activity": "整理旧信件", "location": "书桌前", "thought": "这些信承载着回忆"},
+                {"time": "14:00", "activity": "在房间里散步", "location": "地毯上", "thought": "房间很温馨"},
+            ]
+        }
+    })
+
+@app.route("/api/companion/user/characters/<character_id>/interact", methods=["POST", "OPTIONS"])
+def companion_interact(character_id):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    return _cors_resp({"message": "互动已记录", "characterId": character_id})
+
+@app.route("/api/companion/items", methods=["GET", "OPTIONS"])
+def companion_items():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    return _cors_resp({
+        "items": [
+            {"id": "cat_bed", "name": "猫窝", "category": "furniture", "price": 0, "description": "温暖的小窝"},
+            {"id": "window_plant", "name": "窗台绿植", "category": "decoration", "price": 50},
+            {"id": "carpet", "name": "地毯", "category": "furniture", "price": 0},
+            {"id": "lamp", "name": "台灯", "category": "furniture", "price": 0},
+        ]
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
