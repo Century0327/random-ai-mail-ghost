@@ -698,5 +698,198 @@ def companion_attachments():
     return _cors_resp({"attachments": all_attachments})
 
 
+# ============ AI 日程生成 API ============
+
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
+AI_API_URL = os.environ.get("AI_API_URL", "")
+AI_MODEL = os.environ.get("AI_MODEL", "")
+
+def _call_ai(prompt, system_context=""):
+    """调用外部 AI API 生成内容"""
+    if not AI_API_KEY or not AI_API_URL:
+        return None, "AI API 未配置"
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {AI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # 支持 Moonshot / OpenAI 兼容格式
+        payload = {
+            "model": AI_MODEL,
+            "messages": [
+                {"role": "system", "content": system_context},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.8,
+            "max_tokens": 1500
+        }
+        
+        resp = requests.post(AI_API_URL, headers=headers, json=payload, timeout=60)
+        if resp.status_code != 200:
+            return None, f"AI API 错误: {resp.status_code}"
+        
+        data = resp.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return content, None
+    except Exception as e:
+        return None, f"AI 调用异常: {e}"
+
+
+@app.route("/api/companion/generate-schedule", methods=["POST", "OPTIONS"])
+def generate_schedule():
+    """AI 生成角色日程
+    
+    Request Body:
+        character_id: 角色ID
+        last_schedule: 上次日程（可选，前端提供）
+        history_summary: 历史摘要（可选，前端提供）
+        interact_count: 互动次数（可选）
+        
+    Response:
+        schedule: [日程列表]
+        summary: 生成的历史摘要
+        prev_schedule: 上次日程参考
+    """
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    body = request.get_json(silent=True) or {}
+    character_id = body.get("character_id", "maodie")
+    
+    # 从 JSON 文件读取历史日程
+    schedules_data = _load_json_data("schedules.json", {})
+    character_schedules = schedules_data.get(character_id, {})
+    
+    # 获取上次日程（最新日期）
+    prev_schedule = None
+    prev_date = None
+    if isinstance(character_schedules, dict):
+        dates = sorted(character_schedules.keys(), reverse=True)
+        if dates:
+            prev_date = dates[0]
+            prev_schedule = character_schedules[prev_date]
+    
+    # 从前端获取用户状态上下文
+    last_schedule_frontend = body.get("last_schedule", [])  # 前端当前日程
+    history_summary = body.get("history_summary", "")  # 前端累计摘要
+    interact_count = body.get("interact_count", 0)
+    
+    # 构造上次日程文本
+    prev_schedule_text = ""
+    if prev_schedule and isinstance(prev_schedule, dict) and "items" in prev_schedule:
+        items = prev_schedule["items"]
+        for item in items:
+            done_mark = "[已完成]" if item.get("done") else "[未完成]"
+            prev_schedule_text += f"- {item.get('time', '??:??')} {item.get('activity', '')} {done_mark}\n"
+    elif last_schedule_frontend:
+        for item in last_schedule_frontend:
+            done_mark = "[已完成]" if item.get("done") else "[未完成]"
+            prev_schedule_text += f"- {item.get('time', '??:??')} {item.get('activity', '')} {done_mark}\n"
+    
+    # 获取当前时间
+    from datetime import datetime
+    now = datetime.now()
+    current_time = now.strftime("%H:%M")
+    current_date = now.strftime("%Y-%m-%d")
+    
+    # 构造 AI Prompt
+    system_context = f"""你是'{character_id}'的日程规划助手。你熟悉这个角色的性格和习惯。
+请根据以下信息，为角色生成今天的日程安排。
+日程应该自然、有趣，符合角色性格。"""
+
+    prompt = f"""请为角色'{character_id}'生成今天的日程安排。
+
+## 上次日程（{prev_date or '无'}）
+{prev_schedule_text or '（没有上次记录）'}
+
+## 历史摘要
+{history_summary or '（没有历史摘要）'}
+
+## 用户互动统计
+- 今天互动次数: {interact_count}
+
+## 当前时间
+今天是 {current_date}，当前时间 {current_time}。
+
+## 要求
+1. 生成 4-6 条日程，时间跨度覆盖全天（从早到晚）
+2. 每条日程包含：time(如"08:00"), activity(活动描述15字以内), location(地点5字以内), thought(内心想法20字以内)
+3. 时间要合理（已过的时间不要排重要活动，可排"休息中"或跳过）
+4. 考虑角色性格和历史摘要中的偏好
+5. 如果用户互动多，可以安排一些互动相关活动
+6. 如果已经过了当前时间，后面的日程要留空/待安排
+
+## 输出格式
+只返回 JSON 数组，不要其他文字：
+[
+  {{"time": "08:00", "activity": "...", "location": "...", "thought": "..."}},
+  ...
+]
+
+同时请生成一段 150-200 字的历史摘要，总结这个角色最近的状态和变化。
+在历史摘要前加上 [SUMMARY] 标记。
+"""
+
+    # 调用 AI
+    ai_response, error = _call_ai(prompt, system_context)
+    
+    if error:
+        print(f"[AI ERROR] {error}")
+        # AI 失败时返回默认日程
+        return _cors_resp({
+            "schedule": [
+                {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
+                {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
+                {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
+            ],
+            "summary": "角色状态平稳，日常作息规律。",
+            "prev_schedule": prev_schedule,
+            "error": error
+        })
+    
+    # 解析 AI 返回
+    schedule_items = []
+    summary = ""
+    
+    try:
+        # 提取 [SUMMARY] 部分
+        if "[SUMMARY]" in ai_response:
+            parts = ai_response.split("[SUMMARY]")
+            json_part = parts[0].strip()
+            summary = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            json_part = ai_response
+        
+        # 提取 JSON 数组
+        json_match = re.search(r'\[.*\]', json_part, re.DOTALL)
+        if json_match:
+            schedule_items = json.loads(json_match.group())
+        
+        # 如果没有提取到，尝试直接解析整个响应
+        if not schedule_items:
+            schedule_items = json.loads(json_part)
+    except Exception as e:
+        print(f"[PARSE ERROR] {e}")
+        schedule_items = [
+            {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
+            {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
+        ]
+    
+    # 确保每条日程有必要的字段
+    for item in schedule_items:
+        item.setdefault("done", False)
+        item.setdefault("location", "")
+        item.setdefault("thought", "")
+    
+    return _cors_resp({
+        "schedule": schedule_items,
+        "summary": summary or "角色度过了平常的一天。",
+        "prev_schedule": prev_schedule,
+        "raw_response": ai_response  # 调试用
+    })
+
+
 if __name__ == "__main__":
     app.run(debug=True)
