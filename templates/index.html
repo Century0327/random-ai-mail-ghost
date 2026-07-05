@@ -549,25 +549,16 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
 
           <div id="test-schedule">
             <div class="form-group">
-              <label>角色 ID</label>
-              <input type="text" id="test-character-id" placeholder="如：kitty" value="kitty">
+              <label>角色</label>
+              <select id="test-character-id" onchange="onTestCharacterChange()">
+                <option value="">加载中...</option>
+              </select>
             </div>
-            <div class="form-group">
-              <label>上次日程（JSON，可选）</label>
-              <textarea id="test-last-schedule" placeholder='{"date":"2024-07-05","items":[...]}' rows="3"></textarea>
-            </div>
-            <div class="row-2">
-              <div class="form-group">
-                <label>历史摘要（可选）</label>
-                <input type="text" id="test-history-summary" placeholder="200字内历史摘要">
-              </div>
-              <div class="form-group">
-                <label>互动次数（可选）</label>
-                <input type="number" id="test-interact-count" placeholder="0" min="0">
-              </div>
+            <div id="test-character-info" style="display:none; padding:10px; background:#f6f8fa; border-radius:6px; margin-bottom:12px; font-size:12px; color:#656d76;">
+              <div id="test-character-summary">选择角色后自动加载...</div>
             </div>
             <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="testGenerateSchedule()" id="testGenScheduleBtn">✨ 生成日程（仅测试，不发邮件）</button>
-            <div class="hint" style="margin-top:8px;">调用 AI 生成日程，回顾完成情况并思考接下来的安排</div>
+            <div class="hint" style="margin-top:8px;">自动加载角色日程、历史摘要和信件，调用 AI 生成今日安排</div>
             
             <div id="schedule-test-result" style="display:none; margin-top:12px; padding:12px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:6px;">
               <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 生成结果</div>
@@ -1178,16 +1169,92 @@ function switchTestTab(tab, btn) {
   const parent = btn.parentElement;
   parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  if (tab === 'schedule') loadTestCharacters();
+}
+
+let testCharacterData = {};
+
+function loadTestCharacters() {
+  const sel = document.getElementById('test-character-id');
+  if (sel.options.length > 1 && sel.options[1].value !== '') return; // already loaded
+  
+  api('/api/companion/characters').then(data => {
+    const chars = data.characters || [];
+    sel.innerHTML = '';
+    if (chars.length === 0) {
+      sel.innerHTML = '<option value="">无角色</option>';
+      return;
+    }
+    chars.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + ' (' + c.id + ')';
+      sel.appendChild(opt);
+    });
+    onTestCharacterChange();
+  }).catch(err => {
+    sel.innerHTML = '<option value="">加载失败</option>';
+    showStatus('角色列表加载失败: ' + err.message, 'warning');
+  });
+}
+
+function onTestCharacterChange() {
+  const characterId = document.getElementById('test-character-id').value;
+  const infoDiv = document.getElementById('test-character-info');
+  const summaryDiv = document.getElementById('test-character-summary');
+  
+  if (!characterId) {
+    infoDiv.style.display = 'none';
+    return;
+  }
+  
+  summaryDiv.textContent = '加载中...';
+  infoDiv.style.display = 'block';
+  
+  // Load character status (schedule, history)
+  api('/api/companion/user/characters/' + characterId + '/status').then(data => {
+    const state = data.userState || {};
+    const schedule = state.schedule || [];
+    const historySummary = state.historySummary || '';
+    const interactCount = state.interactCount || 0;
+    
+    // Load recent letters
+    return api('/api/companion/letters').then(lettersData => {
+      const allLetters = lettersData.letters || [];
+      const charLetters = allLetters.filter(l => l.character_id === characterId).slice(0, 3);
+      
+      testCharacterData = {
+        characterId,
+        schedule,
+        historySummary,
+        interactCount,
+        letters: charLetters
+      };
+      
+      let summaryText = '';
+      if (schedule.length > 0) {
+        summaryText += '当前日程: ' + schedule.length + ' 项\n';
+      }
+      if (historySummary) {
+        summaryText += '历史摘要: ' + historySummary.substring(0, 50) + (historySummary.length > 50 ? '...' : '') + '\n';
+      }
+      summaryText += '互动次数: ' + interactCount + '\n';
+      if (charLetters.length > 0) {
+        summaryText += '最近信件: ' + charLetters.length + ' 封';
+      }
+      
+      summaryDiv.textContent = summaryText || '暂无数据';
+    });
+  }).catch(err => {
+    summaryDiv.textContent = '加载失败: ' + err.message;
+  });
 }
 
 function testGenerateSchedule() {
-  const characterId = document.getElementById('test-character-id').value.trim();
-  const lastScheduleRaw = document.getElementById('test-last-schedule').value.trim();
-  const historySummary = document.getElementById('test-history-summary').value.trim();
-  const interactCount = document.getElementById('test-interact-count').value.trim();
+  const characterId = document.getElementById('test-character-id').value;
   
   if (!characterId) {
-    showStatus('请输入角色 ID', 'warning');
+    showStatus('请先选择角色', 'warning');
     return;
   }
   
@@ -1197,11 +1264,12 @@ function testGenerateSchedule() {
   showStatus('正在调用 AI 生成日程...', 'info', false);
   
   const body = { character_id: characterId };
-  if (lastScheduleRaw) {
-    try { body.last_schedule = JSON.parse(lastScheduleRaw); } catch(e) {}
+  const data = testCharacterData;
+  if (data.schedule && data.schedule.length > 0) {
+    body.last_schedule = data.schedule;
   }
-  if (historySummary) body.history_summary = historySummary;
-  if (interactCount) body.interact_count = parseInt(interactCount, 10) || 0;
+  if (data.historySummary) body.history_summary = data.historySummary;
+  if (data.interactCount) body.interact_count = data.interactCount;
   
   api('/api/companion/generate-schedule', 'POST', body).then(data => {
     btn.disabled = false;
@@ -1217,13 +1285,15 @@ function testGenerateSchedule() {
     if (schedule.length === 0) {
       document.getElementById('schedule-test-items').innerHTML = '<div style="color:#656d76;">未返回日程项</div>';
     } else {
-      const itemsHtml = schedule.map((item, i) => {
+      const itemsHtml = schedule.map((item) => {
         const time = item.time || '--:--';
-        const title = item.title || '无标题';
-        const desc = item.description || '';
+        const activity = item.activity || item.title || '无标题';
+        const loc = item.location || '';
+        const thought = item.thought || '';
         return `<div style="padding:6px 0; border-bottom:1px solid #d0d7de;">
-          <div style="font-weight:500;">${escape(time)} · ${escape(title)}</div>
-          ${desc ? `<div style="color:#656d76; font-size:12px; margin-top:2px;">${escape(desc)}</div>` : ''}
+          <div style="font-weight:500;">${escape(time)} · ${escape(activity)}</div>
+          ${loc ? `<div style="color:#656d76; font-size:12px; margin-top:2px;">📍 ${escape(loc)}</div>` : ''}
+          ${thought ? `<div style="color:#656d76; font-size:12px; margin-top:2px; font-style:italic;">💭 ${escape(thought)}</div>` : ''}
         </div>`;
       }).join('');
       document.getElementById('schedule-test-items').innerHTML = itemsHtml;
