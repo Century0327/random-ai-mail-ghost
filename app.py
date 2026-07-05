@@ -776,6 +776,30 @@ def generate_schedule():
     history_summary = body.get("history_summary", "")  # 前端累计摘要
     interact_count = body.get("interact_count", 0)
     
+    # 读取最近信件（角色与用户之间的往来）
+    letters_data = _load_json_data("letters.json", [])
+    recent_letters = []
+    if isinstance(letters_data, list):
+        # 筛选与当前角色相关的信件，按时间倒序取最近3封
+        char_letters = [
+            l for l in letters_data
+            if isinstance(l, dict) and l.get("character_id") == character_id
+        ]
+        char_letters.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        recent_letters = char_letters[:3]
+    
+    # 构造信件摘要文本
+    letters_text = ""
+    if recent_letters:
+        for letter in recent_letters:
+            direction = "来信" if letter.get("direction") == "from_character" else "回信"
+            subject = letter.get("subject", "无主题")
+            body_preview = letter.get("body", "")[:80]
+            created = letter.get("created_at", "")[:10]
+            letters_text += f"- [{created}] {direction}《{subject}》：{body_preview}...\n"
+    else:
+        letters_text = "（没有最近信件）
+    
     # 构造上次日程文本
     prev_schedule_text = ""
     if prev_schedule and isinstance(prev_schedule, dict) and "items" in prev_schedule:
@@ -807,6 +831,9 @@ def generate_schedule():
 ## 历史摘要
 {history_summary or '（没有历史摘要）'}
 
+## 最近信件
+{letters_text}
+
 ## 用户互动统计
 - 今天互动次数: {interact_count}
 
@@ -819,7 +846,8 @@ def generate_schedule():
 3. 时间要合理（已过的时间不要排重要活动，可排"休息中"或跳过）
 4. 考虑角色性格和历史摘要中的偏好
 5. 如果用户互动多，可以安排一些互动相关活动
-6. 如果已经过了当前时间，后面的日程要留空/待安排
+6. 参考最近信件内容，角色可能会因为来信/回信的内容而调整心情和计划
+7. 如果已经过了当前时间，后面的日程要留空/待安排
 
 ## 输出格式
 只返回 JSON 数组，不要其他文字：
