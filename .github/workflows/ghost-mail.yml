@@ -65,11 +65,12 @@ jobs:
           ATTACHMENT_MODE: ${{ inputs.attachment_mode || 'normal' }}
         run: python main.py
 
-      - name: Commit state & history
+      - name: Commit state & history & data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add state.json history.json 2>/dev/null || true
           git add conversation_*.enc 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "chore: update state & history [skip ci]"
+          git add data/ 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore: update state, history & data [skip ci]"
           git push
