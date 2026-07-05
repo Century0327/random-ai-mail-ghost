@@ -1,330 +1,117 @@
-# 👻 Ghost Mail v3.0
+# Ghost Mail - AI 幽灵邮件系统
 
-一个零成本、全自动的「邮件幽灵」系统：在未来的某个随机日子，自动调用 AI 写一封邮件发出，支持连续对话、多人设、多人回信、加密记忆。
+让 AI 以虚拟角色的身份，不定期给你发送邮件。支持对话、关系值、附件生成。
 
----
+## 核心概念
 
-## ✨ v3.0 新特性
+Ghost Mail 是一个**异步 AI 邮件引擎**。它不像聊天机器人那样即时响应，而是像远方的朋友一样——**不定期**寄来一封信，有时带着一张手绘风格的附件。
 
-- 🔄 **连续对话**：AI 会记住上次邮件内容和用户回复，实现连贯对话
-- 🔐 **加密记忆**：对话历史 AES-256 加密存储，敏感信息安全保密
-- 🎭 **多人设切换**：`config.py` 一行切换人设（温柔/耄耋/自定义）
-- 👥 **多人回信**：支持多个联系人，AI 能区分不同发件人分别回应
-- 💌 **邮件模板**：可切换 HTML 模板（简洁/猫猫/深色），与人设解耦
-- 📊 **关系系统**：耄耋人设专属「哈气值」进度条，防御度动态变化
-- 🎨 **配置仪表盘**：Vercel 部署 Web 配置界面，拖拽面板，实时预览
+- **角色（Persona）**：`personas/` 目录下的 `.md` 文件定义角色人格。目前内置 kitty（傲娇猫）、maodie（哲学猫）等。
+- **邮件**：由 AI 根据角色人格、对话历史、关系值生成。
+- **附件**：AI 生成场景图 + chibi 水印，以 `cat-letter-xxx.jpg` 命名。
+- **对话**：用户回复邮件后，AI 读取 IMAP 收件箱，在下封信中回应。
+- **关系值**：根据用户回复中的关键词变化，影响邮件语气和内容。
 
----
-
-## 📋 前置准备
-
-### 1. QQ 邮箱开启 SMTP
-
-1. 登录 [QQ邮箱网页版](https://mail.qq.com)
-2. 设置 → 账户 → POP3/IMAP/SMTP 服务
-3. 开启 IMAP/SMTP，短信验证后获取 **16位授权码**
-
-### 2. 申请 AI API Key
-
-推荐免费方案：
-- **Gemini**：[Google AI Studio](https://aistudio.google.com/app/apikey)（免费层够用）
-- **DeepSeek**：[DeepSeek 开放平台](https://platform.deepseek.com/)
-
----
-
-## 🚀 部署指南
-
-### GitHub Actions（自动发信）
-
-#### 步骤 1：Fork 本仓库
-
-#### 步骤 2：配置 Secrets
-
-仓库 → Settings → Secrets and variables → Actions → New repository secret：
-
-| Secret 名称 | 必填 | 说明 |
-|-------------|------|------|
-| `QQ_EMAIL` | ✅ | 发件 QQ 邮箱 |
-| `QQ_AUTH_CODE` | ✅ | SMTP 16位授权码 |
-| `TO_EMAIL_1` | ✅ | 联系人1邮箱 |
-| `TO_EMAIL_2` | ❌ | 联系人2邮箱（多人回信时） |
-| `AI_API_KEY` | ✅ | AI API Key |
-| `AI_API_URL` | ❌ | AI 接口地址（默认 Gemini） |
-| `AI_MODEL` | ❌ | 模型名称（默认 gemini-2.0-flash） |
-| `CONVERSATION_KEY` | ❌ | 对话加密密钥（32字符，未设置则不加密） |
-
-#### 步骤 3：修改 config.py
-
-编辑仓库中的 `config.py`，修改非敏感配置：
-
-```python
-# 人设（personas/ 目录下的 .md 文件名）
-PERSONA = "maodie"       # 耄耋人设
-# PERSONA = "default"    # 温柔人设
-
-# 邮件模板（templates/ 目录下的 .html 文件名）
-EMAIL_TEMPLATE = "cat"   # 猫猫风格
-# EMAIL_TEMPLATE = ""    # 使用内置默认
-
-# 联系人配置
-CONTACTS = [
-    {"name": "小令狐", "email_env": "TO_EMAIL_1"},
-    {"name": "鼠鼠",   "email_env": "TO_EMAIL_2"},
-]
-
-# 邮件主题前缀
-SUBJECT_PREFIX = "【耄耋来信】"
-
-# 署名（为空则不显示）
-SIGNATURE = "耄耋"
-
-# 发送间隔（天）
-MIN_DAYS = 0
-MAX_DAYS = 3
-
-# 连续对话开关
-ENABLE_CONVERSATION = True
-```
-
-#### 步骤 4：首次运行
-
-Actions → Ghost Mail → Run workflow → Run
-
-首次运行会初始化 `state.json`，随机决定 1~3 天内的发送时间。
-
----
-
-### Vercel（配置仪表盘）
-
-用于可视化编辑 `config.py`（查看配置，Vercel 环境只读）。
-
-#### 步骤 1：Fork 后导入 Vercel
-
-1. 登录 [Vercel](https://vercel.com)
-2. New Project → Import Git Repository → 选择你的 fork
-3. Framework Preset: Other
-4. Deploy
-
-#### 步骤 2：访问仪表盘
-
-部署完成后访问：`https://你的项目.vercel.app/`
-
----
-
-## 📁 文件说明
-
-| 文件/目录 | 作用 |
-|-----------|------|
-| `send.py` | 主程序：发信、收信、加密记忆、关系值计算 |
-| `config.py` | 用户配置：人设、模板、联系人、时间间隔等 |
-| `crypto.py` | AES-256 加解密模块 |
-| `personas/*.md` | 人设定义：角色设定、行为规则、关系系统 |
-| `templates/*.html` | 邮件模板：HTML 样式 |
-| `fallback.md` | 兜底文案：AI 失败时使用 |
-| `admin_server.py` | 配置管理后端（本地运行） |
-| `public/index.html` | 配置仪表盘前端（Vercel 部署） |
-| `api/config.py` | Vercel serverless API |
-
----
-
-## 🎭 人设系统
-
-### 切换人设
-
-编辑 `config.py` 第一行：
-
-```python
-PERSONA = "maodie"    # 使用耄耋人设
-# PERSONA = "default" # 使用温柔人设
-# PERSONA = ""        # 随机选择所有 .md 文件
-```
-
-### 自定义人设
-
-在 `personas/` 下新建 `.md` 文件：
-
-```markdown
-【角色设定】
-你是一只高冷的猫咪，性格独立，不轻易亲近人类。
-
-【输出格式】
-每次邮件包含：
-- 1-2 个行为描写（用中文括号，如（舔毛）（打哈欠））
-- 3-5 句简短回复
-- 拒绝长段落
-
-【关系系统：好感度】
-好感度范围 0-100：
-- 0-20：陌生（礼貌客气）
-- 21-50：熟悉（轻松聊天）
-- 51-80：亲密（分享日常）
-- 81-100：挚友（无话不谈）
-
-初始为 10。
-调整规则：
-- 对方提到"礼物/惊喜"：+10
-- 对方提到"关心/想念"：+5
-- 每次自然衰减：-1
-```
-
----
-
-## 💌 邮件模板系统
-
-### 切换模板
-
-编辑 `config.py`：
-
-```python
-EMAIL_TEMPLATE = "cat"    # 猫猫风格（暖橘色、猫耳朵装饰）
-# EMAIL_TEMPLATE = "dark" # 深色风格（深蓝黑）
-# EMAIL_TEMPLATE = ""     # 使用内置默认（简洁白）
-```
-
-### 自定义模板
-
-在 `templates/` 下新建 `.html` 文件，使用占位符：
-
-```html
-<div style="padding:20px; background:#fff;">
-{{BODY}}
-</div>
-<div style="text-align:right;">
-{{FOOTER}}
-</div>
-```
-
----
-
-## 🔄 连续对话机制
-
-### 工作原理
-
-1. Ghost 发出邮件后，记录到加密历史文件
-2. 用户回复邮件，系统通过 IMAP 自动读取
-3. 下次发信时，AI 会看到：
-   - 最近 N 轮完整对话
-   - 更早对话的摘要
-   - 关系值当前状态
-
-### 历史管理策略
-
-| 层级 | 保留内容 | 目的 |
-|------|----------|------|
-| 完整层 | 最近 1 轮 | 当前上下文 |
-| 摘要层 | 历史压缩 | 减少 token 消耗 |
-| 要点层 | 关键事件 | 长期记忆 |
-
-### 加密说明
-
-- 设置 `CONVERSATION_KEY` Secret 后，对话历史 AES-256-GCM 加密
-- 未设置则明文存储（仅适合本地测试）
-- 每人设独立历史文件（`conversation_{persona}.enc`）
-
----
-
-## 📊 关系系统（哈气值）
-
-耄耋人设专属，表示防御等级。
-
-### 显示效果
-
-邮件末尾显示进度条：
+## 架构
 
 ```
-哈气值                    中度防御（60/100）
-████████████░░░░░░░░░░░░░░░░░░░░
+GitHub Actions (定时触发)
+    │
+    ▼
+main.py ──► scheduler: 判断今天是否该发信
+    │
+    ▼
+generate_email() ──► AI 生成正文 + 附件
+    │
+    ▼
+SMTP ──► 发送到用户邮箱
+    │
+    ▼
+IMAP ──► 读取用户回复 ──► 更新对话历史 + 关系值
 ```
 
-颜色随等级变化：绿 → 黄 → 橙 → 红
+## 模块说明
 
-### 调整规则
+| 文件 | 职责 |
+|------|------|
+| `config.py` | 用户配置：角色、联系人、发信间隔、对话开关等 |
+| `main.py` | 主入口：调度 → 生成 → 发送 |
+| `app.py` | Flask Web 面板：远程管理配置、手动触发、查看日志 |
+| `core/scheduler.py` | 基于 `MIN_DAYS`/`MAX_DAYS` 判断发信时机 |
+| `core/ai_client.py` | 调用 Gemini API 生成邮件内容 |
+| `core/persona.py` | 加载角色人格和备用文案 |
+| `core/conversation.py` | IMAP 读取回复、对话历史加密存储、关系值计算 |
+| `core/attachment.py` | AI 场景图生成 + chibi 水印 |
+| `core/mailer.py` | SMTP 发送邮件 |
+| `core/state.py` | 本地状态/历史记录管理 |
+| `core/crypto.py` | 对话历史 AES-256 加密 |
 
-| 用户行为 | 哈气值变化 |
-|----------|------------|
-| 提到"摸/抱/靠近" | +15 |
-| 提到"其他猫" | +10 |
-| 指责凶/应激 | +15 |
-| 提到"食物/饭" | -5 |
-| 道歉/示好 | -5 |
-| 每次自然衰减 | -3 |
+## 部署
 
-### 自定义关系系统
-
-在人设 `.md` 文件中添加 `【关系系统：XXX】` 区块即可。
-
----
-
-## ⚙️ 高级配置
-
-### 多人联系人
-
-```python
-CONTACTS = [
-    {"name": "小令狐", "email_env": "TO_EMAIL_1"},
-    {"name": "鼠鼠",   "email_env": "TO_EMAIL_2"},
-    {"name": "妈",     "email_env": "TO_EMAIL_3"},
-]
-```
-
-需要在 Secrets 中配置对应的邮箱地址。
-
-### 换 AI 服务商
-
-| 服务商 | `AI_API_URL` | `AI_MODEL` |
-|--------|-------------|-----------|
-| Gemini（默认） | 不填 | `gemini-2.0-flash` |
-| DeepSeek | `https://api.deepseek.com/v1/chat/completions` | `deepseek-chat` |
-| Qwen | `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions` | `qwen-plus` |
-
-### 修改检查频率
-
-`.github/workflows/ghost-mail.yml`：
-
-```yaml
-schedule:
-  - cron: '0 2 * * *'  # UTC 2:00 = 北京 10:00
-```
-
----
-
-## 🧪 测试
-
-### 本地测试
+### Vercel（Web 面板）
 
 ```bash
-pip install requests cryptography
-python test.py
+vercel
 ```
 
-### 立即发一封测试邮件
+环境变量：
+- `GITHUB_TOKEN`：GitHub Personal Access Token
+- `GITHUB_REPO`：配置仓库（如 `Century0327/random-ai-mail-ghost`）
+- `GITHUB_BRANCH`：默认 `main`
+- `WORKFLOW_FILE`：默认 `ghost-mail.yml`
 
-Actions → Test Send → Run workflow
+### GitHub Actions（定时发信）
 
-会绕过时间检查，立即发送一封邮件。
+仓库 `.github/workflows/ghost-mail.yml` 定义定时任务。触发方式：
+- 定时触发（cron）
+- 手动触发（workflow_dispatch）
+- 通过 Web 面板 `/api/dispatch` 远程触发
 
----
+### 本地运行
 
-## 🔒 安全说明
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
-- 所有敏感信息存储在 GitHub **Secrets**，代码/日志不暴露
-- 对话历史加密存储，`history.json` 不含邮箱/正文
-- 建议仓库设为 **Private**（免费）
+强制发信：
+```bash
+FORCE_SEND=1 python main.py
+```
 
----
+## API 端点
 
-## 📝 更新日志
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/config` | GET | 读取当前配置（ persona、模板、联系人等） |
+| `/api/config` | POST | 更新配置（自动写入 GitHub） |
+| `/api/dispatch` | POST | 手动触发一封邮件 |
+| `/api/runs` | GET | 查看最近 GitHub Actions 运行记录 |
+| `/api/runs/<id>/logs` | GET | 查看运行日志详情 |
+| `/api/companion/characters` | GET | 角色列表（Web 前端用） |
+| `/api/companion/items` | GET | 物品列表（Web 前端用） |
 
-### v3.0 (2026-07)
-- 新增连续对话 + 加密记忆
-- 新增多人设切换系统
-- 新增多人回信支持
-- 新增邮件模板系统
-- 新增关系系统（哈气值）
-- 新增配置仪表盘（Vercel）
+## 环境变量
 
-### v2.0 (2026-06)
-- AI 生成邮件
-- 多人设随机选择
-- 故障兜底机制
-- GitHub Actions 自动化
+| 变量 | 说明 |
+|------|------|
+| `QQ_EMAIL` / `QQ_AUTH_CODE` | SMTP/IMAP 账号（QQ 邮箱授权码） |
+| `AI_API_URL` / `AI_API_KEY` / `AI_MODEL` | AI 生成接口（默认 Gemini） |
+| `CONVERSATION_KEY` | 对话历史加密密钥 |
+| `ATTACHMENT_MODE` | `normal` / `force_on` / `force_off` |
+| `FORCE_SEND` | 设为 `1` 强制发信 |
+
+## 与前端的关系
+
+Ghost Mail 后端负责：
+1. **定时发信**：AI 生成邮件 + 附件，SMTP 发送
+2. **对话处理**：读取用户邮件回复，更新关系值
+3. **日程生成**：AI 每天安排角色日程（TODO：接入 API）
+4. **数据提供**：通过 `/api/companion/*` 向前端提供角色状态、信件历史、日程、关系值
+
+前端（[ghost-mail-ui](https://github.com/Century0327/ghost-mail-ui)）通过 Web 展示：
+- 信件收件箱
+- 角色日程
+- 对话记忆
+- 附件相册
+- 关系值状态
