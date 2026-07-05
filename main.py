@@ -417,7 +417,7 @@ def main():
             
             persona_name, persona_text, _ = load_persona(PERSONA)
             
-            schedule_prompt = f"""请为'{persona_name}'生成今天的日程安排。生成3-5条日程，每条包含：
+            schedule_prompt = f"""请为'{persona_name}'生成今天的日程安排。生成8-12条日程，时间跨度覆盖全天（从早上起床到晚上睡觉），每条包含：
 - time: 时间（如 "08:00"）
 - activity: 活动描述（15字以内）
 - location: 地点（5字以内）
@@ -425,8 +425,8 @@ def main():
 
 请只返回 JSON 数组格式，不要其他文字。例如：
 [
-  {{"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳真舒服"}},
-  {{"time": "10:00", "activity": "观察窗外", "location": "窗台前", "thought": "蝴蝶真好看"}}
+  {{"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦"}},
+  {{"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香"}}
 ]
 """
             
@@ -447,12 +447,26 @@ def main():
             if not schedule_items:
                 # AI 生成失败，使用默认日程
                 schedule_items = [
-                    {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
-                    {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
-                    {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
+                    {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": False},
+                    {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": False},
+                    {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": False},
+                    {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
+                    {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
+                    {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
+                    {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
+                    {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
+                    {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
                 ]
             
-            all_schedules[persona_name] = schedule_items
+            # 按日期存储
+            today_str = _dt.now().strftime("%Y-%m-%d")
+            if persona_name not in all_schedules or not isinstance(all_schedules.get(persona_name), dict):
+                all_schedules[persona_name] = {}
+            all_schedules[persona_name][today_str] = {
+                "date": today_str,
+                "items": schedule_items,
+                "generatedAt": _dt.now().isoformat()
+            }
             
             with open(schedules_path, "w", encoding="utf-8") as f:
                 _json.dump(all_schedules, f, indent=2, ensure_ascii=False)

@@ -478,12 +478,26 @@ def companion_status(character_id):
     
     # 如果数据库没有日程，从 JSON 文件读取
     if not schedule:
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
         schedules_data = _load_json_data("schedules.json", {})
-        schedule = schedules_data.get(character_id, [
-            {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
-            {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
-            {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
-        ])
+        char_schedules = schedules_data.get(character_id, {})
+        if isinstance(char_schedules, dict) and today_str in char_schedules:
+            schedule = char_schedules[today_str].get("items", [])
+        elif isinstance(char_schedules, list):
+            schedule = char_schedules
+        else:
+            schedule = [
+                {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
+                {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
+                {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
+                {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
+                {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
+                {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
+                {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
+                {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
+                {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
+            ]
     
     return _cors_resp({
         "character": dict(char) if hasattr(char, '__iter__') and not isinstance(char, dict) else char,
@@ -555,13 +569,43 @@ def companion_schedules():
         return _cors_resp({})
     
     character_id = request.args.get("character_id")
+    from datetime import datetime
+    today_str = datetime.now().strftime("%Y-%m-%d")
     
-    # 数据库不可用，读取 JSON 文件
+    # 尝试数据库
+    if DATABASE_URL and character_id:
+        schedule_rows = _db_query(
+            "SELECT time, activity, location, thought, done FROM schedules WHERE character_id = %s AND date = CURRENT_DATE ORDER BY time",
+            (character_id,)
+        )
+        if schedule_rows is not None and len(schedule_rows) > 0:
+            schedule_list = [dict(r) for r in schedule_rows]
+            return _cors_resp({"schedules": schedule_list})
+    
+    # 数据库不可用或没有数据，读取 JSON 文件
     schedules_data = _load_json_data("schedules.json", {})
-    if character_id and isinstance(schedules_data, dict):
-        schedules_data = schedules_data.get(character_id, {})
+    schedule_list = []
     
-    return _cors_resp({"schedules": schedules_data})
+    if character_id and isinstance(schedules_data, dict):
+        char_data = schedules_data.get(character_id, {})
+        if isinstance(char_data, dict):
+            # 新格式：按日期存储 { "2026-07-06": { items: [...] } }
+            if today_str in char_data and isinstance(char_data[today_str], dict):
+                schedule_list = char_data[today_str].get("items", [])
+            # 旧格式兼容：直接是数组
+            elif isinstance(char_data, list):
+                schedule_list = char_data
+    elif not character_id:
+        # 返回所有角色的今日日程
+        result = {}
+        for cid, char_data in schedules_data.items():
+            if isinstance(char_data, dict) and today_str in char_data:
+                result[cid] = char_data[today_str].get("items", [])
+            elif isinstance(char_data, list):
+                result[cid] = char_data
+        return _cors_resp({"schedules": result})
+    
+    return _cors_resp({"schedules": schedule_list})
 
 
 # ============ Letters API ============
@@ -837,15 +881,14 @@ def generate_schedule():
 今天是 {current_date}，当前时间 {current_time}。
 
 ## 要求
-1. 生成 4-6 条日程，时间跨度覆盖全天（从早到晚）
+1. 生成 8-12 条日程，时间跨度覆盖全天（从早上起床到晚上睡觉）
 2. 每条日程包含：time(如"08:00"), activity(活动描述15字以内), location(地点5字以内), thought(内心想法20字以内)
-3. 时间要合理（已过的时间不要排重要活动，可排"休息中"或跳过）
+3. 时间要合理，符合角色的作息习惯
 4. 考虑角色性格和历史摘要中的偏好
 5. 如果用户互动多，可以安排一些互动相关活动
 6. 参考最近信件内容，角色可能会因为来信/回信的内容而调整心情和计划
-7. 如果已经过了当前时间，后面的日程要留空/待安排
-5. 如果用户互动多，可以安排一些互动相关活动
-6. 如果已经过了当前时间，后面的日程要留空/待安排
+7. 重要：必须生成完整一天的日程，过去的时间也要有（标注已完成），不能留空或跳过
+8. 已过时间的日程，可以根据实际情况标记为已完成或进行中
 
 ## 输出格式
 只返回 JSON 数组，不要其他文字：
@@ -863,13 +906,19 @@ def generate_schedule():
     
     if error:
         print(f"[AI ERROR] {error}")
-        # AI 失败时返回默认日程
+        default_schedule = [
+            {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
+            {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
+            {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
+            {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
+            {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
+            {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
+            {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
+            {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
+            {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
+        ]
         return _cors_resp({
-            "schedule": [
-                {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
-                {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
-                {"time": "14:00", "activity": "在沙发上散步", "location": "地毯上", "thought": "地毯的触感很温暖"},
-            ],
+            "schedule": default_schedule,
             "summary": "角色状态平稳，日常作息规律。",
             "prev_schedule": prev_schedule,
             "error": error
@@ -900,8 +949,15 @@ def generate_schedule():
     except Exception as e:
         print(f"[PARSE ERROR] {e}")
         schedule_items = [
-            {"time": "08:00", "activity": "在窗台发呆", "location": "窗台", "thought": "太阳照在身上真舒服"},
-            {"time": "10:00", "activity": "观察窗外风景", "location": "窗台前", "thought": "那些蝴蝶真好看"},
+            {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
+            {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
+            {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
+            {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
+            {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
+            {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
+            {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
+            {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
+            {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
         ]
     
     # 确保每条日程有必要的字段
@@ -909,6 +965,33 @@ def generate_schedule():
         item.setdefault("done", False)
         item.setdefault("location", "")
         item.setdefault("thought", "")
+    
+    # 自动标记已过时间的日程为已完成（如果还没标记）
+    now = datetime.now()
+    current_time_str = now.strftime("%H:%M")
+    for item in schedule_items:
+        item_time = item.get("time", "00:00")
+        if item_time < current_time_str and not item.get("done"):
+            item["done"] = True
+    
+    # 按时间排序
+    schedule_items.sort(key=lambda x: x.get("time", "00:00"))
+    
+    # 保存到 JSON 文件（持久化）
+    try:
+        schedules_data = _load_json_data("schedules.json", {})
+        if character_id not in schedules_data or not isinstance(schedules_data[character_id], dict):
+            schedules_data[character_id] = {}
+        today_str = now.strftime("%Y-%m-%d")
+        schedules_data[character_id][today_str] = {
+            "date": today_str,
+            "items": schedule_items,
+            "summary": summary or "角色度过了平常的一天。",
+            "generatedAt": now.isoformat()
+        }
+        _save_json_data("schedules.json", schedules_data)
+    except Exception as e:
+        print(f"[SAVE ERROR] 保存日程失败: {e}")
     
     return _cors_resp({
         "schedule": schedule_items,

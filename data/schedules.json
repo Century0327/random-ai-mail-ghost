@@ -1,36 +1,146 @@
 {
-  "maodie": [
-    {
-      "time": "08:00",
-      "activity": "在窗台发呆",
-      "location": "窗台",
-      "thought": "太阳照在身上真舒服"
-    },
-    {
-      "time": "10:00",
-      "activity": "观察窗外风景",
-      "location": "窗台前",
-      "thought": "那些蝴蝶真好看"
-    },
-    {
-      "time": "14:00",
-      "activity": "在沙发上散步",
-      "location": "地毯上",
-      "thought": "地毯的触感很温暖"
+  "maodie": {
+    "2026-07-06": {
+      "date": "2026-07-06",
+      "items": [
+        {
+          "time": "07:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "新的一天开始啦",
+          "done": true
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": true
+        },
+        {
+          "time": "10:00",
+          "activity": "在窗台发呆",
+          "location": "窗台",
+          "thought": "太阳照在身上真舒服",
+          "done": true
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "沙发上",
+          "thought": "暖暖的阳光好舒服",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "在沙发上散步",
+          "location": "地毯上",
+          "thought": "地毯的触感很温暖",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "整理旧信件",
+          "location": "书桌旁",
+          "thought": "翻到好多回忆",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "等主人回家",
+          "location": "门口",
+          "thought": "怎么还不回来呀",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "晚餐时间到啦",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "准备睡觉",
+          "location": "猫窝",
+          "thought": "今天过得真开心",
+          "done": false
+        }
+      ],
+      "summary": "猫叠在窗台上晒了一上午太阳，下午在沙发上散步，过得很悠闲。",
+      "generatedAt": "2026-07-06T00:00:00"
     }
-  ],
-  "kitty": [
-    {
-      "time": "07:00",
-      "activity": "伸懒腰",
-      "location": "猫窝",
-      "thought": "新的一天开始啦"
-    },
-    {
-      "time": "12:00",
-      "activity": "追逐毛线球",
-      "location": "客厅",
-      "thought": "这个毛线球真好玩"
+  },
+  "kitty": {
+    "2026-07-06": {
+      "date": "2026-07-06",
+      "items": [
+        {
+          "time": "07:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "新的一天开始啦",
+          "done": true
+        },
+        {
+          "time": "08:30",
+          "activity": "吃猫粮",
+          "location": "食盆旁",
+          "thought": "脆脆的好好吃",
+          "done": true
+        },
+        {
+          "time": "10:00",
+          "activity": "追逐毛线球",
+          "location": "客厅",
+          "thought": "这个毛线球真好玩",
+          "done": true
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "阳光下",
+          "thought": "暖暖的好舒服",
+          "done": false
+        },
+        {
+          "time": "14:30",
+          "activity": "探索书架",
+          "location": "书架上",
+          "thought": "上面有什么呢",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "看窗外的鸟",
+          "location": "窗台",
+          "thought": "小鸟飞的真高",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "玩逗猫棒",
+          "location": "客厅",
+          "thought": "抓不到抓不到",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "饿啦饿啦",
+          "done": false
+        },
+        {
+          "time": "22:30",
+          "activity": "踩奶睡觉",
+          "location": "毯子上",
+          "thought": "好困好困",
+          "done": false
+        }
+      ],
+      "summary": "kitty今天活力满满，追了一上午毛线球，下午还探索了书架。",
+      "generatedAt": "2026-07-06T00:00:00"
     }
-  ]
+  }
 }
