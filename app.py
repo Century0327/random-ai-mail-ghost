@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Vercel Flask App: /api/config + /api/dispatch
+Vercel Flask App: /api/config + /api/dispatch + /api/companion/*
 """
 
 import re
@@ -343,9 +343,6 @@ if __name__ == "__main__":
 # ============ 陪伴系统注册 ============
 try:
     from companion_backend import register_companion_blueprint
-    # 需要一个 db 连接对象，这里假设 app.config 里有 DB
-    # 如果暂时没有 DB，先用 None，后续补上
-    db = None
-    register_companion_blueprint(app, db)
+    register_companion_blueprint(app)
 except Exception as e:
     print(f"Companion system not loaded: {e}")
