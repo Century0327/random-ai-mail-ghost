@@ -90,6 +90,9 @@ def _cors_resp(data, status=200):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
     resp.status_code = status
     return resp
 
