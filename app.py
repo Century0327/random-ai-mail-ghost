@@ -1421,8 +1421,46 @@ from core.letter_service import (
     get_all_relations,
 )
 from core.mail_forward import forward_letter, is_configured as mail_forward_configured
-from core.persona import personas
+from core.persona import load_persona
 import traceback
+
+# 角色列表（与 personas 目录下的 .md 文件对应）
+PERSONA_IDS = ["maodie", "baizhu", "qingdai", "aqiao"]
+
+# 缓存的角色信息
+_persona_cache = {}
+
+def _get_persona(char_id: str) -> dict:
+    """获取角色信息（带缓存）"""
+    if char_id in _persona_cache:
+        return _persona_cache[char_id]
+
+    try:
+        name, persona_text, relation_config = load_persona(char_id)
+        result = {
+            "id": char_id,
+            "name": name or char_id,
+            "personality": persona_text[:200] if persona_text else "",
+            "writing_style": "",
+            "player_title": "玩家",
+            "full_persona": persona_text or "",
+        }
+    except Exception as e:
+        print(f"[app.py] 加载角色 {char_id} 失败: {e}")
+        result = {
+            "id": char_id,
+            "name": char_id,
+            "personality": "",
+            "writing_style": "",
+            "player_title": "玩家",
+            "full_persona": "",
+        }
+
+    _persona_cache[char_id] = result
+    return result
+
+# 简易的 personas 字典，兼容旧代码
+personas = {cid: _get_persona(cid) for cid in PERSONA_IDS}
 
 # ============ 信件 API ============
 
