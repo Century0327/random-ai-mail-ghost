@@ -212,7 +212,7 @@ def _options():
 def _parse_config(content):
     config = {}
     lines = content.splitlines()
-    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION"]
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL"]
     simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
     for var in simple_str + simple_int:
         for line in lines:
@@ -255,13 +255,39 @@ def _parse_config(content):
     return config
 
 
+# AI 供应商 URL 映射（用户只需选供应商，URL 自动填写）
+AI_PROVIDER_URLS = {
+    "siliconflow": "https://api.siliconflow.cn/v1/chat/completions",
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "moonshot": "https://api.moonshot.cn/v1/chat/completions",
+    "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "deepseek": "https://api.deepseek.com/v1/chat/completions",
+}
+
+AI_PROVIDER_LABELS = {
+    "siliconflow": "硅基流动",
+    "openai": "OpenAI",
+    "moonshot": "Moonshot (Kimi)",
+    "aliyun": "阿里云百炼",
+    "deepseek": "DeepSeek",
+    "custom": "自定义",
+}
+
+def _resolve_ai_url(config):
+    """根据供应商配置解析 AI API URL"""
+    provider = config.get("AI_PROVIDER", "siliconflow")
+    if provider == "custom":
+        return config.get("AI_CUSTOM_URL", "")
+    return AI_PROVIDER_URLS.get(provider, AI_PROVIDER_URLS["siliconflow"])
+
+
 def _build_config(config):
     content, _ = _get_file(CONFIG_PATH)
     if not content:
         return None
     lines = content.splitlines()
     out = []
-    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION"]
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL"]
     simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
     simple_bool = ["ENABLE_CONVERSATION"]
     i = 0
@@ -329,6 +355,7 @@ def get_config():
         "config": config,
         "personas": personas,
         "templates": templates,
+        "aiProviders": AI_PROVIDER_LABELS,
         "repo": GITHUB_REPO,
         "branch": GITHUB_BRANCH,
     })
@@ -843,13 +870,26 @@ def create_conversation():
 # ============ AI 日程生成 API ============
 
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
-AI_API_URL = os.environ.get("AI_API_URL", "")
-AI_MODEL = os.environ.get("AI_MODEL", "")
+
+def _get_ai_config():
+    """从 config.py 读取 AI 配置"""
+    config_content, _ = _get_file(CONFIG_PATH)
+    if not config_content:
+        return None
+    config = _parse_config(config_content)
+    return {
+        "url": _resolve_ai_url(config),
+        "model": config.get("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
+    }
 
 def _call_ai(prompt, system_context=""):
     """调用外部 AI API 生成内容"""
-    if not AI_API_KEY or not AI_API_URL:
-        return None, "AI API 未配置"
+    if not AI_API_KEY:
+        return None, "AI API Key 未配置（请在 GitHub Secrets 设置 AI_API_KEY）"
+    
+    ai_config = _get_ai_config()
+    if not ai_config or not ai_config.get("url"):
+        return None, "AI 配置未找到（请在控制台选择供应商和模型）"
     
     try:
         headers = {
@@ -857,9 +897,8 @@ def _call_ai(prompt, system_context=""):
             "Content-Type": "application/json"
         }
         
-        # 支持 Moonshot / OpenAI 兼容格式
         payload = {
-            "model": AI_MODEL,
+            "model": ai_config["model"],
             "messages": [
                 {"role": "system", "content": system_context},
                 {"role": "user", "content": prompt}
@@ -868,7 +907,7 @@ def _call_ai(prompt, system_context=""):
             "max_tokens": 1500
         }
         
-        resp = requests.post(AI_API_URL, headers=headers, json=payload, timeout=60)
+        resp = requests.post(ai_config["url"], headers=headers, json=payload, timeout=60)
         if resp.status_code != 200:
             return None, f"AI API 错误: {resp.status_code}"
         
@@ -1170,9 +1209,6 @@ def generate_schedule():
         "job_id": job_id
     })
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
 
 
 @app.route("/api/companion/attachments", methods=["GET", "OPTIONS"])
