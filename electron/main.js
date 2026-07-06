@@ -321,6 +321,67 @@ function updateTrayMenu() {
     tray.setContextMenu(Menu.buildFromTemplate(template));
 }
 
+// ============ 新信轮询检查 ============
+
+let lastCheckedLetterId = store.get('lastCheckedLetterId') || null;
+let pollInterval = null;
+let pollIntervalMs = 5 * 60 * 1000;
+
+async function checkNewLetters() {
+    if (!store.get('notifyNewLetter')) return;
+
+    try {
+        const apiBaseUrl = store.get('apiBaseUrl');
+        const resp = await fetch(`${apiBaseUrl}/api/companion/letters/latest`, {
+            headers: { 'X-Device-ID': deviceId }
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const latest = data.latest;
+        if (!latest) return;
+
+        const latestId = latest.id || latest._id;
+        if (lastCheckedLetterId && latestId !== lastCheckedLetterId) {
+            const characterId = latest.character_id || 'kitty';
+            const characterName = _getCharacterDisplayName(characterId);
+            const subject = latest.subject || '有新的信件送达';
+            
+            showNewLetterNotification(characterName, subject);
+
+            if (mainWindow) {
+                mainWindow.webContents.send('letter:new', latest);
+            }
+        }
+        lastCheckedLetterId = latestId;
+        store.set('lastCheckedLetterId', latestId);
+    } catch (e) {
+        // 静默失败，下次再试
+    }
+}
+
+function _getCharacterDisplayName(charId) {
+    const map = {
+        'kitty': '小喵',
+        'puppy': '小狗',
+        'foxy': '小狐',
+        'birb': '小鸟'
+    };
+    return map[charId] || charId;
+}
+
+function startLetterPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(checkNewLetters, pollIntervalMs);
+    setTimeout(checkNewLetters, 5000);
+}
+
+function stopLetterPolling() {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+}
+
 // ============ 通知 ============
 
 function showNewLetterNotification(characterName, subject) {
@@ -431,6 +492,7 @@ app.whenReady().then(() => {
     createMainWindow();
     createPetWindow();
     createTray();
+    startLetterPolling();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

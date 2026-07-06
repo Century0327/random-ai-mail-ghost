@@ -34,6 +34,11 @@ contextBridge.exposeInMainWorld('ghostMailAPI', {
     // 通知
     notifyNewLetter: (data) => ipcRenderer.send('notify:new-letter', data),
 
+    // 新信事件（主窗口接收）
+    onNewLetter: (callback) => {
+        ipcRenderer.on('letter:new', (_e, letter) => callback(letter));
+    },
+
     // Steam
     getSteamUser: () => ipcRenderer.invoke('steam:get-user'),
     steamLogin: (data) => ipcRenderer.invoke('steam:login', data),

@@ -674,6 +674,17 @@ def companion_buy_item(item_id):
     return _cors_resp({"ok": True, "message": "购买成功"})
 
 
+# ============ 成就系统 API ============
+
+@app.route("/api/companion/achievements", methods=["GET", "OPTIONS"])
+def companion_achievements():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
+    achievements = ds.get_user_achievements(device_id)
+    return _cors_resp({"achievements": achievements})
+
+
 # ============ 收藏 API ============
 
 @app.route("/api/companion/letters/<int:letter_id>/favorite", methods=["POST", "OPTIONS"])
@@ -761,6 +772,17 @@ def create_letter():
     
     new_letter = ds.create_letter(character_id, subject, letter_body, source, attachment_url)
     return _cors_resp({"status": "ok", "message": "Letter created", "letter": new_letter})
+
+
+@app.route("/api/companion/letters/latest", methods=["GET", "OPTIONS"])
+def companion_latest_letter():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    character_id = request.args.get("character_id")
+    letters = ds.get_letters(character_id, 1)
+    latest = letters[0] if letters else None
+    return _cors_resp({"latest": latest})
 
 
 # ============ Conversations API ============

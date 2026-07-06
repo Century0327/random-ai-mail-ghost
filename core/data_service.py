@@ -201,6 +201,54 @@ class DataService:
         _save_json(f"inventory_{device_id}.json", inv)
         return True
 
+    # ==================== 成就系统 ====================
+
+    def get_achievements(self) -> List[Dict]:
+        rows = self._query(
+            "SELECT achievement_id AS id, name, description, rarity, category, condition_type AS conditionType, condition_value AS conditionValue, reward_affection AS rewardAffection, reward_coins AS rewardCoins, icon FROM achievements ORDER BY category, rarity, id"
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        # Fallback
+        return [
+            {"id": "first_letter", "name": "初遇", "description": "收到第一封信", "rarity": "common", "category": "general", "conditionType": "letters_total", "conditionValue": 1, "rewardAffection": 5, "rewardCoins": 10, "icon": "💌"},
+            {"id": "letter_10", "name": "笔友", "description": "累计收到 10 封信", "rarity": "common", "category": "general", "conditionType": "letters_total", "conditionValue": 10, "rewardAffection": 10, "rewardCoins": 30, "icon": "📮"},
+            {"id": "letter_50", "name": "知心好友", "description": "累计收到 50 封信", "rarity": "rare", "category": "general", "conditionType": "letters_total", "conditionValue": 50, "rewardAffection": 20, "rewardCoins": 80, "icon": "💝"},
+            {"id": "first_reply", "name": "鸿雁传书", "description": "第一次回复信件", "rarity": "common", "category": "social", "conditionType": "replies_total", "conditionValue": 1, "rewardAffection": 8, "rewardCoins": 20, "icon": "✉️"},
+            {"id": "days_7", "name": "一周相伴", "description": "连续互动 7 天", "rarity": "rare", "category": "social", "conditionType": "days_active", "conditionValue": 7, "rewardAffection": 15, "rewardCoins": 50, "icon": "📅"},
+            {"id": "days_30", "name": "一月之约", "description": "连续互动 30 天", "rarity": "epic", "category": "social", "conditionType": "days_active", "conditionValue": 30, "rewardAffection": 50, "rewardCoins": 200, "icon": "🗓️"},
+            {"id": "all_characters", "name": "全员制霸", "description": "与所有角色建立关系", "rarity": "rare", "category": "collection", "conditionType": "all_characters", "conditionValue": 4, "rewardAffection": 20, "rewardCoins": 100, "icon": "👑"},
+            {"id": "first_favorite", "name": "珍藏记忆", "description": "收藏第一封信件", "rarity": "common", "category": "collection", "conditionType": "favorites_total", "conditionValue": 1, "rewardAffection": 5, "rewardCoins": 15, "icon": "⭐"},
+            {"id": "shop_first", "name": "购物初体验", "description": "在商店购买第一件物品", "rarity": "common", "category": "general", "conditionType": "purchases_total", "conditionValue": 1, "rewardAffection": 3, "rewardCoins": 5, "icon": "🛒"},
+        ]
+
+    def get_user_achievements(self, device_id: str) -> List[Dict]:
+        rows = self._query(
+            """SELECT a.achievement_id AS id, a.name, a.description, a.rarity, a.category,
+                      a.condition_type AS "conditionType", a.condition_value AS "conditionValue",
+                      a.reward_affection AS "rewardAffection", a.reward_coins AS "rewardCoins",
+                      a.icon, ua.unlocked_at AS "unlockedAt", ua.unlocked_at IS NOT NULL AS unlocked
+               FROM achievements a
+               LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id
+               AND ua.user_id = (SELECT id FROM users WHERE device_id = %s LIMIT 1)
+               ORDER BY a.category, a.rarity, a.id""",
+            (device_id,)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        # Fallback: 读成就定义 + 本地 JSON 存解锁记录
+        all_achs = self.get_achievements()
+        unlocked = _load_json(f"achievements_{device_id}.json", [])
+        unlocked_ids = set(unlocked)
+        result = []
+        for ach in all_achs:
+            result.append({
+                **ach,
+                "unlocked": ach["id"] in unlocked_ids,
+                "unlockedAt": None
+            })
+        return result
+
     # ==================== 信件收藏 ====================
 
     def get_favorite_letters(self, device_id: str, character_id: Optional[str] = None) -> List[Dict]:
