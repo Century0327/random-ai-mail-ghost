@@ -101,6 +101,13 @@
           "done": true
         },
         {
+          "time": "08:00",
+          "activity": "跳上膝盖",
+          "location": "主人腿上",
+          "thought": "（蹭蹭）主人今天怎么这么早？",
+          "done": true
+        },
+        {
           "time": "08:30",
           "activity": "吃早餐",
           "location": "食盆旁",
@@ -122,70 +129,70 @@
           "done": false
         },
         {
-          "time": "11:30",
-          "activity": "晒太阳",
+          "time": "11:00",
+          "activity": "窗台看风景",
           "location": "窗台",
-          "thought": "（翻白眼）又不是在给你当玩具",
-          "done": false
+          "thought": "（尾巴翘）阳光真温暖",
+          "done": true
         },
         {
-          "time": "13:00",
+          "time": "12:30",
           "activity": "午睡",
-          "location": "沙发",
-          "thought": "呼噜呼噜，梦里全是小鱼干",
+          "location": "猫窝",
+          "thought": "（眯眼）主人别打扰我",
           "done": false
         },
         {
-          "time": "14:30",
-          "activity": "看风景",
-          "location": "窗台",
-          "thought": "（喵~）今天的云朵好可爱",
-          "done": false
-        },
-        {
-          "time": "15:00",
-          "activity": "追逐毛线球",
+          "time": "14:00",
+          "activity": "追逐激光笔",
           "location": "客厅",
-          "thought": "（甩尾巴）终于找到我的玩具了",
+          "thought": "（喵~）激光点好调皮",
           "done": false
         },
         {
-          "time": "16:00",
-          "activity": "发呆",
-          "location": "地毯",
-          "thought": "（叹气）人类的世界真无聊",
+          "time": "15:30",
+          "activity": "玩纸团",
+          "location": "客厅",
+          "thought": "（叼起纸团）主人追我呀？",
           "done": false
         },
         {
-          "time": "17:30",
-          "activity": "吃小鱼干",
+          "time": "17:00",
+          "activity": "吃晚餐",
           "location": "食盆旁",
-          "thought": "（开心）满足了～",
+          "thought": "（喵呜）小鱼干又来啦",
           "done": false
         },
         {
-          "time": "19:00",
-          "activity": "互动游戏",
+          "time": "18:30",
+          "activity": "窗台发呆",
+          "location": "窗台",
+          "thought": "（尾巴摆）看着云朵打盹",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "撒娇要抱抱",
+          "location": "主人腿上",
+          "thought": "（蹭蹭）主人快抱抱我",
+          "done": false
+        },
+        {
+          "time": "21:30",
+          "activity": "玩毛线球",
           "location": "客厅",
-          "thought": "（蹭蹭）主人陪我玩吧",
+          "thought": "（喵~）毛线球又回来啦",
           "done": false
         },
         {
-          "time": "20:30",
-          "activity": "准备睡觉",
+          "time": "22:00",
+          "activity": "睡觉",
           "location": "猫窝",
-          "thought": "（打呼噜）明天还要继续撒娇",
-          "done": false
-        },
-        {
-          "time": "21:00",
-          "activity": "入睡",
-          "location": "猫窝",
-          "thought": "（梦中喵叫）晚安，我的人类",
+          "thought": "（呼噜）明天还要继续玩耍呢",
           "done": false
         }
       ],
-      "generated_at": "2026-07-06T11:14:55.996022"
+      "generated_at": "2026-07-06T11:22:07.366843"
     }
   }
 }
