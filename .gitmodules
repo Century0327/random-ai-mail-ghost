@@ -1,0 +1,3 @@
+[submodule "ghost-mail-ui"]
+	path = ghost-mail-ui
+	url = https://github.com/Century0327/ghost-mail-ui.git
