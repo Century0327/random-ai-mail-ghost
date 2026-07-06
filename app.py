@@ -1406,5 +1406,285 @@ def ai_generate():
     return _cors_resp({"content": content})
 
 
+# ==================== Phase 2: 应用内信件系统 ====================
+
+from core.letter_service import (
+    send_letter_from_user,
+    receive_letter_from_character,
+    get_letter_list,
+    get_letter_detail,
+    mark_letter_read,
+    mark_all_read,
+    get_unread_count,
+    get_conversation_history,
+    get_character_relation,
+    get_all_relations,
+)
+from core.mail_forward import forward_letter, is_configured as mail_forward_configured
+from core.persona import personas
+import traceback
+
+# ============ 信件 API ============
+
+@app.route("/api/letters", methods=["GET", "OPTIONS"])
+def api_letters_list():
+    """获取信件列表（分页）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    character_id = request.args.get("character_id", "")
+    page = max(1, int(request.args.get("page", 1)))
+    page_size = min(100, max(5, int(request.args.get("page_size", 20))))
+    offset = (page - 1) * page_size
+
+    letters, total = get_letter_list(user["id"], character_id or None, page_size, offset)
+    unread = get_unread_count(user["id"], character_id or None)
+
+    return _cors_resp({
+        "letters": letters,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "unread_count": unread,
+    })
+
+
+@app.route("/api/letters/<int:letter_id>", methods=["GET", "OPTIONS"])
+def api_letter_detail(letter_id):
+    """获取单封信件详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    letter = get_letter_detail(user["id"], letter_id)
+    if not letter:
+        return _cors_resp({"error": "信件不存在"}, 404)
+
+    # 自动标记已读
+    if not letter["is_read"]:
+        mark_letter_read(user["id"], letter_id)
+        letter["is_read"] = True
+
+    return _cors_resp({"letter": letter})
+
+
+@app.route("/api/letters/<int:letter_id>/read", methods=["POST", "OPTIONS"])
+def api_mark_read(letter_id):
+    """标记已读"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    mark_letter_read(user["id"], letter_id)
+    return _cors_resp({"status": "ok"})
+
+
+@app.route("/api/letters/read-all", methods=["POST", "OPTIONS"])
+def api_mark_all_read():
+    """全部标记已读"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    body = request.get_json(silent=True) or {}
+    character_id = body.get("character_id")
+    count = mark_all_read(user["id"], character_id)
+    return _cors_resp({"status": "ok", "marked": count})
+
+
+@app.route("/api/letters/unread-count", methods=["GET", "OPTIONS"])
+def api_unread_count():
+    """未读数量"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    character_id = request.args.get("character_id", "")
+    count = get_unread_count(user["id"], character_id or None)
+    return _cors_resp({"unread_count": count})
+
+
+@app.route("/api/letters/send", methods=["POST", "OPTIONS"])
+def api_send_letter():
+    """
+    用户给角色写信 → 触发 AI 自动回复
+    异步处理：先返回 202，后台生成回复
+    """
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    quota_ok, quota_err = quota_required(user)
+    if not quota_ok:
+        return _cors_resp({"error": quota_err}, 429)
+
+    body = request.get_json(silent=True) or {}
+    character_id = body.get("character_id", "maodie")
+    content = body.get("content", "").strip()
+    subject = body.get("subject", "")
+
+    if not content:
+        return _cors_resp({"error": "信件内容不能为空"}, 400)
+
+    if character_id not in personas:
+        return _cors_resp({"error": f"未知角色: {character_id}"}, 400)
+
+    # 保存用户的信
+    user_letter = send_letter_from_user(user["id"], character_id, content, subject)
+    if not user_letter:
+        return _cors_resp({"error": "发送失败，请稍后重试"}, 500)
+
+    increment_usage(user["id"])
+
+    # 异步生成 AI 回复（后台线程，不阻塞）
+    import threading
+    def _generate_reply():
+        try:
+            _do_generate_reply(user, character_id, content, user_letter["id"])
+        except Exception as e:
+            print(f"[LetterReply] 生成回复异常: {e}")
+            traceback.print_exc()
+
+    t = threading.Thread(target=_generate_reply, daemon=True)
+    t.start()
+
+    return _cors_resp({
+        "status": "accepted",
+        "message": "信件已发送，角色正在回信中...",
+        "user_letter_id": user_letter["id"],
+    }), 202
+
+
+def _do_generate_reply(user: dict, character_id: str, user_content: str, reply_to_id: int):
+    """后台生成 AI 回复并入库"""
+    persona = personas[character_id]
+
+    # 对话历史
+    history = get_conversation_history(user["id"], character_id, 10)
+    history_text = ""
+    for msg in history:
+        role = "角色" if msg["direction"] == "from_character" else "玩家"
+        history_text += f"{role}：{msg['content'][:200]}\n\n"
+
+    system = f"""你是 {persona['name']}，{persona['personality']}。
+你以"幽灵"的形式存在，通过写信和玩家交流。
+{persona['writing_style']}
+称呼：{persona['player_title']}
+当前与玩家的关系等级：{get_character_relation(user['id'], character_id)['level'] if get_character_relation(user['id'], character_id) else 'stranger'}
+
+回信要求：
+1. 语气自然，像真实的信件，有日期和称呼，结尾有署名
+2. 长度适中（200-500字）
+3. 分享一些你今天的小事，回应玩家信中的内容
+4. 可以提一个问题引导玩家继续交流
+5. 只输出信件正文，不要任何 markdown 代码块标记"""
+
+    prompt = f"""以下是之前的对话：
+{history_text}
+玩家刚刚发来的信：
+{user_content}
+
+请你以 {persona['name']} 的口吻给玩家写一封回信。"""
+
+    content, err = ai_call(
+        prompt=prompt,
+        system=system,
+        max_tokens=800,
+        temperature=0.9,
+        user_id=user["id"],
+        endpoint="letter_reply",
+    )
+
+    if err or not content:
+        print(f"[LetterReply] AI 生成失败: {err}")
+        return
+
+    # 提取主题（第一行或前 30 字）
+    subject = ""
+    first_line = content.split("\n")[0].strip()
+    if first_line and len(first_line) < 50:
+        subject = first_line.replace("主题：", "").replace("Re: ", "").strip()
+    else:
+        subject = content[:30] + "..."
+
+    # 保存角色的回信
+    letter = receive_letter_from_character(
+        user_id=user["id"],
+        character_id=character_id,
+        content=content,
+        subject=subject,
+        reply_to_id=reply_to_id,
+    )
+    print(f"[LetterReply] 回复已生成: user={user['id']} char={character_id}")
+
+    # 可选：真实邮件转发
+    if letter and mail_forward_configured() and user.get("email"):
+        forward_letter(
+            to_email=user["email"],
+            character_name=persona["name"],
+            subject=subject or f"来自 {persona['name']} 的信",
+            content=content,
+            attachment_url=letter.get("attachment_url", ""),
+        )
+
+
+# ============ 好感度 / 角色关系 API ============
+
+@app.route("/api/relations", methods=["GET", "OPTIONS"])
+def api_relations():
+    """获取所有角色关系"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    relations = get_all_relations(user["id"])
+    # 合并角色基本信息
+    for r in relations:
+        if r["character_id"] in personas:
+            r["character_name"] = personas[r["character_id"]]["name"]
+    return _cors_resp({"relations": relations})
+
+
+@app.route("/api/relations/<character_id>", methods=["GET", "OPTIONS"])
+def api_relation_detail(character_id):
+    """获取与某角色的关系详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    if character_id not in personas:
+        return _cors_resp({"error": f"未知角色: {character_id}"}, 400)
+
+    relation = get_character_relation(user["id"], character_id)
+    if relation and character_id in personas:
+        relation["character_name"] = personas[character_id]["name"]
+    return _cors_resp({"relation": relation})
+
+
 if __name__ == "__main__":
     app.run(debug=True)

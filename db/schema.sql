@@ -130,3 +130,40 @@ CREATE TABLE IF NOT EXISTS api_usage_log (
 CREATE INDEX IF NOT EXISTS idx_api_usage_log_user_id ON api_usage_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_log_created_at ON api_usage_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_keys_enabled ON ai_keys(enabled) WHERE enabled = true;
+
+-- ==================== Phase 2: 应用内信件 + 好感度 ====================
+
+-- 信件表（应用内信件系统）
+CREATE TABLE IF NOT EXISTS letters (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    character_id VARCHAR(64) NOT NULL,
+    direction VARCHAR(16) NOT NULL,  -- from_character / from_user
+    subject VARCHAR(256),
+    content TEXT NOT NULL,
+    attachment_url TEXT,
+    attachment_prompt TEXT,
+    is_read BOOLEAN DEFAULT false,
+    reply_to_id INTEGER REFERENCES letters(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_letters_user_id ON letters(user_id);
+CREATE INDEX IF NOT EXISTS idx_letters_character ON letters(user_id, character_id);
+CREATE INDEX IF NOT EXISTS idx_letters_created_at ON letters(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_letters_unread ON letters(user_id, is_read) WHERE is_read = false;
+
+-- 用户角色关系表（好感度）
+CREATE TABLE IF NOT EXISTS user_character_relations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    character_id VARCHAR(64) NOT NULL,
+    affection INTEGER DEFAULT 0,  -- 好感度 0-1000
+    level VARCHAR(32) DEFAULT 'stranger',  -- stranger / familiar / close / intimate / dependent
+    letters_exchanged INTEGER DEFAULT 0,
+    last_interaction_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, character_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ucr_user_id ON user_character_relations(user_id);
