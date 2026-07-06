@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桌宠</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            background: transparent;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            cursor: grab;
+        }
+        body:active { cursor: grabbing; }
+
+        .pet-container {
+            width: 100%; height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pet-character {
+            width: 85%; height: 85%;
+            position: relative;
+            animation: breathe 4s ease-in-out infinite;
+            transition: transform 0.3s ease;
+        }
+
+        .pet-character:hover {
+            transform: scale(1.05);
+        }
+
+        .pet-character.talking {
+            animation: talking 0.5s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-3%) scale(1.02); }
+        }
+
+        @keyframes talking {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-2%) rotate(-2deg); }
+            75% { transform: translateY(-2%) rotate(2deg); }
+        }
+
+        .pet-body {
+            width: 100%; height: 100%;
+            position: relative;
+        }
+
+        /* 角色默认样式：圆形幽灵风格占位 */
+        .pet-sprite {
+            width: 100%; height: 100%;
+            border-radius: 50% 50% 45% 45%;
+            background: linear-gradient(180deg, #e8e0ff 0%, #d0c0ff 60%, #b8a8ff 100%);
+            position: relative;
+            box-shadow: 0 10px 30px rgba(140, 100, 200, 0.3),
+                        inset 0 -10px 20px rgba(100, 70, 170, 0.2);
+        }
+
+        /* 眼睛 */
+        .pet-eyes {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 18%;
+            width: 50%;
+            justify-content: center;
+        }
+
+        .pet-eye {
+            width: 14%;
+            aspect-ratio: 1;
+            background: #2a1a4a;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pet-eye::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 20%;
+            width: 40%;
+            height: 40%;
+            background: white;
+            border-radius: 50%;
+        }
+
+        /* 腮红 */
+        .pet-blush {
+            position: absolute;
+            top: 48%;
+            width: 18%;
+            height: 10%;
+            background: rgba(255, 150, 180, 0.5);
+            border-radius: 50%;
+            filter: blur(4px);
+        }
+        .pet-blush.left { left: 15%; }
+        .pet-blush.right { right: 15%; }
+
+        /* 嘴巴 */
+        .pet-mouth {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12%;
+            height: 6%;
+            background: #8b5a9c;
+            border-radius: 0 0 50% 50%;
+        }
+
+        /* 角色颜色变体 */
+        .pet-sprite.maodie {
+            background: linear-gradient(180deg, #ffe4f0 0%, #ffc0d8 60%, #ffa0c0 100%);
+            box-shadow: 0 10px 30px rgba(200, 100, 140, 0.3),
+                        inset 0 -10px 20px rgba(170, 70, 110, 0.2);
+        }
+
+        .pet-sprite.baizhu {
+            background: linear-gradient(180deg, #e0f0ff 0%, #b8d8ff 60%, #90bfff 100%);
+            box-shadow: 0 10px 30px rgba(100, 150, 220, 0.3),
+                        inset 0 -10px 20px rgba(70, 120, 190, 0.2);
+        }
+
+        .pet-sprite.qingdai {
+            background: linear-gradient(180deg, #e0ffeb 0%, #b8ffd4 60%, #90ffbf 100%);
+            box-shadow: 0 10px 30px rgba(100, 200, 150, 0.3),
+                        inset 0 -10px 20px rgba(70, 170, 120, 0.2);
+        }
+
+        .pet-sprite.aqiao {
+            background: linear-gradient(180deg, #fff5e0 0%, #ffe8b8 60%, #ffd890 100%);
+            box-shadow: 0 10px 30px rgba(220, 170, 90, 0.3),
+                        inset 0 -10px 20px rgba(190, 140, 60, 0.2);
+        }
+
+        /* 新信件气泡 */
+        .bubble {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            background: white;
+            padding: 8px 14px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: #5a3a7a;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 10;
+        }
+
+        .bubble.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-100%) scale(1);
+        }
+
+        .bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            background: white;
+            transform: translateX(-50%) rotate(45deg);
+        }
+
+        /* 互动特效：爱心 */
+        .heart {
+            position: absolute;
+            font-size: 20px;
+            pointer-events: none;
+            animation: floatUp 1.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(1.5);
+            }
+        }
+
+        /* 状态指示器（底部小光点） */
+        .status-dot {
+            position: absolute;
+            bottom: 2%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            box-shadow: 0 0 8px #4ade80;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .status-dot.busy {
+            background: #fbbf24;
+            box-shadow: 0 0 8px #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <div class="pet-container" id="petContainer">
+        <div class="bubble" id="bubble">有新的信！</div>
+        <div class="pet-character" id="petCharacter">
+            <div class="pet-body">
+                <div class="pet-sprite maodie" id="petSprite">
+                    <div class="pet-eyes">
+                        <div class="pet-eye"></div>
+                        <div class="pet-eye"></div>
+                    </div>
+                    <div class="pet-blush left"></div>
+                    <div class="pet-blush right"></div>
+                    <div class="pet-mouth"></div>
+                </div>
+                <div class="status-dot" id="statusDot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const petSprite = document.getElementById('petSprite');
+        const petCharacter = document.getElementById('petCharacter');
+        const bubble = document.getElementById('bubble');
+        const statusDot = document.getElementById('statusDot');
+        const container = document.getElementById('petContainer');
+
+        let currentCharacter = 'maodie';
+        let bubbleTimer = null;
+
+        // 初始化角色
+        async function init() {
+            try {
+                const charId = await window.ghostMailAPI.getConfig('petCharacter');
+                if (charId) {
+                    switchCharacter(charId);
+                }
+            } catch (e) {
+                console.log('无法读取配置', e);
+            }
+        }
+
+        function switchCharacter(charId) {
+            currentCharacter = charId;
+            petSprite.className = 'pet-sprite ' + charId;
+        }
+
+        // 显示气泡提示
+        function showBubble(text, duration = 3000) {
+            bubble.textContent = text;
+            bubble.classList.add('show');
+            petCharacter.classList.add('talking');
+
+            if (bubbleTimer) clearTimeout(bubbleTimer);
+            bubbleTimer = setTimeout(() => {
+                bubble.classList.remove('show');
+                petCharacter.classList.remove('talking');
+            }, duration);
+        }
+
+        // 显示爱心特效
+        function spawnHeart(x, y) {
+            const hearts = ['💕', '💗', '💖', '✨', '💫'];
+            const heart = document.createElement('div');
+            heart.className = 'heart';
+            heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+            heart.style.left = (x - 10) + 'px';
+            heart.style.top = (y - 20) + 'px';
+            container.appendChild(heart);
+            setTimeout(() => heart.remove(), 1500);
+        }
+
+        // 随机短语
+        const idlePhrases = {
+            maodie: ['喵~', '在吗？', '想你啦', '陪陪我嘛'],
+            baizhu: ['...', '嗯', '你好', '在的'],
+            qingdai: ['今天天气真好', '一起散步吧', '心情不错呢'],
+            aqiao: ['嘿嘿', '今天吃什么', '好无聊啊']
+        };
+
+        // 点击互动
+        let clickCount = 0;
+        let clickTimer = null;
+
+        petCharacter.addEventListener('click', (e) => {
+            clickCount++;
+
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // 爱心特效
+            spawnHeart(x, y);
+
+            // 连点特殊反应
+            if (clickCount >= 3) {
+                showBubble('哎呀，别戳啦~', 1500);
+                clickCount = 0;
+            } else {
+                const phrases = idlePhrases[currentCharacter] || idlePhrases.maodie;
+                showBubble(phrases[Math.floor(Math.random() * phrases.length)], 1500);
+            }
+
+            if (clickTimer) clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => { clickCount = 0; }, 1500);
+
+            // 通知主进程
+            window.ghostMailAPI.petClick();
+        });
+
+        // 右键菜单
+        petCharacter.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            window.ghostMailAPI.petContextMenu({ x: e.clientX, y: e.clientY });
+        });
+
+        // 拖拽
+        let isDragging = false;
+        let startX = 0, startY = 0;
+
+        petCharacter.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            const rect = container.getBoundingClientRect();
+            const offset = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            window.ghostMailAPI.petDragStart(offset);
+
+            function onMouseMove(ev) {
+                if (!isDragging) return;
+                window.ghostMailAPI.petDragMove({ x: ev.screenX, y: ev.screenY });
+            }
+
+            function onMouseUp() {
+                isDragging = false;
+                window.ghostMailAPI.petDragEnd();
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // 监听主进程消息
+        if (window.ghostMailAPI) {
+            window.ghostMailAPI.onPetSwitchCharacter((charId) => {
+                switchCharacter(charId);
+                showBubble('换好啦~', 1500);
+            });
+
+            window.ghostMailAPI.onPetScale((scale) => {
+                // 缩放由窗口大小控制，这里做个动画反馈
+                showBubble(scale > 1 ? '变大啦！' : '变小了~', 1200);
+            });
+
+            window.ghostMailAPI.onPetNewLetter((data) => {
+                showBubble(`来信：${data.characterName}`, 4000);
+                statusDot.classList.add('busy');
+                setTimeout(() => statusDot.classList.remove('busy'), 5000);
+            });
+        }
+
+        // 待机随机动作
+        function randomIdleAction() {
+            if (Math.random() < 0.3 && !bubble.classList.contains('show')) {
+                const phrases = idlePhrases[currentCharacter] || idlePhrases.maodie;
+                showBubble(phrases[Math.floor(Math.random() * phrases.length)], 2000);
+            }
+            setTimeout(randomIdleAction, 30000 + Math.random() * 60000);
+        }
+
+        init();
+        setTimeout(randomIdleAction, 20000);
+    </script>
+</body>
+</html>
