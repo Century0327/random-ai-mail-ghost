@@ -45,6 +45,27 @@ SIGNATURE = "喵"
 # 显示在邮件正文下方，支持 HTML 链接
 FOOTER = '<a href="https://github.com/Century0327/random-ai-mail-ghost" style="color:#999; text-decoration:none;">— From Ghost Mail</a>'
 
+# ============ AI 供应商配置 ============
+# 选择 AI 供应商，URL 会自动填写，只需在 GitHub Secrets 中设置 AI_API_KEY
+# 可选供应商：siliconflow(硅基流动), openai, moonshot, aliyun(阿里云百炼), deepseek, custom(自定义)
+AI_PROVIDER = "siliconflow"
+# AI_PROVIDER = "openai"
+# AI_PROVIDER = "moonshot"
+# AI_PROVIDER = "aliyun"
+# AI_PROVIDER = "deepseek"
+# AI_PROVIDER = "custom"
+
+# 模型名称（根据供应商选择对应模型）
+# 硅基流动常用模型：deepseek-ai/DeepSeek-V3, deepseek-ai/DeepSeek-R1, Qwen/Qwen2.5-72B-Instruct
+# OpenAI：gpt-4o, gpt-4o-mini
+# Moonshot：moonshot-v1-8k, moonshot-v1-32k
+# 阿里云：qwen-max, qwen-plus
+# DeepSeek：deepseek-chat, deepseek-reasoner
+AI_MODEL = "deepseek-ai/DeepSeek-V3"
+
+# 自定义 URL（仅在 AI_PROVIDER = "custom" 时生效）
+AI_CUSTOM_URL = ""
+
 # ============ API 重试配置 ============
 # AI API 调用失败后的重试次数
 MAX_RETRIES = 2
