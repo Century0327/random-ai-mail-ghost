@@ -16,7 +16,7 @@ jobs:
   test-schedule:
     runs-on: ubuntu-latest
     name: 日程生成测试
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repo

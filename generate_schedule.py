@@ -152,18 +152,41 @@ def main():
     try:
         print(f"[DEBUG] 发送请求到: {api_url}")
         print(f"[DEBUG] 请求模型: {model}")
-        resp = requests.post(api_url, headers=headers, json=payload, timeout=60)
-        print(f"[DEBUG] HTTP 状态码: {resp.status_code}")
         
-        if resp.status_code != 200:
-            print(f"[ERROR] HTTP 错误: {resp.status_code}")
-            print(f"[ERROR] 响应内容: {resp.text[:500]}")
+        max_retries = 3
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"[DEBUG] 第 {attempt + 1}/{max_retries} 次尝试...")
+                resp = requests.post(api_url, headers=headers, json=payload, timeout=120)
+                print(f"[DEBUG] HTTP 状态码: {resp.status_code}")
+                
+                if resp.status_code != 200:
+                    print(f"[ERROR] HTTP 错误: {resp.status_code}")
+                    print(f"[ERROR] 响应内容: {resp.text[:500]}")
+                    last_error = f"HTTP 错误 {resp.status_code}"
+                    continue
+                
+                data = resp.json()
+                ai_response = data["choices"][0]["message"]["content"].strip()
+                print(f"[DEBUG] AI 响应长度: {len(ai_response)}字")
+                print(f"[DEBUG] AI 响应前200字: {ai_response[:200]}")
+                break
+                
+            except requests.exceptions.Timeout:
+                last_error = "请求超时"
+                print(f"[WARN] 第 {attempt + 1} 次请求超时，等待后重试...")
+                import time
+                time.sleep(5 * (attempt + 1))
+            except Exception as e:
+                last_error = str(e)
+                print(f"[WARN] 第 {attempt + 1} 次请求失败: {e}")
+                import time
+                time.sleep(3 * (attempt + 1))
+        else:
+            print(f"[ERROR] AI 调用失败，已重试 {max_retries} 次: {last_error}")
             sys.exit(1)
-            
-        data = resp.json()
-        ai_response = data["choices"][0]["message"]["content"].strip()
-        print(f"[DEBUG] AI 响应长度: {len(ai_response)}字")
-        print(f"[DEBUG] AI 响应前200字: {ai_response[:200]}")
         
     except Exception as e:
         print(f"[ERROR] AI 调用失败: {e}")
