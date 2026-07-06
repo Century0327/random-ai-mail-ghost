@@ -27,12 +27,26 @@ from config import (
 
 QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
 QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
-AI_API_URL = os.environ.get(
-    "AI_API_URL",
-    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-)
+# AI 配置从 config.py 读取（供应商、模型），只有 key 从环境变量读取
+from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL
+
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
-AI_MODEL = os.environ.get("AI_MODEL", "gemini-2.0-flash")
+
+# 供应商 URL 映射
+AI_PROVIDER_URLS = {
+    "siliconflow": "https://api.siliconflow.cn/v1/chat/completions",
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "moonshot": "https://api.moonshot.cn/v1/chat/completions",
+    "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "deepseek": "https://api.deepseek.com/v1/chat/completions",
+}
+
+def _resolve_ai_url():
+    if AI_PROVIDER == "custom":
+        return AI_CUSTOM_URL
+    return AI_PROVIDER_URLS.get(AI_PROVIDER, AI_PROVIDER_URLS["siliconflow"])
+
+AI_API_URL = _resolve_ai_url()
 
 # 附件模式 override：来自环境变量（GitHub Actions 传入）
 ATTACHMENT_MODE = os.environ.get("ATTACHMENT_MODE", "normal")  # normal / force_on / force_off
