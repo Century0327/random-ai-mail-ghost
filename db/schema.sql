@@ -167,3 +167,46 @@ CREATE TABLE IF NOT EXISTS user_character_relations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ucr_user_id ON user_character_relations(user_id);
+
+-- ==================== Phase 4: 游戏化体验 ====================
+
+-- 成就定义表
+CREATE TABLE IF NOT EXISTS achievements (
+    id SERIAL PRIMARY KEY,
+    achievement_id VARCHAR(64) UNIQUE NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    icon VARCHAR(256),
+    rarity VARCHAR(32) DEFAULT 'common',  -- common / rare / epic / legendary
+    category VARCHAR(32) DEFAULT 'general',  -- general / character / social / collection
+    condition_type VARCHAR(32) NOT NULL,  -- letters_total / letters_per_char / affection_level / days_active / ...
+    condition_value INTEGER DEFAULT 0,
+    reward_affection INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 用户成就记录表
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    achievement_id VARCHAR(64) NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id);
+
+-- 初始化内置成就
+INSERT INTO achievements (achievement_id, name, description, rarity, category, condition_type, condition_value, reward_affection) VALUES
+    ('first_letter', '初遇', '收到第一封信', 'common', 'general', 'letters_total', 1, 5),
+    ('letter_10', '笔友', '累计收到 10 封信', 'common', 'general', 'letters_total', 10, 10),
+    ('letter_50', '知心好友', '累计收到 50 封信', 'rare', 'general', 'letters_total', 50, 20),
+    ('letter_100', '心灵相通', '累计收到 100 封信', 'epic', 'general', 'letters_total', 100, 50),
+    ('affection_familiar', '渐熟', '与任一角色达到「熟悉」', 'common', 'character', 'affection_level', 1, 5),
+    ('affection_close', '亲密', '与任一角色达到「亲密」', 'rare', 'character', 'affection_level', 2, 15),
+    ('affection_intimate', '依赖', '与任一角色达到「依赖」', 'epic', 'character', 'affection_level', 3, 30),
+    ('affection_dependent', '挚爱', '与任一角色达到「挚爱」', 'legendary', 'character', 'affection_level', 4, 50),
+    ('days_7', '一周相伴', '连续互动 7 天', 'rare', 'social', 'days_active', 7, 15),
+    ('days_30', '一月之约', '连续互动 30 天', 'epic', 'social', 'days_active', 30, 50),
+    ('all_characters', '全员制霸', '与所有角色建立关系', 'rare', 'collection', 'all_characters', 4, 20)
+ON CONFLICT (achievement_id) DO NOTHING;

@@ -1585,11 +1585,17 @@ def _do_generate_reply(user: dict, character_id: str, user_content: str, reply_t
         role = "角色" if msg["direction"] == "from_character" else "玩家"
         history_text += f"{role}：{msg['content'][:200]}\n\n"
 
+    # 好感度等级影响语气
+    relation = get_character_relation(user["id"], character_id)
+    level = relation.get("level", "stranger") if relation else "stranger"
+    tone = get_tone_hint(level)
+
     system = f"""你是 {persona['name']}，{persona['personality']}。
 你以"幽灵"的形式存在，通过写信和玩家交流。
 {persona['writing_style']}
 称呼：{persona['player_title']}
-当前与玩家的关系等级：{get_character_relation(user['id'], character_id)['level'] if get_character_relation(user['id'], character_id) else 'stranger'}
+当前与玩家的关系：{level}
+语气要求：{tone}
 
 回信要求：
 1. 语气自然，像真实的信件，有日期和称呼，结尾有署名
@@ -1684,6 +1690,285 @@ def api_relation_detail(character_id):
     if relation and character_id in personas:
         relation["character_name"] = personas[character_id]["name"]
     return _cors_resp({"relation": relation})
+
+
+# ==================== Phase 4: 游戏化体验 ====================
+
+from core.achievement_service import (
+    list_all_achievements,
+    get_user_achievements,
+    get_achievements_with_progress,
+    check_and_unlock,
+    get_achievement_stats,
+)
+from core.affection_stages import (
+    get_progress_to_next,
+    get_unlocked_features,
+    get_unlocked_stories,
+    get_all_topics_up_to,
+    get_tone_hint,
+    LEVEL_STAGES,
+)
+
+# ============ 成就 API ============
+
+@app.route("/api/achievements", methods=["GET", "OPTIONS"])
+def api_achievements_list():
+    """获取所有成就 + 用户进度"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    # 检查并解锁
+    newly = check_and_unlock(user["id"])
+    achievements = get_achievements_with_progress(user["id"])
+    stats = get_achievement_stats(user["id"])
+
+    return _cors_resp({
+        "achievements": achievements,
+        "stats": stats,
+        "newly_unlocked": newly,
+    })
+
+
+@app.route("/api/achievements/check", methods=["POST", "OPTIONS"])
+def api_achievements_check():
+    """主动触发成就检测"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    newly = check_and_unlock(user["id"])
+    stats = get_achievement_stats(user["id"])
+    return _cors_resp({
+        "newly_unlocked": newly,
+        "stats": stats,
+    })
+
+
+# ============ 每日主动来信 ============
+
+@app.route("/api/admin/daily-letter", methods=["POST", "OPTIONS"])
+def api_daily_letter():
+    """
+    管理员触发每日主动来信
+    给所有用户发一封随机角色的信（模拟角色主动想起玩家）
+    """
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+
+    import threading
+    t = threading.Thread(target=_send_daily_letters, daemon=True)
+    t.start()
+    return _cors_resp({"status": "accepted", "message": "每日来信任务已启动"})
+
+
+def _send_daily_letters():
+    """后台给所有活跃用户发主动来信"""
+    conn = _db_conn()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # 选最近 7 天活跃的用户
+        cur.execute("""
+            SELECT id, steam_id, steam_name FROM users
+            WHERE last_login_at > NOW() - INTERVAL '7 days'
+            ORDER BY last_login_at DESC
+        """)
+        users = [dict(r) for r in cur.fetchall()]
+        cur.close()
+
+        char_ids = list(personas.keys())
+        count = 0
+
+        for user in users:
+            # 每个用户随机选一个角色
+            import random
+            char_id = random.choice(char_ids)
+            persona = personas[char_id]
+
+            # 简单生成（复用 _do_generate_reply 的逻辑变体）
+            system = f"""你是 {persona['name']}，{persona['personality']}。
+你以"幽灵"的形式存在，通过写信和玩家交流。
+{persona['writing_style']}
+称呼：{persona['player_title']}
+
+今天你主动给玩家写一封信，内容可以是：
+- 分享今天遇到的有趣的事
+- 表达你有点想玩家了
+- 问一个轻松的小问题
+- 聊天气/季节/心情
+
+要求：
+1. 语气自然亲切，像真实的信
+2. 有日期、称呼、署名
+3. 长度 150-300 字
+4. 只输出信件正文"""
+
+            prompt = f"以 {persona['name']} 的口吻，主动给玩家写一封温馨的小信。"
+
+            content, err = ai_call(
+                prompt=prompt,
+                system=system,
+                max_tokens=600,
+                temperature=0.9,
+                user_id=user["id"],
+                endpoint="daily_letter",
+            )
+
+            if content and not err:
+                subject = content.split("\n")[0][:40] if content else "来自远方的信"
+                from core.letter_service import receive_letter_from_character
+                receive_letter_from_character(
+                    user_id=user["id"],
+                    character_id=char_id,
+                    content=content,
+                    subject=subject,
+                )
+                count += 1
+
+        print(f"[DailyLetter] 完成：给 {count}/{len(users)} 个用户发了信")
+    except Exception as e:
+        print(f"[DailyLetter] 异常: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        conn.close()
+
+
+# ============ 新用户引导：首封信 ============
+
+@app.route("/api/onboarding/first-letter", methods=["POST", "OPTIONS"])
+def api_first_letter():
+    """为新用户生成第一封欢迎信"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    body = request.get_json(silent=True) or {}
+    character_id = body.get("character_id", "maodie")
+    player_name = body.get("player_name", "")
+
+    if character_id not in personas:
+        return _cors_resp({"error": f"未知角色: {character_id}"}, 400)
+
+    # 检查是否已有信件
+    from core.letter_service import get_conversation_history
+    history = get_conversation_history(user["id"], character_id, 1)
+    if history:
+        return _cors_resp({"error": "已经有信件了，不需要首封"}, 400)
+
+    import threading
+    def _gen():
+        _generate_welcome_letter(user, character_id, player_name)
+
+    t = threading.Thread(target=_gen, daemon=True)
+    t.start()
+
+    return _cors_resp({"status": "accepted", "message": "正在生成欢迎信..."}), 202
+
+
+def _generate_welcome_letter(user, character_id, player_name):
+    """生成欢迎信"""
+    persona = personas[character_id]
+    player_title = player_name or persona["player_title"]
+
+    system = f"""你是 {persona['name']}，{persona['personality']}。
+你以"幽灵"的形式存在，通过写信和玩家交流。
+{persona['writing_style']}
+称呼：{player_title}
+
+这是你们的第一封信，你在一个偶然的机会发现了玩家。
+请写一封欢迎信，内容包括：
+1. 自我介绍（你是谁，怎么发现玩家的）
+2. 表达想和玩家做朋友的意愿
+3. 问一两个轻松的问题（比如今天做了什么，喜欢什么）
+4. 语气友好、温暖，带点好奇
+
+要求：
+1. 有日期、称呼、署名
+2. 长度 200-400 字
+3. 只输出信件正文"""
+
+    prompt = f"给新玩家写一封欢迎信，这是你们的第一次交流。"
+
+    content, err = ai_call(
+        prompt=prompt,
+        system=system,
+        max_tokens=700,
+        temperature=0.85,
+        user_id=user["id"],
+        endpoint="welcome_letter",
+    )
+
+    if content and not err:
+        from core.letter_service import receive_letter_from_character
+        subject = content.split("\n")[0][:40] if content else f"来自 {persona['name']} 的信"
+        receive_letter_from_character(
+            user_id=user["id"],
+            character_id=character_id,
+            content=content,
+            subject=subject or "你好呀",
+        )
+        print(f"[WelcomeLetter] 欢迎信已生成: user={user['id']} char={character_id}")
+
+
+# ============ 好感度阶段详情 API ============
+
+@app.route("/api/relations/<character_id>/progress", methods=["GET", "OPTIONS"])
+def api_affection_progress(character_id):
+    """获取好感度阶段进度和解锁内容"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    if character_id not in personas:
+        return _cors_resp({"error": f"未知角色: {character_id}"}, 400)
+
+    relation = get_character_relation(user["id"], character_id)
+    if not relation:
+        return _cors_resp({"error": "尚未建立关系"}, 404)
+
+    affection = relation["affection"]
+    progress = get_progress_to_next(affection)
+    features = get_unlocked_features(relation["level"])
+    topics = get_all_topics_up_to(relation["level"])
+    stories = get_unlocked_stories(character_id, relation["level"])
+
+    return _cors_resp({
+        "relation": {
+            "character_id": character_id,
+            "character_name": personas[character_id]["name"],
+            "affection": affection,
+            "level": relation["level"],
+            "level_name": progress["current_name"],
+            "letters_exchanged": relation.get("letters_exchanged", 0),
+            "last_interaction_at": relation.get("last_interaction_at"),
+        },
+        "progress": progress,
+        "unlocked_features": features,
+        "unlocked_topics": topics,
+        "unlocked_stories": stories,
+        "all_stages": [
+            {"level": s["level"], "name": s["name"], "min_affection": s["min_affection"], "description": s["description"]}
+            for s in LEVEL_STAGES
+        ],
+    })
 
 
 if __name__ == "__main__":
