@@ -11,6 +11,7 @@ import base64
 import requests
 
 from flask import Flask, request, jsonify, render_template
+from core.data_service import DataService, ds
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -212,7 +213,7 @@ def _options():
 def _parse_config(content):
     config = {}
     lines = content.splitlines()
-    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL"]
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL", "AI_KEY_SELECTOR"]
     simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
     for var in simple_str + simple_int:
         for line in lines:
@@ -287,7 +288,7 @@ def _build_config(config):
         return None
     lines = content.splitlines()
     out = []
-    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL"]
+    simple_str = ["PERSONA", "EMAIL_TEMPLATE", "SUBJECT_PREFIX", "SIGNATURE", "ATTACHMENT_LOCATION", "AI_PROVIDER", "AI_MODEL", "AI_CUSTOM_URL", "AI_KEY_SELECTOR"]
     simple_int = ["MIN_DAYS", "MAX_DAYS", "MAX_RETRIES", "FULL_HISTORY_SIZE", "SUMMARY_TRIGGER", "SUMMARY_MAX_LENGTH"]
     simple_bool = ["ENABLE_CONVERSATION"]
     i = 0
@@ -556,18 +557,7 @@ def get_run_logs(run_id):
 def companion_characters():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    rows = _db_query('SELECT id, name, description, personality, stat_name as "statName", stat_color as "statColor" FROM characters ORDER BY id')
-    if rows is None:
-        return _cors_resp({
-            "characters": [
-                {"id": "kitty", "name": "Kitty", "description": "傲娇的小猫", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0"},
-                {"id": "puppy", "name": "Puppy", "description": "忠诚的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
-                {"id": "foxy", "name": "Foxy", "description": "狡猾的小狗狐", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
-                {"id": "birb", "name": "Birb", "description": "活泼的小鸟", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
-                {"id": "maodie", "name": "耄聋", "description": "哲学的老猫", "personality": "深沉、神秘", "statName": "哈气值", "statColor": "#c9785c"},
-            ]
-        })
-    return _cors_resp({"characters": [dict(r) for r in rows]})
+    return _cors_resp({"characters": ds.get_characters()})
 
 
 @app.route("/api/companion/user/characters/<character_id>/status", methods=["GET", "OPTIONS"])
@@ -576,73 +566,34 @@ def companion_status(character_id):
         return _cors_resp({})
     
     device_id = request.headers.get("X-Device-ID", "anonymous")
+    char = ds.get_character(character_id)
+    if not char:
+        char = {"id": character_id, "name": character_id, "personality": "", "statName": "好感度", "statColor": "#c9785c"}
     
-    # 尝试数据库查询角色配置
-    char = None
-    if DATABASE_URL:
-        char = _db_query(
-            'SELECT id, name, personality, stat_name as "statName", stat_color as "statColor" FROM characters WHERE id = %s',
-            (character_id,), fetch_one=True
-        )
-    
-    if char is None:
-        # 数据库不可用，使用硬编码角色配置
-        char_map = {
-            "kitty": {"id": "kitty", "name": "Kitty", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0"},
-            "puppy": {"id": "puppy", "name": "Puppy", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
-            "foxy": {"id": "foxy", "name": "Foxy", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
-            "birb": {"id": "birb", "name": "Birb", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
-            "maodie": {"id": "maodie", "name": "耄聋", "personality": "深沉、神秘", "statName": "哈气值", "statColor": "#c9785c"},
-        }
-        char = char_map.get(character_id, {"id": character_id, "name": character_id, "personality": "", "statName": "好感度", "statColor": "#c9785c"})
-    
-    # 尝试数据库查询用户状态
-    state = None
-    schedule = []
-    if DATABASE_URL:
-        state = _db_query(
-            "SELECT stat_value, position_x, position_y, mood FROM user_states WHERE device_id = %s AND character_id = %s",
-            (device_id, character_id), fetch_one=True
-        )
-        schedule_rows = _db_query(
-            "SELECT time, activity, location, thought, done FROM schedules WHERE character_id = %s AND date = CURRENT_DATE ORDER BY time",
-            (character_id,)
-        )
-        if schedule_rows is not None:
-            schedule = [dict(r) for r in schedule_rows]
-    
-    if state is None:
+    state = ds.get_user_state(device_id, character_id)
+    if not state:
         state = {"stat_value": 50, "position_x": 50, "position_y": 60, "mood": "平静"}
     
-    # 如果数据库没有日程，从 JSON 文件读取
+    schedule = ds.get_schedules(character_id)
     if not schedule:
-        from datetime import datetime
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        schedules_data = _load_json_data("schedules.json", {})
-        char_schedules = schedules_data.get(character_id, {})
-        if isinstance(char_schedules, dict) and today_str in char_schedules:
-            schedule = char_schedules[today_str].get("items", [])
-        elif isinstance(char_schedules, list):
-            schedule = char_schedules
-        else:
-            schedule = [
-                {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
-                {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
-                {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
-                {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
-                {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
-                {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
-                {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
-                {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
-                {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
-            ]
+        schedule = [
+            {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
+            {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
+            {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
+            {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
+            {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
+            {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
+            {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
+            {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
+            {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
+        ]
     
     return _cors_resp({
-        "character": dict(char) if hasattr(char, '__iter__') and not isinstance(char, dict) else char,
+        "character": char,
         "userState": {
-            "statValue": state["stat_value"] if isinstance(state, dict) else state.stat_value,
-            "position": {"x": state["position_x"] if isinstance(state, dict) else state.position_x, "y": state["position_y"] if isinstance(state, dict) else state.position_y},
-            "mood": state["mood"] if isinstance(state, dict) else state.mood,
+            "statValue": state["stat_value"],
+            "position": {"x": state["position_x"], "y": state["position_y"]},
+            "mood": state["mood"],
             "schedule": schedule
         }
     })
@@ -659,10 +610,7 @@ def companion_interact(character_id):
     
     delta = 1 if interaction_type == "click" else 2 if interaction_type == "double_click" else 0
     if delta > 0:
-        _db_execute(
-            "UPDATE user_states SET stat_value = LEAST(stat_value + %s, 100), updated_at = NOW() WHERE device_id = %s AND character_id = %s",
-            (delta, device_id, character_id)
-        )
+        ds.interact(device_id, character_id, delta)
     
     return _cors_resp({"message": "互动已记录", "characterId": character_id, "type": interaction_type})
 
@@ -677,10 +625,7 @@ def companion_position(character_id):
     x = body.get("x", 50)
     y = body.get("y", 60)
     
-    _db_execute(
-        "UPDATE user_states SET position_x = %s, position_y = %s, updated_at = NOW() WHERE device_id = %s AND character_id = %s",
-        (x, y, device_id, character_id)
-    )
+    ds.update_user_state(device_id, character_id, position_x=x, position_y=y)
     
     return _cors_resp({"message": "位置已更新", "position": {"x": x, "y": y}})
 
@@ -707,43 +652,8 @@ def companion_schedules():
         return _cors_resp({})
     
     character_id = request.args.get("character_id")
-    from datetime import datetime
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    
-    # 尝试数据库
-    if DATABASE_URL and character_id:
-        schedule_rows = _db_query(
-            "SELECT time, activity, location, thought, done FROM schedules WHERE character_id = %s AND date = CURRENT_DATE ORDER BY time",
-            (character_id,)
-        )
-        if schedule_rows is not None and len(schedule_rows) > 0:
-            schedule_list = [dict(r) for r in schedule_rows]
-            return _cors_resp({"schedules": schedule_list})
-    
-    # 数据库不可用或没有数据，读取 JSON 文件
-    schedules_data = _load_json_data("schedules.json", {})
-    schedule_list = []
-    
-    if character_id and isinstance(schedules_data, dict):
-        char_data = schedules_data.get(character_id, {})
-        if isinstance(char_data, dict):
-            # 新格式：按日期存储 { "2026-07-06": { items: [...] } }
-            if today_str in char_data and isinstance(char_data[today_str], dict):
-                schedule_list = char_data[today_str].get("items", [])
-            # 旧格式兼容：直接是数组
-            elif isinstance(char_data, list):
-                schedule_list = char_data
-    elif not character_id:
-        # 返回所有角色的今日日程
-        result = {}
-        for cid, char_data in schedules_data.items():
-            if isinstance(char_data, dict) and today_str in char_data:
-                result[cid] = char_data[today_str].get("items", [])
-            elif isinstance(char_data, list):
-                result[cid] = char_data
-        return _cors_resp({"schedules": result})
-    
-    return _cors_resp({"schedules": schedule_list})
+    result = ds.get_schedules(character_id)
+    return _cors_resp({"schedules": result})
 
 
 # ============ Letters API ============
@@ -754,28 +664,9 @@ def companion_letters():
         return _cors_resp({})
     
     character_id = request.args.get("character_id")
-    
-    # 尝试数据库
-    if DATABASE_URL:
-        limit = request.args.get("limit", 50, type=int)
-        if character_id:
-            rows = _db_query(
-                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
-                (character_id, limit)
-            )
-        else:
-            rows = _db_query(
-                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
-                (limit,)
-            )
-        if rows is not None:
-            return _cors_resp({"letters": [dict(r) for r in rows]})
-    
-    # 数据库不可用，读取 JSON 文件
-    all_letters = _load_json_data("letters.json", [])
-    if character_id:
-        all_letters = [l for l in all_letters if l.get("character_id") == character_id]
-    return _cors_resp({"letters": all_letters})
+    limit = request.args.get("limit", 50, type=int)
+    letters = ds.get_letters(character_id, limit)
+    return _cors_resp({"letters": letters})
 
 
 
@@ -794,27 +685,7 @@ def create_letter():
     if not character_id or not letter_body:
         return _cors_resp({"error": "character_id and body are required"}, 400)
     
-    # 尝试数据库
-    if DATABASE_URL:
-        _db_execute(
-            "INSERT INTO letters (character_id, subject, body, source, attachment_url) VALUES (%s, %s, %s, %s, %s)",
-            (character_id, subject, letter_body, source, attachment_url)
-        )
-    
-    # 同时写入 JSON 文件
-    all_letters = _load_json_data("letters.json", [])
-    new_letter = {
-        "id": f"l{len(all_letters) + 1}",
-        "character_id": character_id,
-        "subject": subject,
-        "body": letter_body,
-        "source": source,
-        "attachment_url": attachment_url,
-        "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z"
-    }
-    all_letters.insert(0, new_letter)
-    _save_json_data("letters.json", all_letters)
-    
+    new_letter = ds.create_letter(character_id, subject, letter_body, source, attachment_url)
     return _cors_resp({"status": "ok", "message": "Letter created", "letter": new_letter})
 
 
@@ -827,22 +698,8 @@ def companion_conversations():
     
     character_id = request.args.get("character_id")
     limit = request.args.get("limit", 50, type=int)
-    
-    if character_id:
-        rows = _db_query(
-            "SELECT id, character_id, role, sender, content, created_at FROM conversations WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
-            (character_id, limit)
-        )
-    else:
-        rows = _db_query(
-            "SELECT id, character_id, role, sender, content, created_at FROM conversations ORDER BY created_at DESC LIMIT %s",
-            (limit,)
-        )
-    
-    if rows is None:
-        return _cors_resp({"conversations": []})
-    
-    return _cors_resp({"conversations": [dict(r) for r in rows]})
+    conversations = ds.get_conversations(character_id, limit)
+    return _cors_resp({"conversations": conversations})
 
 
 @app.route("/api/companion/conversations", methods=["POST", "OPTIONS"])
@@ -859,11 +716,7 @@ def create_conversation():
     if not character_id or not content:
         return _cors_resp({"error": "character_id and content are required"}, 400)
     
-    _db_execute(
-        "INSERT INTO conversations (character_id, role, sender, content) VALUES (%s, %s, %s, %s)",
-        (character_id, role, sender, content)
-    )
-    
+    ds.add_conversation(character_id, role, content, sender)
     return _cors_resp({"status": "ok", "message": "Conversation recorded"})
 
 
@@ -877,23 +730,27 @@ def _get_ai_config():
     if not config_content:
         return None
     config = _parse_config(config_content)
+    key_selector = config.get("AI_KEY_SELECTOR", "key1")
+    api_key = os.environ.get(f"AI_API_KEY_{key_selector}", os.environ.get("AI_API_KEY", ""))
     return {
         "url": _resolve_ai_url(config),
         "model": config.get("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
+        "key": api_key,
     }
 
 def _call_ai(prompt, system_context=""):
     """调用外部 AI API 生成内容"""
-    if not AI_API_KEY:
-        return None, "AI API Key 未配置（请在 GitHub Secrets 设置 AI_API_KEY）"
-    
     ai_config = _get_ai_config()
-    if not ai_config or not ai_config.get("url"):
+    if not ai_config:
         return None, "AI 配置未找到（请在控制台选择供应商和模型）"
+    if not ai_config.get("key"):
+        return None, "AI API Key 未配置（请在 GitHub Secrets 设置 AI_API_KEY 或 AI_API_KEY_key1/key2/key3）"
+    if not ai_config.get("url"):
+        return None, "AI URL 未配置（请在控制台选择供应商）"
     
     try:
         headers = {
-            "Authorization": f"Bearer {AI_API_KEY}",
+            "Authorization": f"Bearer {ai_config['key']}",
             "Content-Type": "application/json"
         }
         
@@ -1217,26 +1074,8 @@ def companion_attachments():
         return _cors_resp({})
     
     character_id = request.args.get("character_id")
-    
-    # 尝试数据库
-    if DATABASE_URL:
-        if character_id:
-            rows = _db_query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
-                (character_id,)
-            )
-        else:
-            rows = _db_query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
-            )
-        if rows is not None:
-            return _cors_resp({"attachments": [dict(r) for r in rows]})
-    
-    # 数据库不可用，读取 JSON 文件
-    all_attachments = _load_json_data("attachments.json", [])
-    if character_id:
-        all_attachments = [a for a in all_attachments if a.get("character_id") == character_id]
-    return _cors_resp({"attachments": all_attachments})
+    attachments = ds.get_attachments(character_id)
+    return _cors_resp({"attachments": attachments})
 
 
 # ============ 日程生成状态监控 API ============
