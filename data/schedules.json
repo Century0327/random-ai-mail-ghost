@@ -92,73 +92,93 @@
   },
   "kitty": {
     "2026-07-06": {
-      "date": "2026-07-06",
       "items": [
+        {
+          "time": "06:00",
+          "activity": "睁开双眼",
+          "location": "猫窝",
+          "thought": "主人别吵我，刚睡醒（×）",
+          "done": true
+        },
         {
           "time": "07:00",
           "activity": "伸懒腰起床",
           "location": "猫窝",
-          "thought": "新的一天开始啦",
+          "thought": "终于能活动了，哼",
+          "done": true
+        },
+        {
+          "time": "08:00",
+          "activity": "抢夺铃铛",
+          "location": "客厅",
+          "thought": "铃铛是我的，哼（扑腾）",
+          "done": true
+        },
+        {
+          "time": "09:00",
+          "activity": "踩奶撒娇",
+          "location": "沙发",
+          "thought": "主人摸摸我～（踩奶）",
+          "done": true
+        },
+        {
+          "time": "10:30",
+          "activity": "追逐逗猫棒",
+          "location": "地板",
+          "thought": "逗猫棒在哪？（甩尾巴）",
+          "done": true
+        },
+        {
+          "time": "12:00",
+          "activity": "蜷缩午睡",
+          "location": "猫窝",
+          "thought": "呼噜……（眯眼）",
+          "done": true
+        },
+        {
+          "time": "14:00",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "毛线球是我的最爱～",
           "done": false
         },
         {
-          "time": "08:30",
-          "activity": "吃早餐",
+          "time": "15:00",
+          "activity": "窗台晒太阳",
+          "location": "窗台",
+          "thought": "阳光真温暖（呼噜）",
+          "done": false
+        },
+        {
+          "time": "17:00",
+          "activity": "蹭蹭腿弯",
+          "location": "玄关",
+          "thought": "主人别摸我啦（×）",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "享用小鱼干",
           "location": "食盆旁",
           "thought": "今天的小鱼干真香",
           "done": false
         },
         {
-          "time": "10:00",
-          "activity": "在窗台看风景",
-          "location": "窗台",
-          "thought": "外面的蝴蝶真好看",
-          "done": false
-        },
-        {
-          "time": "12:00",
-          "activity": "午睡",
-          "location": "沙发上",
-          "thought": "暖暖的阳光好舒服",
-          "done": false
-        },
-        {
-          "time": "14:00",
-          "activity": "玩毛线球",
-          "location": "地毯上",
-          "thought": "这个球怎么抓不住",
-          "done": false
-        },
-        {
-          "time": "16:00",
-          "activity": "整理信件",
-          "location": "书桌旁",
-          "thought": "看看有没有新来信",
-          "done": false
-        },
-        {
-          "time": "18:00",
-          "activity": "等主人回家",
-          "location": "门口",
-          "thought": "怎么还不回来呀",
-          "done": false
-        },
-        {
           "time": "20:00",
-          "activity": "吃晚餐",
-          "location": "食盆旁",
-          "thought": "晚餐时间到啦",
+          "activity": "转圈求抱抱",
+          "location": "床边",
+          "thought": "抱抱才是正经事（转圈）",
           "done": false
         },
         {
           "time": "22:00",
-          "activity": "准备睡觉",
-          "location": "猫窝",
-          "thought": "今天过得真开心",
+          "activity": "蜷成毛球",
+          "location": "被窝",
+          "thought": "终于可以睡觉啦～（呼噜）",
           "done": false
         }
       ],
-      "generatedAt": "2026-07-06T12:00:31.931227"
+      "generated_at": "2026-07-06T12:05:46.936453"
     }
   }
 }
