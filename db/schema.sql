@@ -82,3 +82,51 @@ INSERT INTO schedules (character_id, time, activity, location, thought) VALUES
 ('maodie', '10:00', '观察窗外风景', '窗台前', '那些蝴蝶真好看'),
 ('maodie', '14:00', '在沙发上散步', '地毯上', '地毯的触感很温暖')
 ON CONFLICT DO NOTHING;
+
+-- ==================== Phase 1: 用户体系 + AI 网关 ====================
+
+-- 用户表
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    steam_id VARCHAR(64) UNIQUE NOT NULL,
+    steam_name VARCHAR(128),
+    email VARCHAR(256),
+    tier VARCHAR(32) DEFAULT 'basic',
+    ai_quota_daily INTEGER DEFAULT 50,
+    ai_used_today INTEGER DEFAULT 0,
+    last_reset_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
+);
+
+-- AI Key 池表（开发者管理）
+CREATE TABLE IF NOT EXISTS ai_keys (
+    id SERIAL PRIMARY KEY,
+    provider VARCHAR(32) NOT NULL,
+    api_key TEXT NOT NULL,
+    model VARCHAR(128) NOT NULL,
+    priority INTEGER DEFAULT 0,
+    enabled BOOLEAN DEFAULT true,
+    daily_limit INTEGER DEFAULT 1000,
+    used_today INTEGER DEFAULT 0,
+    last_reset_date DATE DEFAULT CURRENT_DATE,
+    last_used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- API 调用日志（审计）
+CREATE TABLE IF NOT EXISTS api_usage_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    endpoint VARCHAR(64),
+    ai_provider VARCHAR(32),
+    ai_model VARCHAR(128),
+    tokens_used INTEGER DEFAULT 0,
+    cost_cents INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 索引
+CREATE INDEX IF NOT EXISTS idx_api_usage_log_user_id ON api_usage_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_usage_log_created_at ON api_usage_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_keys_enabled ON ai_keys(enabled) WHERE enabled = true;

@@ -12,6 +12,8 @@ import requests
 
 from flask import Flask, request, jsonify, render_template
 from core.data_service import DataService, ds
+from core.auth import auth_required, quota_required, check_quota, increment_usage, get_or_create_user
+from core.ai_gateway import ai_call, list_ai_keys, add_ai_key, toggle_ai_key, delete_ai_key
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -1192,6 +1194,216 @@ def _create_schedule_job(character_id, trigger="manual"):
     _save_schedule_jobs(jobs_data)
     
     return job_id, job
+
+
+# ==================== Phase 1: 用户体系 + AI 网关 API ====================
+
+# ============ 用户认证 ============
+
+@app.route("/api/auth/login", methods=["POST", "OPTIONS"])
+def auth_login():
+    """用户登录（Steam ID 认证）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    body = request.get_json(silent=True) or {}
+    steam_id = body.get("steam_id", "")
+    steam_name = body.get("steam_name", "")
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        # auth_required 会尝试创建用户，失败才到这
+        # 如果 body 里有 steam_id，也尝试一次
+        if steam_id:
+            user = get_or_create_user(steam_id, steam_name)
+            if user:
+                ok = True
+        if not ok:
+            return _cors_resp({"error": error or "认证失败"}, 401)
+
+    has_quota, used, limit = check_quota(user["id"])
+    return _cors_resp({
+        "status": "ok",
+        "user": {
+            "id": user["id"],
+            "steam_id": user["steam_id"],
+            "steam_name": user.get("steam_name", ""),
+            "tier": user.get("tier", "basic"),
+            "email": user.get("email"),
+        },
+        "quota": {
+            "used": used,
+            "limit": limit,
+            "remaining": max(0, limit - used),
+        }
+    })
+
+
+@app.route("/api/auth/quota", methods=["GET", "OPTIONS"])
+def auth_quota():
+    """查询当前用户配额"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    has_quota, used, limit = check_quota(user["id"])
+    return _cors_resp({
+        "quota": {
+            "used": used,
+            "limit": limit,
+            "remaining": max(0, limit - used),
+            "reset_at": "次日 00:00 (UTC)",
+        }
+    })
+
+
+@app.route("/api/auth/profile", methods=["POST", "OPTIONS"])
+def auth_update_profile():
+    """更新用户资料（邮箱等）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    body = request.get_json(silent=True) or {}
+    email = body.get("email")
+
+    if not DATABASE_URL:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库连接失败"}, 500)
+    try:
+        cur = conn.cursor()
+        if email is not None:
+            cur.execute("UPDATE users SET email = %s WHERE id = %s", (email, user["id"]))
+        conn.commit()
+        cur.close()
+        return _cors_resp({"status": "ok", "message": "资料已更新"})
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
+
+
+# ============ AI Key 池管理（管理后台） ============
+
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
+
+def _admin_required():
+    """管理员认证"""
+    token = request.headers.get("X-Admin-Token", "")
+    return token and token == ADMIN_SECRET
+
+
+@app.route("/api/admin/ai-keys", methods=["GET", "OPTIONS"])
+def admin_list_keys():
+    """列出所有 AI Key（脱敏）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    return _cors_resp({"keys": list_ai_keys()})
+
+
+@app.route("/api/admin/ai-keys", methods=["POST", "OPTIONS"])
+def admin_add_key():
+    """添加 AI Key"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+
+    body = request.get_json(silent=True) or {}
+    provider = body.get("provider", "")
+    api_key = body.get("api_key", "")
+    model = body.get("model", "")
+    priority = body.get("priority", 0)
+    daily_limit = body.get("daily_limit", 1000)
+
+    if not provider or not api_key or not model:
+        return _cors_resp({"error": "provider, api_key, model 为必填"}, 400)
+
+    if add_ai_key(provider, api_key, model, priority, daily_limit):
+        return _cors_resp({"status": "ok", "message": "Key 已添加"})
+    return _cors_resp({"error": "添加失败"}, 500)
+
+
+@app.route("/api/admin/ai-keys/<int:key_id>/toggle", methods=["POST", "OPTIONS"])
+def admin_toggle_key(key_id):
+    """启用/禁用 Key"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+
+    body = request.get_json(silent=True) or {}
+    enabled = body.get("enabled", True)
+    if toggle_ai_key(key_id, enabled):
+        return _cors_resp({"status": "ok"})
+    return _cors_resp({"error": "操作失败"}, 500)
+
+
+@app.route("/api/admin/ai-keys/<int:key_id>", methods=["DELETE", "OPTIONS"])
+def admin_delete_key(key_id):
+    """删除 Key"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+
+    if delete_ai_key(key_id):
+        return _cors_resp({"status": "ok"})
+    return _cors_resp({"error": "删除失败"}, 500)
+
+
+# ============ AI 调用统一接口（经网关） ============
+
+@app.route("/api/ai/generate", methods=["POST", "OPTIONS"])
+def ai_generate():
+    """统一 AI 生成接口（需认证 + 配额检查）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    quota_ok, quota_err = quota_required(user)
+    if not quota_ok:
+        return _cors_resp({"error": quota_err}, 429)
+
+    body = request.get_json(silent=True) or {}
+    prompt = body.get("prompt", "")
+    system = body.get("system", "")
+    model = body.get("model")
+    max_tokens = body.get("max_tokens", 1500)
+    temperature = body.get("temperature", 0.85)
+
+    if not prompt:
+        return _cors_resp({"error": "prompt 为必填"}, 400)
+
+    content, ai_err = ai_call(
+        prompt=prompt,
+        system=system,
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        user_id=user["id"],
+        endpoint="ai_generate",
+    )
+
+    if ai_err:
+        return _cors_resp({"error": ai_err}, 502)
+
+    increment_usage(user["id"])
+    return _cors_resp({"content": content})
 
 
 if __name__ == "__main__":
