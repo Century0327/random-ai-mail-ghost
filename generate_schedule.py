@@ -267,17 +267,10 @@ def main():
         # 模式：生成完整一天（默认）
         print(f"[DEBUG] 模式: 生成完整一天")
         
-        # 标记已过时间的日程为完成
+        # 不自动标记完成状态，让用户手动标记
+        # 过去的时间默认也是未完成，用户可以手动勾选完成
         for item in schedule_items:
             item.setdefault("done", False)
-            t = item.get("time", "00:00")
-            try:
-                h, m = map(int, t.split(":"))
-                total = h * 60 + m
-                if total < now_total:
-                    item["done"] = True
-            except:
-                pass
         
         final_items = schedule_items
     

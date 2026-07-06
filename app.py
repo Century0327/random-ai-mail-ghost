@@ -1112,13 +1112,8 @@ def generate_schedule():
     
     _add_schedule_log(job_id, "处理日程数据...")
     
-    # 自动标记已过时间的日程为已完成（如果还没标记）
-    now = datetime.now()
-    current_time_str = now.strftime("%H:%M")
-    for item in schedule_items:
-        item_time = item.get("time", "00:00")
-        if item_time < current_time_str and not item.get("done"):
-            item["done"] = True
+    # 不自动标记完成状态，让用户手动标记
+    # 过去的时间默认也是未完成，用户可以手动勾选完成
     
     # 按时间排序
     schedule_items.sort(key=lambda x: x.get("time", "00:00"))
