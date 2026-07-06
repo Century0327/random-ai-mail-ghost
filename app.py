@@ -590,13 +590,22 @@ def companion_status(character_id):
             {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
         ]
     
+    letters = ds.get_letters(character_id, 5)
+    interact_count = state.get("stat_value", 50)
+    history_summary = ""
+    if letters and len(letters) > 0:
+        latest = letters[0]
+        history_summary = latest.get("body", "")[:100]
+    
     return _cors_resp({
         "character": char,
         "userState": {
             "statValue": state["stat_value"],
             "position": {"x": state["position_x"], "y": state["position_y"]},
             "mood": state["mood"],
-            "schedule": schedule
+            "schedule": schedule,
+            "interactCount": interact_count,
+            "historySummary": history_summary
         }
     })
 
