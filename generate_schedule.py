@@ -12,12 +12,12 @@ def main():
     mode = os.environ.get("MODE", "full")
     print(f"=== 开始生成日程: {character} (模式: {mode}) ===")
     
-    # 读取AI配置：key 从环境变量，供应商/模型从 config.py
+    # 读取AI配置：key 从环境变量（支持 key1/key2/key3），供应商/模型从 config.py
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL
+    from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL, AI_KEY_SELECTOR
     
-    api_key = os.environ.get("AI_API_KEY", "")
+    api_key = os.environ.get(f"AI_API_KEY_{AI_KEY_SELECTOR}", os.environ.get("AI_API_KEY", ""))
     
     AI_PROVIDER_URLS = {
         "siliconflow": "https://api.siliconflow.cn/v1/chat/completions",
