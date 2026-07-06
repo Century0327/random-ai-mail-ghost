@@ -56,8 +56,9 @@ jobs:
           QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
           TO_EMAIL_1: ${{ secrets.TO_EMAIL_1 }}
-          TO_EMAIL_2: ${{ secrets.TO_EMAIL_2 }}
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_KEY_key1: ${{ secrets.AI_API_KEY_1 }}
+          AI_API_KEY_key2: ${{ secrets.AI_API_KEY_2 }}
+          AI_API_KEY_key3: ${{ secrets.AI_API_KEY_3 }}
           CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
           FORCE_SEND: ${{ inputs.force_send || 'false' }}
           ATTACHMENT_MODE: ${{ inputs.attachment_mode || 'normal' }}

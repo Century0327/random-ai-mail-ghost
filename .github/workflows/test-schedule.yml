@@ -50,7 +50,9 @@ jobs:
 
       - name: Run schedule generation
         env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_KEY_key1: ${{ secrets.AI_API_KEY_1 }}
+          AI_API_KEY_key2: ${{ secrets.AI_API_KEY_2 }}
+          AI_API_KEY_key3: ${{ secrets.AI_API_KEY_3 }}
           CHARACTER: ${{ inputs.character }}
           MODE: ${{ inputs.mode }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
