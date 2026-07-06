@@ -12,10 +12,27 @@ def main():
     mode = os.environ.get("MODE", "full")
     print(f"=== 开始生成日程: {character} (模式: {mode}) ===")
     
-    # 读取AI配置
+    # 读取AI配置：key 从环境变量，供应商/模型从 config.py
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL
+    
     api_key = os.environ.get("AI_API_KEY", "")
-    api_url = os.environ.get("AI_API_URL", "")
-    model = os.environ.get("AI_MODEL", "")
+    
+    AI_PROVIDER_URLS = {
+        "siliconflow": "https://api.siliconflow.cn/v1/chat/completions",
+        "openai": "https://api.openai.com/v1/chat/completions",
+        "moonshot": "https://api.moonshot.cn/v1/chat/completions",
+        "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "deepseek": "https://api.deepseek.com/v1/chat/completions",
+    }
+    
+    if AI_PROVIDER == "custom":
+        api_url = AI_CUSTOM_URL
+    else:
+        api_url = AI_PROVIDER_URLS.get(AI_PROVIDER, AI_PROVIDER_URLS["siliconflow"])
+    
+    model = AI_MODEL
     
     print(f"[DEBUG] AI_API_KEY: {'***' if api_key else '未设置'}")
     print(f"[DEBUG] AI_API_URL: {api_url}")
