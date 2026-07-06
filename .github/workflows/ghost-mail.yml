@@ -58,8 +58,6 @@ jobs:
           TO_EMAIL_1: ${{ secrets.TO_EMAIL_1 }}
           TO_EMAIL_2: ${{ secrets.TO_EMAIL_2 }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_API_URL: ${{ secrets.AI_API_URL }}
-          AI_MODEL: ${{ secrets.AI_MODEL }}
           CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
           FORCE_SEND: ${{ inputs.force_send || 'false' }}
           ATTACHMENT_MODE: ${{ inputs.attachment_mode || 'normal' }}
