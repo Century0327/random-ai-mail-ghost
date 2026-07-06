@@ -162,6 +162,107 @@ class DataService:
             {"id": "plant", "name": "小盆栽", "desc": "给房间添一抹绿意，猫咪也喜欢。", "price": 28, "emojiColor": "#8fb07a", "image": "/room/item-plant.png", "category": "decoration"},
         ]
 
+    # ==================== 用户背包 ====================
+
+    def get_user_items(self, device_id: str) -> List[Dict]:
+        # 优先从 JSON 读取（companion API 轻量模式）
+        inv = _load_json(f"inventory_{device_id}.json", [])
+        if inv:
+            # 补充物品详情
+            items_map = {i["id"]: i for i in self.get_items()}
+            result = []
+            for item in inv:
+                iid = item.get("item_id") or item.get("id")
+                detail = items_map.get(iid, {})
+                result.append({
+                    **detail,
+                    "itemId": iid,
+                    "quantity": item.get("quantity", 1),
+                    "purchasedAt": item.get("purchased_at") or item.get("purchasedAt"),
+                })
+            return result
+        # Fallback: 默认给一些初始物品
+        return []
+
+    def add_user_item(self, device_id: str, item_id: str, quantity: int = 1) -> bool:
+        inv = _load_json(f"inventory_{device_id}.json", [])
+        found = False
+        for item in inv:
+            if (item.get("item_id") or item.get("id")) == item_id:
+                item["quantity"] = item.get("quantity", 0) + quantity
+                found = True
+                break
+        if not found:
+            inv.append({
+                "item_id": item_id,
+                "quantity": quantity,
+                "purchased_at": datetime.utcnow().isoformat() + "Z"
+            })
+        _save_json(f"inventory_{device_id}.json", inv)
+        return True
+
+    # ==================== 信件收藏 ====================
+
+    def get_favorite_letters(self, device_id: str, character_id: Optional[str] = None) -> List[Dict]:
+        if character_id:
+            rows = self._query(
+                """SELECT id, character_id, subject, body, source, attachment_url, 
+                          is_read, is_favorite, created_at
+                   FROM letters WHERE device_id = %s AND character_id = %s AND is_favorite = true
+                   ORDER BY created_at DESC""",
+                (device_id, character_id)
+            )
+        else:
+            rows = self._query(
+                """SELECT id, character_id, subject, body, source, attachment_url,
+                          is_read, is_favorite, created_at
+                   FROM letters WHERE device_id = %s AND is_favorite = true
+                   ORDER BY created_at DESC""",
+                (device_id,)
+            )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        # Fallback
+        letters = self.get_letters(character_id)
+        return [l for l in letters if l.get("is_favorite")]
+
+    def toggle_letter_favorite(self, device_id: str, letter_id: int, is_favorite: bool) -> bool:
+        result = self._execute(
+            "UPDATE letters SET is_favorite = %s WHERE id = %s AND device_id = %s",
+            (is_favorite, letter_id, device_id)
+        )
+        # Fallback - JSON fallback 简化处理
+        return result is not False
+
+    # ==================== 附件收藏 ====================
+
+    def get_favorite_attachments(self, device_id: str, character_id: Optional[str] = None) -> List[Dict]:
+        if character_id:
+            rows = self._query(
+                """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                   FROM attachments WHERE device_id = %s AND character_id = %s AND is_favorite = true
+                   ORDER BY created_at DESC""",
+                (device_id, character_id)
+            )
+        else:
+            rows = self._query(
+                """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                   FROM attachments WHERE device_id = %s AND is_favorite = true
+                   ORDER BY created_at DESC""",
+                (device_id,)
+            )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        # Fallback
+        return []
+
+    def toggle_attachment_favorite(self, device_id: str, attachment_id: str, is_favorite: bool) -> bool:
+        result = self._execute(
+            "UPDATE attachments SET is_favorite = %s WHERE id = %s AND device_id = %s",
+            (is_favorite, attachment_id, device_id)
+        )
+        return result is not False
+
     # ==================== Letters ====================
 
     def get_letters(self, character_id: Optional[str] = None, limit: int = 50) -> List[Dict]:

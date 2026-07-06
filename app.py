@@ -654,6 +654,70 @@ def companion_items():
     return _cors_resp({"items": ds.get_items()})
 
 
+# ============ 用户背包 API ============
+
+@app.route("/api/companion/user/items", methods=["GET", "OPTIONS"])
+def companion_user_items():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
+    items = ds.get_user_items(device_id)
+    return _cors_resp({"items": items})
+
+
+@app.route("/api/companion/user/items/<item_id>/buy", methods=["POST", "OPTIONS"])
+def companion_buy_item(item_id):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", "default")
+    ds.add_user_item(device_id, item_id, 1)
+    return _cors_resp({"ok": True, "message": "购买成功"})
+
+
+# ============ 收藏 API ============
+
+@app.route("/api/companion/letters/<int:letter_id>/favorite", methods=["POST", "OPTIONS"])
+def companion_toggle_favorite(letter_id):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", "default")
+    data = request.get_json(silent=True) or {}
+    is_favorite = data.get("is_favorite", data.get("isFavorite", True))
+    ds.toggle_letter_favorite(device_id, letter_id, is_favorite)
+    return _cors_resp({"ok": True, "is_favorite": is_favorite})
+
+
+@app.route("/api/companion/letters/favorites", methods=["GET", "OPTIONS"])
+def companion_favorite_letters():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
+    character_id = request.args.get("character_id")
+    letters = ds.get_favorite_letters(device_id, character_id)
+    return _cors_resp({"letters": letters})
+
+
+@app.route("/api/companion/attachments/favorites", methods=["GET", "OPTIONS"])
+def companion_favorite_attachments():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
+    character_id = request.args.get("character_id")
+    attachments = ds.get_favorite_attachments(device_id, character_id)
+    return _cors_resp({"attachments": attachments})
+
+
+@app.route("/api/companion/attachments/<attachment_id>/favorite", methods=["POST", "OPTIONS"])
+def companion_toggle_attachment_favorite(attachment_id):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", "default")
+    data = request.get_json(silent=True) or {}
+    is_favorite = data.get("is_favorite", data.get("isFavorite", True))
+    ds.toggle_attachment_favorite(device_id, attachment_id, is_favorite)
+    return _cors_resp({"ok": True, "is_favorite": is_favorite})
+
+
 # ============ Schedules API ============
 
 @app.route("/api/companion/schedules", methods=["GET", "OPTIONS"])
