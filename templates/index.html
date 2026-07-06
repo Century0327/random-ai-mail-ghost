@@ -469,8 +469,37 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
             </div>
             <div class="form-group">
               <label>模型名称</label>
-              <input type="text" id="config-ai-model" placeholder="deepseek-ai/DeepSeek-V3" oninput="updatePreview()">
-              <div class="hint" id="ai-model-hint">硅基流动常用：deepseek-ai/DeepSeek-V3</div>
+              <input type="text" id="config-ai-model" placeholder="deepseek-ai/DeepSeek-V3" list="ai-model-list" oninput="updatePreview()">
+              <datalist id="ai-model-list">
+                <option value="deepseek-ai/DeepSeek-V3">
+                <option value="deepseek-ai/DeepSeek-R1">
+                <option value="Qwen/Qwen2.5-72B-Instruct">
+                <option value="gpt-4o">
+                <option value="gpt-4o-mini">
+                <option value="moonshot-v1-8k">
+                <option value="moonshot-v1-32k">
+                <option value="qwen-max">
+                <option value="qwen-plus">
+                <option value="deepseek-chat">
+                <option value="deepseek-reasoner">
+                <option value="meta-llama/llama-3.3-70b-instruct:free">
+                <option value="qwen/qwen3-next-80b-a3b-instruct:free">
+                <option value="openai/gpt-oss-120b:free">
+                <option value="nousresearch/hermes-3-llama-3.1-405b:free">
+                <option value="nvidia/nemotron-3-ultra-550b-a55b:free">
+                <option value="tencent/hy3:free">
+                <option value="google/gemma-4-31b-it:free">
+                <option value="google/gemma-4-26b-a4b-it:free">
+                <option value="nvidia/nemotron-3-nano-30b-a3b:free">
+                <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">
+                <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">
+                <option value="openai/gpt-oss-20b:free">
+                <option value="nvidia/nemotron-nano-12b-v2-vl:free">
+                <option value="nvidia/nemotron-nano-9b-v2:free">
+                <option value="Qwen/Qwen3-8B">
+                <option value="qwen/qwen3-coder:free">
+              </datalist>
+              <div class="hint" id="ai-model-hint">可从下拉列表选择或手动输入模型名称</div>
             </div>
           </div>
           <div class="row-2">
@@ -988,23 +1017,18 @@ const AI_PROVIDER_HINTS = {
   moonshot: 'Moonshot 常用：moonshot-v1-8k, moonshot-v1-32k',
   aliyun: '阿里云常用：qwen-max, qwen-plus',
   deepseek: 'DeepSeek 常用：deepseek-chat, deepseek-reasoner',
-  openrouter: 'OpenRouter 免费模型：meta-llama/llama-3.3-70b-instruct:free, qwen/qwen3-next-80b-a3b-instruct:free, openai/gpt-oss-120b:free',
+  openrouter: 'OpenRouter 免费模型：meta-llama/llama-3.3-70b-instruct:free, qwen/qwen3-next-80b-a3b-instruct:free',
   custom: '自定义供应商，请填写完整 URL',
 };
 
 function onAIProviderChange() {
   const provider = document.getElementById('config-ai-provider').value;
   const customGroup = document.getElementById('ai-custom-url-group');
-  const hint = document.getElementById('ai-model-hint');
   
   if (provider === 'custom') {
     customGroup.style.display = 'block';
   } else {
     customGroup.style.display = 'none';
-  }
-  
-  if (hint) {
-    hint.textContent = AI_PROVIDER_HINTS[provider] || '';
   }
 }
 
