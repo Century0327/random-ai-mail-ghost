@@ -1,7 +1,7 @@
 # Ghost Mail - Steam 上架完整方案
 
 > 最后更新：2026-07-07
-> 当前阶段：计划阶段
+> 当前阶段：Phase 1-4 核心功能已完成，准备数据库部署和联调
 > 代码仓库：Century0327/random-ai-mail-ghost
 
 ---
@@ -66,7 +66,7 @@
 │  │ Flask API │  │ AI Gateway│  │ 配额管理     │ │
 │  └──────────┘  └──────────┘  └───────────────┘ │
 │  ┌───────────────────────────────────────────┐  │
-│  │  PostgreSQL (Neon)                         │  │
+│  │  PostgreSQL (Neon / Supabase)              │  │
 │  │ users / letters / schedules / attachments  │  │
 │  └───────────────────────────────────────────┘  │
 └─────────────────────┬───────────────────────────┘
@@ -81,10 +81,11 @@
 ### 3.2 后端技术栈
 
 - **API 服务**：Flask（延续现有代码），后期可迁移 FastAPI
-- **数据库**：PostgreSQL (Neon) - 已迁移，持续完善
+- **数据库**：PostgreSQL（Neon / Supabase 二选一），支持 JSON 文件 fallback
 - **AI 网关**：统一调用接口，多供应商负载均衡 + 故障转移
 - **配额系统**：基于日活/订阅等级的 AI 调用限额
 - **邮件服务**：开发者 SMTP（QQ 邮箱或企业邮箱）
+- **部署**：Vercel（Serverless）或独立服务器
 
 ### 3.3 前端/客户端技术栈
 
@@ -313,28 +314,63 @@ electron-app/
 
 ## 五、当前代码状态评估
 
-### 已有可复用的模块
+### 已完成模块
 
-| 模块 | 文件 | 状态 | 改动量 |
-|------|------|------|--------|
-| 角色人格系统 | `personas/*.md` + `core/persona.py` | ✅ 可用 | 小 |
-| AI 信件生成 | `core/ai_client.py` + `main.py` | ⚠️ 需改造 | 中 |
-| 对话历史 | `core/conversation.py` | ⚠️ 需改造 | 中 |
-| 附件生成 | `core/attachment.py` | ⚠️ 需验证 | 中 |
-| 数据服务层 | `core/data_service.py` | ✅ 可用 | 小 |
-| 日程生成 | `generate_schedule.py` + `app.py` | ✅ 可用 | 小 |
-| Web 控制台 UI | `templates/index.html` | ⚠️ 前端风格 | 大 |
-| 数据库 Schema | `db/schema.sql` | ⚠️ 需扩展 | 中 |
+| 模块 | 文件 | 状态 | 说明 |
+|------|------|------|------|
+| 角色人格系统 | `personas/*.md` + `core/persona.py` | ✅ 完成 | 4个角色：kitty/puppy/foxy/birb，含人设 + fallback |
+| AI 信件生成 | `core/ai_client.py` + `main.py` | ✅ 完成 | 多供应商轮换、故障转移、安全检查 |
+| AI 网关与 Key 池 | `core/ai_gateway.py` + `core/data_service.py` | ✅ 完成 | 多供应商 Key 池、负载均衡、配额管理 |
+| 用户体系 | `db/schema.sql` + `core/auth_service.py` | ✅ 完成 | users 表、JWT 认证、Steam 登录占位 |
+| 应用内信件系统 | `core/letter_service.py` + API | ✅ 完成 | 收发、已读、分页、附件、对话历史 |
+| 好感度系统 | `core/affection_stages.py` | ✅ 完成 | 5阶段解锁、角色专属故事、进度计算 |
+| 成就系统 | `core/achievement_service.py` | ✅ 完成 | 内置成就、进度追踪、自动解锁 |
+| 数据服务层 | `core/data_service.py` | ✅ 完成 | PostgreSQL 优先 + JSON fallback |
+| 日程生成系统 | `generate_schedule.py` + GitHub Actions | ✅ 完成 | AI 生成每日日程，受历史影响 |
+| 桌宠前端 | `electron/renderer/pet.html` | ✅ 完成 | 透明窗口、拖拽、互动、4角色样式 |
+| Electron 主进程 | `electron/main.js` | ✅ 完成 | 主窗口、桌宠窗口、托盘、IPC、通知 |
+| 角色动态化 | `app.py` + `ds.get_characters()` | ✅ 完成 | 角色从数据库动态加载，不硬编码 |
+| 新用户引导 | `app.py` onboarding API | ✅ 完成 | 首封信生成、初始角色选择 |
+| 每日主动来信 | `app.py` daily-letter API | ✅ 完成 | 后台批量生成主动来信 |
+| Web 管理控制台 | `templates/index.html` | ⚠️ 管理后台 | 配置管理、测试工具，非用户端 |
 
-### 需要新建的模块
+### 需要完善的模块
 
-- 用户体系（users 表 + 认证）
-- AI Key 池与网关
-- 配额管理
-- Steam 认证中间件
-- Electron 桌面客户端
-- 桌宠前端页面
-- 应用内信件 UI
+| 模块 | 说明 | 优先级 |
+|------|------|--------|
+| 数据库部署 | Neon/Supabase 初始化 schema 和初始数据 | P0 |
+| 用户端 UI | 信件收件箱、角色页、成就页（管理后台是给开发者用的） | P0 |
+| Steamworks 集成 | greenworks 接入：登录、成就、云存档、DLC | P0 |
+| 打包发布 | electron-builder 配置、代码签名、自动更新 | P1 |
+| 真实邮件转发 | SMTP 配置、可选转发功能 | P2 |
+| AI 附件生成 | 信件附带图片生成（DALL-E/SD） | P2 |
+| 性能优化 | 桌宠 CPU/内存占用、AI 调用缓存 | P2 |
+
+### 数据库 Schema 状态
+
+已定义的表（`db/schema.sql`）：
+- `users` - 用户表（Steam ID、额度、等级）
+- `ai_keys` - AI Key 池
+- `api_usage_log` - 调用日志
+- `characters` - 角色表（4个内置角色）
+- `letters` - 信件表
+- `attachments` - 附件表
+- `user_character_relations` - 用户-角色好感度关系
+- `achievements` - 成就定义表
+- `user_achievements` - 用户成就进度
+- `conversations` - 对话历史
+- `schedule_jobs` - 日程生成任务记录
+
+### 角色清单
+
+| 角色 ID | 名称 | 人设 | 桌宠样式 | 专属故事 |
+|---------|------|------|----------|----------|
+| kitty | Kitty 小喵 | ✅ `personas/kitty.md` | ✅ CSS 变体 | ✅ 4阶段 |
+| puppy | Puppy 小狗 | ✅ `personas/puppy.md` | ✅ CSS 变体 | ✅ 4阶段 |
+| foxy | Foxy 小狐 | ✅ `personas/foxy.md` | ✅ CSS 变体 | ✅ 4阶段 |
+| birb | Birb 小鸟 | ✅ `personas/birb.md` | ✅ CSS 变体 | ✅ 4阶段 |
+
+> 角色系统已动态化：新增角色只需数据库插入 + `personas/` 下放人设文件，无需改代码。桌宠样式和菜单需要新增角色有图后再加。
 
 ---
 
