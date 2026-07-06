@@ -23,23 +23,30 @@ const store = new Store({
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 
+// 生成/读取设备唯一ID
+let deviceId = store.get('deviceId');
+if (!deviceId) {
+    deviceId = require('crypto').randomUUID();
+    store.set('deviceId', deviceId);
+}
+
 let mainWindow = null;
 let petWindow = null;
 let tray = null;
 
-// ============ 主窗口 ============
+// ============ 主窗口（Cozy Room 用户端） ============
 
 function createMainWindow() {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
     mainWindow = new BrowserWindow({
-        width: Math.min(1100, width * 0.85),
-        height: Math.min(750, height * 0.85),
-        minWidth: 800,
-        minHeight: 600,
+        width: Math.min(1200, width * 0.85),
+        height: Math.min(800, height * 0.85),
+        minWidth: 900,
+        minHeight: 650,
         title: 'Ghost Mail - 幽灵邮件',
         icon: path.join(__dirname, 'assets', 'icon.png'),
-        backgroundColor: '#1a1a2e',
+        backgroundColor: '#0f0f1a',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -47,9 +54,9 @@ function createMainWindow() {
         }
     });
 
-    // 加载主页面
-    const mainUrl = store.get('apiBaseUrl') + '/';
-    mainWindow.loadURL(mainUrl);
+    // 加载本地 Cozy Room 用户端
+    const indexPath = path.join(__dirname, 'renderer', 'app', 'index.html');
+    mainWindow.loadFile(indexPath);
 
     if (isDev) {
         mainWindow.webContents.openDevTools();
@@ -59,7 +66,7 @@ function createMainWindow() {
         mainWindow = null;
     });
 
-    // 注入 Steam ID 等配置
+    // 注入配置
     mainWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.executeJavaScript(`
             window.__GHOST_MAIL_CONFIG__ = {
@@ -400,6 +407,27 @@ ipcMain.handle('steam:login', (e, { steamId, steamName }) => {
 // ============ App 生命周期 ============
 
 app.whenReady().then(() => {
+    const { session } = require('electron');
+    const apiBaseUrl = store.get('apiBaseUrl');
+    
+    // API 请求代理：把本地 file:// 的 /api/ 请求转发到后端
+    session.defaultSession.webRequest.onBeforeRequest({ urls: ['file://*/api/*'] }, (details, callback) => {
+        const url = details.url;
+        const apiPathMatch = url.match(/\/api\/(.+)/);
+        if (apiPathMatch) {
+            const redirectUrl = `${apiBaseUrl}/api/${apiPathMatch[1]}`;
+            callback({ redirectURL: redirectUrl });
+        } else {
+            callback({});
+        }
+    });
+
+    // 给 API 请求加 device_id header
+    session.defaultSession.webRequest.onBeforeSendHeaders({ urls: [`${apiBaseUrl}/*`] }, (details, callback) => {
+        details.requestHeaders['X-Device-ID'] = deviceId;
+        callback({ requestHeaders: details.requestHeaders });
+    });
+
     createMainWindow();
     createPetWindow();
     createTray();

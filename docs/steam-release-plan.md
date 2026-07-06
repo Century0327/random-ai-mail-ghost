@@ -330,18 +330,19 @@ electron-app/
 | 数据服务层 | `core/data_service.py` | ✅ 完成 | PostgreSQL 优先 + JSON fallback |
 | 日程生成系统 | `generate_schedule.py` + GitHub Actions | ✅ 完成 | AI 生成每日日程，受历史影响 |
 | 桌宠前端 | `electron/renderer/pet.html` | ✅ 完成 | 透明窗口、拖拽、互动、4角色样式 |
-| Electron 主进程 | `electron/main.js` | ✅ 完成 | 主窗口、桌宠窗口、托盘、IPC、通知 |
+| Electron 主进程 | `electron/main.js` | ✅ 完成 | 主窗口(Cozy Room)、桌宠、托盘、IPC、通知、API代理 |
+| Cozy Room 用户端 | `ghost-mail-ui/artifacts/miao-room` | ✅ 完成 | 等距房间、角色互动、记忆面板、商店、日程、相册 |
+| 前后端 API 对齐 | `app.py` + `data_service.py` | ✅ 完成 | 角色/物品/状态/日程/信件 结构全部对齐 |
 | 角色动态化 | `app.py` + `ds.get_characters()` | ✅ 完成 | 角色从数据库动态加载，不硬编码 |
 | 新用户引导 | `app.py` onboarding API | ✅ 完成 | 首封信生成、初始角色选择 |
 | 每日主动来信 | `app.py` daily-letter API | ✅ 完成 | 后台批量生成主动来信 |
-| Web 管理控制台 | `templates/index.html` | ⚠️ 管理后台 | 配置管理、测试工具，非用户端 |
+| Web 管理控制台 | `templates/index.html` | ⚠️ 独立 | 开发者后台，独立于用户端 |
 
 ### 需要完善的模块
 
 | 模块 | 说明 | 优先级 |
 |------|------|--------|
 | 数据库部署 | Neon/Supabase 初始化 schema 和初始数据 | P0 |
-| 用户端 UI | 信件收件箱、角色页、成就页（管理后台是给开发者用的） | P0 |
 | Steamworks 集成 | greenworks 接入：登录、成就、云存档、DLC | P0 |
 | 打包发布 | electron-builder 配置、代码签名、自动更新 | P1 |
 | 真实邮件转发 | SMTP 配置、可选转发功能 | P2 |
@@ -355,6 +356,7 @@ electron-app/
 - `ai_keys` - AI Key 池
 - `api_usage_log` - 调用日志
 - `characters` - 角色表（4个内置角色）
+- `shop_items` - 商店物品表（5个初始物品）
 - `letters` - 信件表
 - `attachments` - 附件表
 - `user_character_relations` - 用户-角色好感度关系
