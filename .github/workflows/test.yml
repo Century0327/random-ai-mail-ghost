@@ -24,11 +24,11 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile main.py
-          python -m py_compile core/*.py
-          python -m py_compile attachment.py
-          python -m py_compile crypto.py
-          python -m py_compile logger.py
+          python -m py_compile app.py
           python -m py_compile config.py
+          python -m py_compile generate_schedule.py
+          for f in core/*.py; do python -m py_compile "$f"; done
+          python -m py_compile db/init_db.py
 
       - name: Unit tests
         run: python tests/test_basic.py
