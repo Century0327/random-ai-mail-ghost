@@ -1445,8 +1445,11 @@ function loadScheduleJobs() {
     jobs.forEach(job => {
       const inputs = job.inputs || {};
       const character = inputs.character || '未知';
-      const mode = inputs.mode || 'full';
-      const modeText = mode === 'full' ? '完整一天' : '只生成未来';
+      const mode = inputs.mode;
+      let modeText;
+      if (mode === 'full') modeText = '完整一天';
+      else if (mode === 'future') modeText = '只生成未来';
+      else modeText = '未知';
       
       const duration = job.updated_at && job.created_at
         ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
@@ -1510,8 +1513,11 @@ function loadJobDetail(jobId) {
     
     const inputs = job.inputs || {};
     const character = inputs.character || '未知';
-    const mode = inputs.mode || 'full';
-    const modeText = mode === 'full' ? '完整一天' : '只生成未来';
+    const mode = inputs.mode;
+    let modeText;
+    if (mode === 'full') modeText = '完整一天';
+    else if (mode === 'future') modeText = '只生成未来';
+    else modeText = '未知';
     
     const duration = job.updated_at && job.created_at
       ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'

@@ -417,20 +417,14 @@ def schedule_job_detail(job_id):
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
     
+    # 直接调用 GitHub API 获取单个 run 详情（列表接口的 inputs 经常为空）
+    run_info, run_err = _get_run_detail(job_id)
+    
     logs, err = _get_run_logs(job_id)
-    if err:
+    if err and not run_info:
         return _cors_resp({"error": err}, 500)
     
-    # 获取运行信息
-    runs, _ = _list_runs(SCHEDULE_WORKFLOW_FILE, limit=20)
-    run_info = None
-    if runs:
-        for r in runs:
-            if str(r["id"]) == str(job_id):
-                run_info = r
-                break
-    
-    return _cors_resp({"job": run_info, "logs": logs})
+    return _cors_resp({"job": run_info, "logs": logs or []})
 
 
 def _list_runs(workflow_file=None, limit=5):
@@ -451,9 +445,29 @@ def _list_runs(workflow_file=None, limit=5):
             "html_url": r["html_url"],
             "name": r["name"],
             "event": r["event"],
-            "inputs": r.get("inputs", {}),
+            "inputs": r.get("inputs") or {},
         })
     return runs, None
+
+
+def _get_run_detail(run_id):
+    """获取单个 workflow run 的详情（包含 inputs 字段）"""
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/runs/{run_id}"
+    resp = requests.get(url, headers=_headers())
+    if resp.status_code != 200:
+        return None, resp.text
+    r = resp.json()
+    return {
+        "id": r["id"],
+        "status": r["status"],
+        "conclusion": r.get("conclusion"),
+        "created_at": r["created_at"],
+        "updated_at": r["updated_at"],
+        "html_url": r["html_url"],
+        "name": r["name"],
+        "event": r["event"],
+        "inputs": r.get("inputs", {}) or {},
+    }, None
 
 
 def _get_run_logs(run_id):
