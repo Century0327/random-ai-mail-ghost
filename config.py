@@ -62,7 +62,15 @@ AI_PROVIDER = "siliconflow"
 # Moonshot：moonshot-v1-8k, moonshot-v1-32k
 # 阿里云：qwen-max, qwen-plus
 # DeepSeek：deepseek-chat, deepseek-reasoner
-# OpenRouter：google/gemini-2.0-flash-exp:free, deepseek/deepseek-chat, anthropic/claude-3.5-sonnet
+# OpenRouter 免费模型（已筛选，均不弱于 Qwen3-8B）：
+#   通用大模型：meta-llama/llama-3.3-70b-instruct:free, qwen/qwen3-next-80b-a3b-instruct:free,
+#               openai/gpt-oss-120b:free, nousresearch/hermes-3-llama-3.1-405b:free,
+#               nvidia/nemotron-3-ultra-550b-a55b:free, tencent/hy3:free
+#   中等模型：google/gemma-4-31b-it:free, google/gemma-4-26b-a4b-it:free,
+#             nvidia/nemotron-3-nano-30b-a3b:free, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,
+#             cognitivecomputations/dolphin-mistral-24b-venice-edition:free, openai/gpt-oss-20b:free,
+#             nvidia/nemotron-nano-12b-v2-vl:free, nvidia/nemotron-nano-9b-v2:free
+#   基准：Qwen/Qwen3-8B, qwen/qwen3-coder:free
 AI_MODEL = "deepseek-ai/DeepSeek-V3"
 
 # 自定义 URL（仅在 AI_PROVIDER = "custom" 时生效）
