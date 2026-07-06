@@ -1,0 +1,69 @@
+name: Test Schedule Generation
+
+on:
+  workflow_dispatch:
+    inputs:
+      character:
+        description: '角色ID'
+        required: true
+        default: 'maodie'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  test-schedule:
+    runs-on: ubuntu-latest
+    name: 日程生成测试
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: List directory structure
+        run: |
+          echo "=== 目录结构 ==="
+          ls -la
+          echo ""
+          echo "=== 人设文件 ==="
+          ls -la personas/ 2>/dev/null || echo "personas目录不存在"
+          echo ""
+          echo "=== 数据目录 ==="
+          ls -la data/ 2>/dev/null || echo "data目录不存在"
+
+      - name: Run schedule generation
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_URL: ${{ secrets.AI_API_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          CHARACTER: ${{ inputs.character }}
+        run: python generate_schedule.py
+
+      - name: Show generated schedule
+        run: |
+          echo "=== 生成的日程内容 ==="
+          cat data/schedules.json 2>/dev/null || echo "schedules.json 未生成"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/schedules.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: 测试生成日程（${{ inputs.character }}）"
+            git push
+          fi
