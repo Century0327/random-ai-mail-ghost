@@ -92,74 +92,100 @@
   },
   "kitty": {
     "2026-07-06": {
-      "date": "2026-07-06",
       "items": [
         {
           "time": "07:00",
-          "activity": "伸懒腰",
+          "activity": "伸懒腰起床",
           "location": "猫窝",
-          "thought": "新的一天开始啦",
+          "thought": "新的一天开始啦（喵~）",
           "done": true
         },
         {
           "time": "08:30",
-          "activity": "吃猫粮",
+          "activity": "吃早餐",
           "location": "食盆旁",
-          "thought": "脆脆的好好吃",
+          "thought": "今天的小鱼干真香（蹭蹭）",
+          "done": true
+        },
+        {
+          "time": "09:00",
+          "activity": "追逐毛线球",
+          "location": "客厅",
+          "thought": "别想逃啦～",
           "done": true
         },
         {
           "time": "10:00",
-          "activity": "追逐毛线球",
-          "location": "客厅",
-          "thought": "这个毛线球真好玩",
-          "done": true
+          "activity": "踩奶撒娇",
+          "location": "膝盖",
+          "thought": "主人摸摸我（喵～）",
+          "done": false
+        },
+        {
+          "time": "11:30",
+          "activity": "晒太阳",
+          "location": "窗台",
+          "thought": "暖洋洋的超舒服",
+          "done": false
         },
         {
           "time": "12:00",
           "activity": "午睡",
-          "location": "阳光下",
-          "thought": "暖暖的好舒服",
+          "location": "猫窝",
+          "thought": "困了...要睡觉",
           "done": false
         },
         {
-          "time": "14:30",
+          "time": "13:30",
           "activity": "探索书架",
-          "location": "书架上",
-          "thought": "上面有什么呢",
+          "location": "书架",
+          "thought": "新发现的角落超棒",
           "done": false
         },
         {
-          "time": "16:00",
-          "activity": "看窗外的鸟",
+          "time": "14:00",
+          "activity": "发呆看窗外",
           "location": "窗台",
-          "thought": "小鸟飞的真高",
+          "thought": "风景好美（尾巴翘）",
           "done": false
         },
         {
-          "time": "18:30",
+          "time": "15:00",
+          "activity": "吃小鱼干",
+          "location": "食盆旁",
+          "thought": "美味到不想动",
+          "done": false
+        },
+        {
+          "time": "16:30",
           "activity": "玩逗猫棒",
           "location": "客厅",
-          "thought": "抓不到抓不到",
+          "thought": "追着玩啦～",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "撒娇要抱抱",
+          "location": "主人腿",
+          "thought": "别想逃啦～",
           "done": false
         },
         {
           "time": "20:00",
-          "activity": "吃晚餐",
-          "location": "食盆旁",
-          "thought": "饿啦饿啦",
+          "activity": "睡前蹭蹭",
+          "location": "床",
+          "thought": "晚安，主人",
           "done": false
         },
         {
-          "time": "22:30",
-          "activity": "踩奶睡觉",
-          "location": "毯子上",
-          "thought": "好困好困",
+          "time": "21:00",
+          "activity": "睡觉",
+          "location": "猫窝",
+          "thought": "梦里也要蹭蹭～",
           "done": false
         }
       ],
-      "summary": "kitty今天活力满满，追了一上午毛线球，下午还探索了书架。",
-      "generatedAt": "2026-07-06T00:00:00"
+      "generated_at": "2026-07-06T09:44:34.561450"
     }
   }
 }
