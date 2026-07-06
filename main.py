@@ -27,10 +27,11 @@ from config import (
 
 QQ_EMAIL = os.environ.get("QQ_EMAIL", "")
 QQ_AUTH_CODE = os.environ.get("QQ_AUTH_CODE", "")
-# AI 配置从 config.py 读取（供应商、模型），只有 key 从环境变量读取
-from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL
+# AI 配置从 config.py 读取（供应商、模型、key 选择器），key 从环境变量读取
+from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL, AI_KEY_SELECTOR
 
-AI_API_KEY = os.environ.get("AI_API_KEY", "")
+# 根据选择器读取对应的 Key（支持 key1/key2/key3）
+AI_API_KEY = os.environ.get(f"AI_API_KEY_{AI_KEY_SELECTOR}", os.environ.get("AI_API_KEY", ""))
 
 # 供应商 URL 映射
 AI_PROVIDER_URLS = {
