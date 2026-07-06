@@ -491,7 +491,7 @@ def get_runs():
     if not GITHUB_TOKEN or not GITHUB_REPO:
         return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
     limit = request.args.get("limit", 5, type=int)
-    runs, err = _list_runs(limit)
+    runs, err = _list_runs(limit=limit)
     if err:
         return _cors_resp({"error": err}, 500)
     return _cors_resp({"runs": runs})
