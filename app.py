@@ -69,7 +69,7 @@ def index():
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
-WORKFLOW_FILE = os.environ.get("WORKFLOW_FILE", "daily-mail.yml")
+WORKFLOW_FILE = os.environ.get("WORKFLOW_FILE", "ghost-mail.yml")
 SCHEDULE_WORKFLOW_FILE = os.environ.get("SCHEDULE_WORKFLOW_FILE", "test-schedule.yml")
 GITHUB_API = "https://api.github.com"
 CONFIG_PATH = "config.py"
