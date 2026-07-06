@@ -472,6 +472,17 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
               <div class="hint" id="ai-model-hint">硅基流动常用：deepseek-ai/DeepSeek-V3</div>
             </div>
           </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label>API Key 选择</label>
+              <select id="config-ai-key-selector" onchange="updatePreview()">
+                <option value="key1">Key 1</option>
+                <option value="key2">Key 2</option>
+                <option value="key3">Key 3</option>
+              </select>
+              <div class="hint">对应 GitHub Secrets：AI_API_KEY_1 / AI_API_KEY_2 / AI_API_KEY_3</div>
+            </div>
+          </div>
           <div class="form-group" id="ai-custom-url-group" style="display:none;">
             <label>自定义 API URL</label>
             <input type="text" id="config-ai-custom-url" placeholder="https://api.example.com/v1/chat/completions" oninput="updatePreview()">
@@ -744,6 +755,7 @@ const defaultConfig = {
   AI_PROVIDER: 'siliconflow',
   AI_MODEL: 'deepseek-ai/DeepSeek-V3',
   AI_CUSTOM_URL: '',
+  AI_KEY_SELECTOR: 'key1',
   MIN_DAYS: 0,
   MAX_DAYS: 3,
   ENABLE_CONVERSATION: true,
@@ -875,6 +887,7 @@ function applyConfig(config) {
   document.getElementById('config-ai-provider').value = config.AI_PROVIDER || 'siliconflow';
   document.getElementById('config-ai-model').value = config.AI_MODEL || '';
   document.getElementById('config-ai-custom-url').value = config.AI_CUSTOM_URL || '';
+  document.getElementById('config-ai-key-selector').value = config.AI_KEY_SELECTOR || 'key1';
   onAIProviderChange();
   document.getElementById('config-min-days').value = config.MIN_DAYS != null ? config.MIN_DAYS : 0;
   document.getElementById('config-max-days').value = config.MAX_DAYS != null ? config.MAX_DAYS : 3;
@@ -1019,6 +1032,7 @@ function updatePreview() {
   const aiProvider = document.getElementById('config-ai-provider').value;
   const aiModel = document.getElementById('config-ai-model').value;
   const aiCustomUrl = document.getElementById('config-ai-custom-url').value;
+  const aiKeySelector = document.getElementById('config-ai-key-selector').value;
   const providerLabels = { siliconflow: '硅基流动', openai: 'OpenAI', moonshot: 'Moonshot', aliyun: '阿里云', deepseek: 'DeepSeek', custom: '自定义' };
   
   const rows = [
@@ -1026,6 +1040,7 @@ function updatePreview() {
     ['模板', template || '--'],
     ['AI 供应商', providerLabels[aiProvider] || aiProvider],
     ['AI 模型', aiModel || '（未设置）'],
+    ['API Key', aiKeySelector.toUpperCase()],
     ['主题前缀', subject || '（无）'],
     ['署名', signature || '（无）'],
     ['附件地点', location || '（无）'],
@@ -1057,6 +1072,7 @@ function collectConfig() {
     AI_PROVIDER: document.getElementById('config-ai-provider').value,
     AI_MODEL: document.getElementById('config-ai-model').value,
     AI_CUSTOM_URL: document.getElementById('config-ai-custom-url').value,
+    AI_KEY_SELECTOR: document.getElementById('config-ai-key-selector').value,
     MIN_DAYS: parseInt(document.getElementById('config-min-days').value) || 0,
     MAX_DAYS: parseInt(document.getElementById('config-max-days').value) || 3,
     ENABLE_CONVERSATION: document.getElementById('config-conversation').checked,
