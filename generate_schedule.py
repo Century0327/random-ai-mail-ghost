@@ -8,7 +8,7 @@ import requests
 from datetime import datetime
 
 def main():
-    character = os.environ.get("CHARACTER", "maodie")
+    character = os.environ.get("CHARACTER", "kitty")
     mode = os.environ.get("MODE", "full")
     print(f"=== 开始生成日程: {character} (模式: {mode}) ===")
     

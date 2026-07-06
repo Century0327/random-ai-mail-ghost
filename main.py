@@ -222,11 +222,7 @@ def generate_email(force_attachment=None):
                     logger.warning(f"[SAFETY] kitty人设检测到人类词汇: {hw}")
                     break
         if not _content_bad:
-            if persona_name == "maodie":
-                if len(body) < 10 or len(body) > 800:
-                    _content_bad = True
-                    logger.warning(f"[SAFETY] 耄耋内容长度异常: {len(body)}")
-            elif persona_name == "kitty":
+            if persona_name == "kitty":
                 if len(body) < 3 or len(body) > 300:
                     _content_bad = True
                     logger.warning(f"[SAFETY] kitty内容长度异常: {len(body)}")

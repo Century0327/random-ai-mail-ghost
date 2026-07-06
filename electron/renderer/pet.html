@@ -122,28 +122,28 @@
         }
 
         /* 角色颜色变体 */
-        .pet-sprite.maodie {
-            background: linear-gradient(180deg, #ffe4f0 0%, #ffc0d8 60%, #ffa0c0 100%);
-            box-shadow: 0 10px 30px rgba(200, 100, 140, 0.3),
-                        inset 0 -10px 20px rgba(170, 70, 110, 0.2);
+        .pet-sprite.kitty {
+            background: linear-gradient(180deg, #fff0e0 0%, #ffd4a8 60%, #ffbc80 100%);
+            box-shadow: 0 10px 30px rgba(220, 160, 80, 0.3),
+                        inset 0 -10px 20px rgba(190, 130, 50, 0.2);
         }
 
-        .pet-sprite.baizhu {
-            background: linear-gradient(180deg, #e0f0ff 0%, #b8d8ff 60%, #90bfff 100%);
-            box-shadow: 0 10px 30px rgba(100, 150, 220, 0.3),
-                        inset 0 -10px 20px rgba(70, 120, 190, 0.2);
+        .pet-sprite.puppy {
+            background: linear-gradient(180deg, #fff5e6 0%, #e6c896 60%, #d4a574 100%);
+            box-shadow: 0 10px 30px rgba(180, 140, 80, 0.3),
+                        inset 0 -10px 20px rgba(150, 110, 60, 0.2);
         }
 
-        .pet-sprite.qingdai {
-            background: linear-gradient(180deg, #e0ffeb 0%, #b8ffd4 60%, #90ffbf 100%);
-            box-shadow: 0 10px 30px rgba(100, 200, 150, 0.3),
-                        inset 0 -10px 20px rgba(70, 170, 120, 0.2);
+        .pet-sprite.foxy {
+            background: linear-gradient(180deg, #ffe8d6 0%, #f0a060 60%, #e08040 100%);
+            box-shadow: 0 10px 30px rgba(200, 120, 60, 0.3),
+                        inset 0 -10px 20px rgba(180, 90, 30, 0.2);
         }
 
-        .pet-sprite.aqiao {
-            background: linear-gradient(180deg, #fff5e0 0%, #ffe8b8 60%, #ffd890 100%);
-            box-shadow: 0 10px 30px rgba(220, 170, 90, 0.3),
-                        inset 0 -10px 20px rgba(190, 140, 60, 0.2);
+        .pet-sprite.birb {
+            background: linear-gradient(180deg, #e0f0ff 0%, #a0c8e8 60%, #70a8d0 100%);
+            box-shadow: 0 10px 30px rgba(100, 150, 200, 0.3),
+                        inset 0 -10px 20px rgba(70, 120, 170, 0.2);
         }
 
         /* 新信件气泡 */
@@ -236,7 +236,7 @@
         <div class="bubble" id="bubble">有新的信！</div>
         <div class="pet-character" id="petCharacter">
             <div class="pet-body">
-                <div class="pet-sprite maodie" id="petSprite">
+                <div class="pet-sprite kitty" id="petSprite">
                     <div class="pet-eyes">
                         <div class="pet-eye"></div>
                         <div class="pet-eye"></div>
@@ -257,7 +257,7 @@
         const statusDot = document.getElementById('statusDot');
         const container = document.getElementById('petContainer');
 
-        let currentCharacter = 'maodie';
+        let currentCharacter = 'kitty';
         let bubbleTimer = null;
 
         // 初始化角色
@@ -304,10 +304,10 @@
 
         // 随机短语
         const idlePhrases = {
-            maodie: ['喵~', '在吗？', '想你啦', '陪陪我嘛'],
-            baizhu: ['...', '嗯', '你好', '在的'],
-            qingdai: ['今天天气真好', '一起散步吧', '心情不错呢'],
-            aqiao: ['嘿嘿', '今天吃什么', '好无聊啊']
+            kitty: ['喵~', '在吗？', '想你啦', '陪陪我嘛', '要摸摸~'],
+            puppy: ['汪！', '主人！', '陪我玩！', '想你啦汪！', '摸摸头！'],
+            foxy: ['嘿嘿~', '找到你啦', '在干嘛呢~', '想我了吗？', '来玩嘛~'],
+            birb: ['啾啾！', '你好呀！', '唱歌给你听~', '啾~', '一起玩！'],
         };
 
         // 点击互动
@@ -329,7 +329,7 @@
                 showBubble('哎呀，别戳啦~', 1500);
                 clickCount = 0;
             } else {
-                const phrases = idlePhrases[currentCharacter] || idlePhrases.maodie;
+                const phrases = idlePhrases[currentCharacter] || idlePhrases.kitty;
                 showBubble(phrases[Math.floor(Math.random() * phrases.length)], 1500);
             }
 
@@ -398,7 +398,7 @@
         // 待机随机动作
         function randomIdleAction() {
             if (Math.random() < 0.3 && !bubble.classList.contains('show')) {
-                const phrases = idlePhrases[currentCharacter] || idlePhrases.maodie;
+                const phrases = idlePhrases[currentCharacter] || idlePhrases.kitty;
                 showBubble(phrases[Math.floor(Math.random() * phrases.length)], 2000);
             }
             setTimeout(randomIdleAction, 30000 + Math.random() * 60000);

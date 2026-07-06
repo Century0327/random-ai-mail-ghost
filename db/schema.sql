@@ -72,15 +72,14 @@ INSERT INTO characters (id, name, description, personality, stat_name, stat_colo
 ('kitty', 'Kitty', '傲娇的小猫', '傲娇、温柔', '好感度', '#e8a0a0'),
 ('puppy', 'Puppy', '忠诚的小狗', '活泼、忠诚', '好感度', '#d4b896'),
 ('foxy', 'Foxy', '狡猾的小狐狸', '机智、调皮', '好感度', '#c9785c'),
-('birb', 'Birb', '活泼的小鸟', '乐观、好奇', '好感度', '#a0c4d9'),
-('maodie', '耄耋', '哲学的老猫', '深沉、神秘', '哈气值', '#c9785c')
+('birb', 'Birb', '活泼的小鸟', '乐观、好奇', '好感度', '#a0c4d9')
 ON CONFLICT (id) DO NOTHING;
 
 -- 插入示例日程
 INSERT INTO schedules (character_id, time, activity, location, thought) VALUES
-('maodie', '08:00', '在窗台发呆', '窗台', '太阳照在身上真舒服'),
-('maodie', '10:00', '观察窗外风景', '窗台前', '那些蝴蝶真好看'),
-('maodie', '14:00', '在沙发上散步', '地毯上', '地毯的触感很温暖')
+('kitty', '08:00', '伸懒腰起床', '猫窝', '新的一天开始啦'),
+('kitty', '10:00', '在窗台看风景', '窗台', '外面的蝴蝶真好看'),
+('kitty', '14:00', '午睡', '沙发上', '暖暖的阳光好舒服')
 ON CONFLICT DO NOTHING;
 
 -- ==================== Phase 1: 用户体系 + AI 网关 ====================

@@ -6,7 +6,7 @@ on:
       character:
         description: '角色ID'
         required: true
-        default: 'maodie'
+        default: 'kitty'
         type: string
       mode:
         description: '生成模式 (full: 完整一天, future: 只生成未来)'

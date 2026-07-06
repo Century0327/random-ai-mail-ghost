@@ -106,7 +106,6 @@ class DataService:
             {"id": "puppy", "name": "Puppy", "description": "忠诚的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
             {"id": "foxy", "name": "Foxy", "description": "狡猾的小狐狸", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
             {"id": "birb", "name": "Birb", "description": "活泼的小鸟", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
-            {"id": "maodie", "name": "耄耋", "description": "哲学的老猫", "personality": "深沉、神秘", "statName": "哈气值", "statColor": "#c9785c"},
         ])
 
     def get_character(self, character_id: str) -> Optional[Dict]:

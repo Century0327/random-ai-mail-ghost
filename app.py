@@ -412,7 +412,7 @@ def dispatch_schedule():
         return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
 
     body = request.get_json(silent=True) or {}
-    character = body.get("character", "maodie")
+    character = body.get("character", "kitty")
     mode = body.get("mode", "full")  # full: 完整一天, future: 只生成未来
 
     ok, msg = _dispatch_workflow(
@@ -797,7 +797,7 @@ def generate_schedule():
         return _cors_resp({})
     
     body = request.get_json(silent=True) or {}
-    character_id = body.get("character_id", "maodie")
+    character_id = body.get("character_id", "kitty")
     
     # 创建任务记录
     job_id, _ = _create_schedule_job(character_id, trigger="api")
@@ -1425,7 +1425,7 @@ from core.persona import load_persona
 import traceback
 
 # 角色列表（与 personas 目录下的 .md 文件对应）
-PERSONA_IDS = ["maodie", "baizhu", "qingdai", "aqiao"]
+PERSONA_IDS = ["kitty", "puppy", "foxy", "birb"]
 
 # 缓存的角色信息
 _persona_cache = {}
@@ -1576,7 +1576,7 @@ def api_send_letter():
         return _cors_resp({"error": quota_err}, 429)
 
     body = request.get_json(silent=True) or {}
-    character_id = body.get("character_id", "maodie")
+    character_id = body.get("character_id", "kitty")
     content = body.get("content", "").strip()
     subject = body.get("subject", "")
 
@@ -1896,7 +1896,7 @@ def api_first_letter():
         return _cors_resp({"error": error}, 401)
 
     body = request.get_json(silent=True) or {}
-    character_id = body.get("character_id", "maodie")
+    character_id = body.get("character_id", "kitty")
     player_name = body.get("player_name", "")
 
     if character_id not in personas:
