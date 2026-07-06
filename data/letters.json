@@ -1,5 +1,14 @@
 [
   {
+    "id": "l6",
+    "character_id": "kitty",
+    "subject": "【猫猫来信】",
+    "body": "（扑腾）  <br>（抢铃铛）  <br>（喵呜）（转圈）  <br>（呼噜）（眯眼）  <br>（尾巴摇）（蹭蹭）  <br>（×）（甩尾巴）  <br>（呼噜呼噜）（眯眼）  <br>（蹭蹭）（尾巴卷）  <br>（喵~）（叼铃铛）  <br>（咕噜）（躺肚皮）",
+    "source": "ai",
+    "attachment_url": "/assets/cat-letter-001.jpg",
+    "created_at": "2026-07-06T11:58:54.835769Z"
+  },
+  {
     "id": "l5",
     "character_id": "kitty",
     "subject": "【猫猫来信】",

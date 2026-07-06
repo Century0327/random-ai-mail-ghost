@@ -92,100 +92,73 @@
   },
   "kitty": {
     "2026-07-06": {
+      "date": "2026-07-06",
       "items": [
         {
           "time": "07:00",
           "activity": "伸懒腰起床",
           "location": "猫窝",
           "thought": "新的一天开始啦",
-          "done": true
-        },
-        {
-          "time": "08:00",
-          "activity": "跳上膝盖",
-          "location": "客厅",
-          "thought": "主人今天好温柔",
-          "done": true
+          "done": false
         },
         {
           "time": "08:30",
           "activity": "吃早餐",
           "location": "食盆旁",
           "thought": "今天的小鱼干真香",
-          "done": true
-        },
-        {
-          "time": "09:00",
-          "activity": "追逐毛线球",
-          "location": "地毯",
-          "thought": "（喵呜）好有趣！",
-          "done": true
+          "done": false
         },
         {
           "time": "10:00",
-          "activity": "踩奶撒娇",
-          "location": "膝盖上",
-          "thought": "（蹭蹭）主人不要嫌弃嘛",
-          "done": true
+          "activity": "在窗台看风景",
+          "location": "窗台",
+          "thought": "外面的蝴蝶真好看",
+          "done": false
         },
         {
-          "time": "11:00",
+          "time": "12:00",
           "activity": "午睡",
-          "location": "沙发",
-          "thought": "（呼噜）舒服得不想动",
-          "done": true
+          "location": "沙发上",
+          "thought": "暖暖的阳光好舒服",
+          "done": false
         },
         {
           "time": "14:00",
-          "activity": "玩逗猫棒",
-          "location": "房间",
-          "thought": "（喵~）主人陪我玩！",
+          "activity": "玩毛线球",
+          "location": "地毯上",
+          "thought": "这个球怎么抓不住",
           "done": false
         },
         {
-          "time": "15:30",
-          "activity": "窗台发呆",
-          "location": "窗台",
-          "thought": "（太阳晒得暖）好想晒太阳",
+          "time": "16:00",
+          "activity": "整理信件",
+          "location": "书桌旁",
+          "thought": "看看有没有新来信",
           "done": false
         },
         {
-          "time": "17:00",
-          "activity": "看风景",
-          "location": "阳台",
-          "thought": "（喵呜）风景真不错",
+          "time": "18:00",
+          "activity": "等主人回家",
+          "location": "门口",
+          "thought": "怎么还不回来呀",
           "done": false
         },
         {
-          "time": "18:30",
+          "time": "20:00",
           "activity": "吃晚餐",
           "location": "食盆旁",
-          "thought": "（呼噜）晚餐真好吃",
-          "done": false
-        },
-        {
-          "time": "19:00",
-          "activity": "依偎主人",
-          "location": "床边",
-          "thought": "（蹭蹭）主人要陪我睡觉",
-          "done": false
-        },
-        {
-          "time": "21:00",
-          "activity": "被抚摸",
-          "location": "怀里",
-          "thought": "（咕噜）主人的手真温暖",
+          "thought": "晚餐时间到啦",
           "done": false
         },
         {
           "time": "22:00",
-          "activity": "睡觉",
+          "activity": "准备睡觉",
           "location": "猫窝",
-          "thought": "（呼噜）晚安，主人",
+          "thought": "今天过得真开心",
           "done": false
         }
       ],
-      "generated_at": "2026-07-06T11:56:46.296727"
+      "generatedAt": "2026-07-06T12:00:31.931227"
     }
   }
 }
