@@ -1424,10 +1424,8 @@ from core.mail_forward import forward_letter, is_configured as mail_forward_conf
 from core.persona import load_persona
 import traceback
 
-# 角色列表（与 personas 目录下的 .md 文件对应）
-PERSONA_IDS = ["kitty", "puppy", "foxy", "birb"]
-
-# 缓存的角色信息
+# 角色列表：从数据库 characters 表动态加载，personas/ 目录存放人设文件
+# 注意：不硬编码角色，新增角色只需在数据库插入记录 + personas/ 下放 .md 文件
 _persona_cache = {}
 
 def _get_persona(char_id: str) -> dict:
@@ -1459,8 +1457,30 @@ def _get_persona(char_id: str) -> dict:
     _persona_cache[char_id] = result
     return result
 
-# 简易的 personas 字典，兼容旧代码
-personas = {cid: _get_persona(cid) for cid in PERSONA_IDS}
+
+def _get_all_personas() -> dict:
+    """从数据库获取所有角色，并加载对应的人设（动态，非硬编码）"""
+    result = {}
+    try:
+        chars = ds.get_characters()
+        for c in chars:
+            cid = c["id"]
+            result[cid] = _get_persona(cid)
+    except Exception as e:
+        print(f"[app.py] 获取角色列表失败: {e}")
+    return result
+
+
+# 启动时加载一次角色列表，运行中可通过 API 刷新
+personas = _get_all_personas()
+
+
+def _refresh_personas():
+    """刷新角色列表（缓存失效）"""
+    global personas
+    _persona_cache.clear()
+    personas = _get_all_personas()
+    return personas
 
 # ============ 信件 API ============
 
