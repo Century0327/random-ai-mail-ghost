@@ -9,7 +9,8 @@ from datetime import datetime
 
 def main():
     character = os.environ.get("CHARACTER", "maodie")
-    print(f"=== 开始生成日程: {character} ===")
+    mode = os.environ.get("MODE", "full")
+    print(f"=== 开始生成日程: {character} (模式: {mode}) ===")
     
     # 读取AI配置
     api_key = os.environ.get("AI_API_KEY", "")
@@ -197,51 +198,73 @@ def main():
     now_min = datetime.now().minute
     now_total = now_hour * 60 + now_min
     
-    # 检查是否已有今日日程，如果有，保留已过时的部分
-    existing_items = []
-    char_schedules = all_schedules.get(character, {})
-    if isinstance(char_schedules, dict) and today in char_schedules:
-        existing_items = char_schedules[today].get("items", [])
-        print(f"[DEBUG] 找到今日已有日程，共 {len(existing_items)} 条")
-    
-    # 合并：保留已过时的日程，用新生成的替换未过时的
     final_items = []
-    existing_done_times = set()
     
-    # 收集已过时的时间点
-    for item in existing_items:
-        t = item.get("time", "00:00")
-        try:
-            h, m = map(int, t.split(":"))
-            total = h * 60 + m
-            if total < now_total:
-                existing_done_times.add(t)
-                final_items.append(item)
-                print(f"[DEBUG] 保留已过时日程: {t} - {item.get('activity', '')}")
-        except:
-            pass
-    
-    # 添加新生成的未过时日程（跳过已保留的时间点）
-    for item in schedule_items:
-        t = item.get("time", "00:00")
-        if t in existing_done_times:
-            continue
+    if mode == "future":
+        # 模式：只生成未来日程，保留已过时的
+        print(f"[DEBUG] 模式: 只生成未来日程")
         
-        # 标记为未完成
-        item.setdefault("done", False)
+        # 检查是否已有今日日程，如果有，保留已过时的部分
+        existing_items = []
+        char_schedules = all_schedules.get(character, {})
+        if isinstance(char_schedules, dict) and today in char_schedules:
+            existing_items = char_schedules[today].get("items", [])
+            print(f"[DEBUG] 找到今日已有日程，共 {len(existing_items)} 条")
         
-        # 计算时间是否已过
-        try:
-            h, m = map(int, t.split(":"))
-            total = h * 60 + m
-            if total < now_total:
-                item["done"] = True
-        except:
-            pass
+        # 合并：保留已过时的日程，用新生成的替换未过时的
+        existing_done_times = set()
         
-        final_items.append(item)
-        done_mark = "✓" if item.get("done") else "○"
-        print(f"[DEBUG] 添加新日程: {done_mark} {t} - {item.get('activity', '')}")
+        # 收集已过时的时间点
+        for item in existing_items:
+            t = item.get("time", "00:00")
+            try:
+                h, m = map(int, t.split(":"))
+                total = h * 60 + m
+                if total < now_total:
+                    existing_done_times.add(t)
+                    final_items.append(item)
+                    print(f"[DEBUG] 保留已过时日程: {t} - {item.get('activity', '')}")
+            except:
+                pass
+        
+        # 添加新生成的未过时日程（跳过已保留的时间点）
+        for item in schedule_items:
+            t = item.get("time", "00:00")
+            if t in existing_done_times:
+                continue
+            
+            # 标记为未完成
+            item.setdefault("done", False)
+            
+            # 计算时间是否已过
+            try:
+                h, m = map(int, t.split(":"))
+                total = h * 60 + m
+                if total < now_total:
+                    item["done"] = True
+            except:
+                pass
+            
+            final_items.append(item)
+            done_mark = "✓" if item.get("done") else "○"
+            print(f"[DEBUG] 添加新日程: {done_mark} {t} - {item.get('activity', '')}")
+    else:
+        # 模式：生成完整一天（默认）
+        print(f"[DEBUG] 模式: 生成完整一天")
+        
+        # 标记已过时间的日程为完成
+        for item in schedule_items:
+            item.setdefault("done", False)
+            t = item.get("time", "00:00")
+            try:
+                h, m = map(int, t.split(":"))
+                total = h * 60 + m
+                if total < now_total:
+                    item["done"] = True
+            except:
+                pass
+        
+        final_items = schedule_items
     
     # 按时间重新排序
     final_items.sort(key=lambda x: x.get("time", ""))

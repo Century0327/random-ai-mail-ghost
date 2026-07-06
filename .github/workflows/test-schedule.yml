@@ -8,6 +8,11 @@ on:
         required: true
         default: 'maodie'
         type: string
+      mode:
+        description: '生成模式 (full: 完整一天, future: 只生成未来)'
+        required: false
+        default: 'full'
+        type: string
 
 permissions:
   contents: write
@@ -49,6 +54,7 @@ jobs:
           AI_API_URL: ${{ secrets.AI_API_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
           CHARACTER: ${{ inputs.character }}
+          MODE: ${{ inputs.mode }}
         run: python generate_schedule.py
 
       - name: Show generated schedule

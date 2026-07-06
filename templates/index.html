@@ -356,6 +356,26 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
 .quick-btns { display: flex; gap: 8px; margin-bottom: 8px; }
 .quick-btns .btn { flex: 1; justify-content: center; }
 
+.generate-mode-btn {
+  font-size: 13px;
+  font-weight: 500;
+  border-color: #d0d7de;
+}
+.generate-mode-btn.active {
+  border-color: #0969da;
+  background: #eff6ff;
+  color: #0969da;
+}
+.generate-mode-btn:not(.active):hover {
+  background: #f3f4f6;
+}
+
+.test-monitor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
 @media (max-width: 900px) {
   .main-grid { grid-template-columns: 1fr; }
   .dashboard { grid-template-columns: repeat(2, 1fr); }
@@ -538,17 +558,10 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-header">🧪 测试 &amp; 监控</div>
-        <div class="panel-body">
-          <div class="tab-bar">
-            <button class="active" onclick="switchTestTab('schedule', this)">日程生成</button>
-            <button onclick="switchTestTab('monitor', this)">生成监控</button>
-            <button onclick="switchTestTab('frontend', this)">前端状态</button>
-            <button onclick="switchTestTab('backend', this)">后端数据</button>
-          </div>
-
-          <div id="test-schedule">
+      <div class="test-monitor-row">
+        <div class="panel test-panel">
+          <div class="panel-header">🧪 日程生成测试</div>
+          <div class="panel-body">
             <div class="form-group">
               <label>角色</label>
               <select id="test-character-id" onchange="onTestCharacterChange()">
@@ -558,7 +571,27 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
             <div id="test-character-info" style="display:none; padding:10px; background:#f6f8fa; border-radius:6px; margin-bottom:12px; font-size:12px; color:#656d76;">
               <div id="test-character-summary">选择角色后自动加载...</div>
             </div>
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="testGenerateSchedule()" id="testGenScheduleBtn">✨ 生成日程（仅测试，不发邮件）</button>
+            
+            <div class="form-group">
+              <label>生成模式</label>
+              <div style="display:flex; gap:8px;">
+                <button 
+                  onclick="setGenerateMode('full', this)"
+                  class="generate-mode-btn active flex-1 py-2 px-3 rounded-lg border-2 border-d0d7de bg-card text-foreground font-sm transition-colors"
+                >
+                  📅 完整一天
+                </button>
+                <button 
+                  onclick="setGenerateMode('future', this)"
+                  class="generate-mode-btn flex-1 py-2 px-3 rounded-lg border-2 border-d0d7de bg-secondary/30 text-muted-foreground font-sm transition-colors"
+                >
+                  ⏭️ 只生成未来
+                </button>
+              </div>
+              <div class="hint" style="margin-top:6px;">完整一天：生成全天日程（包括已过时的）；只生成未来：保留已过时日程，只更新未完成的部分</div>
+            </div>
+
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="testGenerateSchedule()" id="testGenScheduleBtn">✨ 生成日程（触发 GitHub Action）</button>
             <div class="hint" style="margin-top:8px;">自动加载角色日程、历史摘要和信件，调用 AI 生成今日安排</div>
             
             <div id="schedule-test-result" style="display:none; margin-top:12px; padding:12px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:6px;">
@@ -567,14 +600,20 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
               <div id="schedule-test-items" style="font-size:13px;"></div>
             </div>
           </div>
+        </div>
 
-          <div id="test-monitor" style="display:none;">
+        <div class="panel monitor-panel">
+          <div class="panel-header">
+            <span>📊 生成监控</span>
+            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="loadScheduleJobs()">🔄 刷新</button>
+          </div>
+          <div class="panel-body">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
               <button class="btn btn-secondary btn-sm" onclick="loadScheduleJobs()" style="flex:1;">🔄 刷新任务列表</button>
               <span id="monitor-status" style="font-size:12px; color:#656d76;">点击刷新加载</span>
             </div>
             
-            <div id="schedule-jobs-list" style="margin-bottom:12px;">
+            <div id="schedule-jobs-list" style="margin-bottom:12px; max-height:250px; overflow-y:auto; pr-2;">
               <span style="color:#656d76; font-size:13px;">暂无任务记录</span>
             </div>
             
@@ -585,23 +624,22 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
                 <div id="job-progress-bar" style="height:100%; background:#2da44e; width:0%; transition:width 0.3s;"></div>
               </div>
               <div style="font-weight:600; font-size:12px; margin-bottom:6px;">📝 日志</div>
-              <div id="job-logs" style="font-family:monospace; font-size:11px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:250px; overflow-y:auto; white-space:pre-wrap;"></div>
+              <div id="job-logs" style="font-family:monospace; font-size:11px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:150px; overflow-y:auto; white-space:pre-wrap;"></div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div id="test-frontend" style="display:none;">
-            <button class="btn btn-secondary btn-sm" style="width:100%; margin-bottom:8px;" onclick="inspectFrontendState()">🔍 读取 localStorage</button>
-            <div id="frontend-state-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">点击上方按钮查看前端状态...</div>
+      <div class="panel">
+        <div class="panel-header">🔍 调试工具</div>
+        <div class="panel-body">
+          <div class="quick-btns">
+            <button class="btn btn-secondary btn-sm" onclick="inspectFrontendState()">📱 前端状态</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('letters')">💌 信件</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('schedules')">📅 日程</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('attachments')">📎 附件</button>
           </div>
-
-          <div id="test-backend" style="display:none;">
-            <div class="quick-btns">
-              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('letters')">💌 信件</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('schedules')">📅 日程</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadBackendData('attachments')">📎 附件</button>
-            </div>
-            <div id="backend-data-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:300px; overflow-y:auto; white-space:pre-wrap;">点击上方按钮查看后端数据...</div>
-          </div>
+          <div id="debug-data-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:200px; overflow-y:auto; white-space:pre-wrap; margin-top:8px;">点击上方按钮查看数据...</div>
         </div>
       </div>
     </div>
@@ -1185,17 +1223,14 @@ function switchScheduleMode(mode, btn) {
 
 // ===== Test & Monitor Panel =====
 
-function switchTestTab(tab, btn) {
-  document.querySelectorAll('#test-schedule, #test-monitor, #test-frontend, #test-backend').forEach(el => el.style.display = 'none');
-  document.getElementById('test-' + tab).style.display = 'block';
-  const parent = btn.parentElement;
-  parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  if (tab === 'schedule') loadTestCharacters();
-  if (tab === 'monitor') loadScheduleJobs();
-}
-
 let testCharacterData = {};
+let generateMode = 'full';
+
+function setGenerateMode(mode, btn) {
+  generateMode = mode;
+  document.querySelectorAll('.generate-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
 
 function loadTestCharacters() {
   const sel = document.getElementById('test-character-id');
@@ -1283,56 +1318,33 @@ function testGenerateSchedule() {
   
   const btn = document.getElementById('testGenScheduleBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 生成中...';
-  showStatus('正在调用 AI 生成日程...', 'info', false);
+  btn.textContent = '⏳ 触发中...';
+  showStatus('正在触发 GitHub Action 生成日程...', 'info', false);
   
-  const body = { character_id: characterId };
-  const data = testCharacterData;
-  if (data.schedule && data.schedule.length > 0) {
-    body.last_schedule = data.schedule;
-  }
-  if (data.historySummary) body.history_summary = data.historySummary;
-  if (data.interactCount) body.interact_count = data.interactCount;
-  
-  api('/api/companion/generate-schedule', 'POST', body).then(data => {
+  api('/api/dispatch-schedule', 'POST', {
+    character: characterId,
+    mode: generateMode
+  }).then(data => {
     btn.disabled = false;
-    btn.textContent = '✨ 生成日程（仅测试，不发邮件）';
+    btn.textContent = '✨ 生成日程（触发 GitHub Action）';
     
     if (data.error) throw new Error(data.error);
     
-    const schedule = data.schedule || [];
-    const summary = data.summary || '';
+    showStatus('已触发 GitHub Action，可在右侧监控中查看进度', 'success');
     
-    document.getElementById('schedule-test-summary').textContent = summary ? '摘要：' + summary : '';
-    
-    if (schedule.length === 0) {
-      document.getElementById('schedule-test-items').innerHTML = '<div style="color:#656d76;">未返回日程项</div>';
-    } else {
-      const itemsHtml = schedule.map((item) => {
-        const time = item.time || '--:--';
-        const activity = item.activity || item.title || '无标题';
-        const loc = item.location || '';
-        const thought = item.thought || '';
-        return `<div style="padding:6px 0; border-bottom:1px solid #d0d7de;">
-          <div style="font-weight:500;">${escape(time)} · ${escape(activity)}</div>
-          ${loc ? `<div style="color:#656d76; font-size:12px; margin-top:2px;">📍 ${escape(loc)}</div>` : ''}
-          ${thought ? `<div style="color:#656d76; font-size:12px; margin-top:2px; font-style:italic;">💭 ${escape(thought)}</div>` : ''}
-        </div>`;
-      }).join('');
-      document.getElementById('schedule-test-items').innerHTML = itemsHtml;
-    }
-    
-    document.getElementById('schedule-test-result').style.display = 'block';
-    showStatus('日程生成成功 ✓', 'success');
+    // 自动跳转到监控并刷新
+    setTimeout(() => {
+      loadScheduleJobs();
+    }, 1500);
   }).catch(err => {
     btn.disabled = false;
-    btn.textContent = '✨ 生成日程（仅测试，不发邮件）';
-    showStatus('生成失败: ' + err.message, 'error');
+    btn.textContent = '✨ 生成日程（触发 GitHub Action）';
+    showStatus('触发失败: ' + err.message, 'error');
   });
 }
 
 function inspectFrontendState() {
-  const display = document.getElementById('frontend-state-display');
+  const display = document.getElementById('debug-data-display');
   try {
     const keys = Object.keys(localStorage);
     const data = {};
@@ -1346,7 +1358,7 @@ function inspectFrontendState() {
 }
 
 function loadBackendData(type) {
-  const display = document.getElementById('backend-data-display');
+  const display = document.getElementById('debug-data-display');
   display.textContent = '加载中...';
   
   let endpoint = '';
@@ -1386,6 +1398,29 @@ function getStatusBadge(status) {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${colors[status] || colors.pending}">${labels[status] || status}</span>`;
 }
 
+function getGHStatusBadge(status, conclusion) {
+  const state = conclusion || status;
+  const colors = {
+    success: 'background:#2da44e;color:#fff',
+    failure: 'background:#cf222e;color:#fff',
+    cancelled: 'background:#656d76;color:#fff',
+    skipped: 'background:#8957e5;color:#fff',
+    in_progress: 'background:#bf8700;color:#fff',
+    queued: 'background:#d0d7de;color:#24292f',
+    pending: 'background:#d0d7de;color:#24292f',
+  };
+  const labels = {
+    success: '成功',
+    failure: '失败',
+    cancelled: '已取消',
+    skipped: '已跳过',
+    in_progress: '进行中',
+    queued: '排队中',
+    pending: '等待中',
+  };
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${colors[state] || colors.pending}">${labels[state] || state}</span>`;
+}
+
 function formatTime(isoStr) {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
@@ -1397,7 +1432,7 @@ function loadScheduleJobs() {
   const statusEl = document.getElementById('monitor-status');
   statusEl.textContent = '加载中...';
   
-  api('/api/admin/schedule-jobs').then(data => {
+  api('/api/schedule-jobs').then(data => {
     const jobs = data.jobs || [];
     statusEl.textContent = `共 ${jobs.length} 个任务`;
     
@@ -1408,23 +1443,28 @@ function loadScheduleJobs() {
     
     let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
     jobs.forEach(job => {
-      const duration = job.finishedAt
-        ? ((new Date(job.finishedAt) - new Date(job.startedAt)) / 1000).toFixed(1) + 's'
-        : job.status === 'running' ? '进行中...' : '-';
+      const inputs = job.inputs || {};
+      const character = inputs.character || '未知';
+      const mode = inputs.mode || 'full';
+      const modeText = mode === 'full' ? '完整一天' : '只生成未来';
+      
+      const duration = job.updated_at && job.created_at
+        ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
+        : job.status === 'in_progress' ? '进行中...' : '-';
       
       html += `
         <div onclick="viewJobDetail('${job.id}')" style="cursor:pointer; padding:10px 12px; border:1px solid #d0d7de; border-radius:6px; background:#f6f8fa; transition:background 0.2s;"
              onmouseover="this.style.background='#eaeef2'" onmouseout="this.style.background='#f6f8fa'">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
             <div style="display:flex; align-items:center; gap:8px;">
-              ${getStatusBadge(job.status)}
-              <span style="font-size:13px; font-weight:600;">${job.characterId}</span>
+              ${getGHStatusBadge(job.status, job.conclusion)}
+              <span style="font-size:13px; font-weight:600;">${character}</span>
+              <span style="font-size:11px; color:#656d76; background:#e1e4e8; padding:2px 6px; border-radius:3px;">${modeText}</span>
             </div>
-            <span style="font-size:11px; color:#656d76;">${formatTime(job.startedAt)}</span>
+            <span style="font-size:11px; color:#656d76;">${formatTime(job.created_at)}</span>
           </div>
           <div style="display:flex; align-items:center; gap:12px; margin-top:4px; font-size:11px; color:#656d76;">
-            <span>进度: ${job.progress || 0}%</span>
-            <span>${job.itemsCount || 0} 条日程</span>
+            <span>状态: ${job.conclusion || job.status}</span>
             <span>耗时: ${duration}</span>
             <span style="margin-left:auto; font-size:10px;">#${job.id}</span>
           </div>
@@ -1459,49 +1499,73 @@ function viewJobDetail(jobId) {
 }
 
 function loadJobDetail(jobId) {
-  api('/api/admin/schedule-jobs/' + jobId).then(data => {
+  api('/api/schedule-jobs/' + jobId).then(data => {
     const job = data.job;
+    const logs = data.logs || [];
     if (!job) return;
     
     const infoEl = document.getElementById('job-detail-info');
     const progressEl = document.getElementById('job-progress-bar');
     const logsEl = document.getElementById('job-logs');
     
-    // 信息
-    const duration = job.finishedAt
-      ? ((new Date(job.finishedAt) - new Date(job.startedAt)) / 1000).toFixed(1) + 's'
+    const inputs = job.inputs || {};
+    const character = inputs.character || '未知';
+    const mode = inputs.mode || 'full';
+    const modeText = mode === 'full' ? '完整一天' : '只生成未来';
+    
+    const duration = job.updated_at && job.created_at
+      ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
       : '进行中';
+    
     infoEl.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-        ${getStatusBadge(job.status)}
-        <span style="font-weight:600; color:#24292f;">${job.characterId}</span>
+        ${getGHStatusBadge(job.status, job.conclusion)}
+        <span style="font-weight:600; color:#24292f;">${character}</span>
+        <span style="font-size:11px; color:#656d76; background:#e1e4e8; padding:2px 6px; border-radius:3px;">${modeText}</span>
         <span style="margin-left:auto;">#${job.id}</span>
       </div>
-      <div>开始: ${formatTime(job.startedAt)} | 耗时: ${duration} | ${job.itemsCount || 0} 条日程</div>
-      ${job.error ? '<div style="color:#cf222e; margin-top:4px;">错误: ' + job.error + '</div>' : ''}
+      <div>开始: ${formatTime(job.created_at)} | 更新: ${formatTime(job.updated_at)} | 耗时: ${duration}</div>
+      ${job.html_url ? `<div style="margin-top:4px;"><a href="${job.html_url}" target="_blank" style="color:#0969da; font-size:12px;">🔗 查看 GitHub Action</a></div>` : ''}
     `;
     
-    // 进度条
-    progressEl.style.width = (job.progress || 0) + '%';
-    if (job.status === 'failed') {
-      progressEl.style.background = '#cf222e';
-    } else if (job.status === 'running') {
-      progressEl.style.background = '#bf8700';
-    } else {
-      progressEl.style.background = '#2da44e';
+    let progress = 0;
+    let progressColor = '#2da44e';
+    if (job.status === 'in_progress') {
+      progress = 50;
+      progressColor = '#bf8700';
+    } else if (job.conclusion === 'success') {
+      progress = 100;
+      progressColor = '#2da44e';
+    } else if (job.conclusion === 'failure') {
+      progress = 100;
+      progressColor = '#cf222e';
+    } else if (job.status === 'queued') {
+      progress = 10;
+      progressColor = '#d0d7de';
     }
+    progressEl.style.width = progress + '%';
+    progressEl.style.background = progressColor;
     
-    // 日志
-    const logs = job.logs || [];
-    let logsHtml = logs.map(log => {
-      const colors = {
-        info: '#c9d1d9',
-        warn: '#d29922',
-        error: '#f85149'
-      };
-      return `<span style="color:${colors[log.level] || colors.info}">[${log.time}] [${log.level.toUpperCase()}] ${log.message}</span>`;
-    }).join('\n');
-    logsEl.innerHTML = logsHtml || '暂无日志';
+    let logsHtml = '';
+    if (logs.length > 0) {
+      logs.forEach(jobLog => {
+        logsHtml += `<div style="color:#c9d1d9; margin-bottom:8px;"><strong style="color:#8b949e;">=== ${jobLog.name || 'Job'} ===</strong></div>`;
+        (jobLog.steps || []).forEach(step => {
+          const stepStatus = step.conclusion || step.status;
+          const statusColor = stepStatus === 'success' ? '#2da44e' : stepStatus === 'failure' ? '#cf222e' : '#656d76';
+          logsHtml += `<span style="color:${statusColor}">[${stepStatus.toUpperCase()}] ${step.name}</span>\n`;
+          if (step.started_at) {
+            logsHtml += `<span style="color:#656d76;">  开始: ${formatTime(step.started_at)}</span>\n`;
+          }
+          if (step.completed_at) {
+            logsHtml += `<span style="color:#656d76;">  完成: ${formatTime(step.completed_at)}</span>\n`;
+          }
+        });
+      });
+    } else {
+      logsHtml = '暂无日志，点击刷新查看最新状态';
+    }
+    logsEl.innerHTML = logsHtml;
     logsEl.scrollTop = logsEl.scrollHeight;
     
   }).catch(err => {
@@ -1513,20 +1577,19 @@ function checkJobRunning(jobId) {
   if (jobPollingTimer) clearInterval(jobPollingTimer);
   
   jobPollingTimer = setInterval(() => {
-    api('/api/admin/schedule-jobs/' + jobId).then(data => {
+    api('/api/schedule-jobs/' + jobId).then(data => {
       const job = data.job;
       if (!job) return;
       
       loadJobDetail(jobId);
       
-      if (job.status !== 'running' && job.status !== 'pending') {
+      if (job.status !== 'in_progress' && job.status !== 'queued' && job.status !== 'pending') {
         clearInterval(jobPollingTimer);
         jobPollingTimer = null;
-        // 更新列表
         loadScheduleJobs();
       }
     }).catch(() => {});
-  }, 2000);
+  }, 3000);
 }
 
 showStatus('页面已加载，正在初始化...', 'info', false);

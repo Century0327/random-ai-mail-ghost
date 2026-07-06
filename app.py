@@ -69,7 +69,8 @@ def index():
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
-WORKFLOW_FILE = os.environ.get("WORKFLOW_FILE", "ghost-mail.yml")
+WORKFLOW_FILE = os.environ.get("WORKFLOW_FILE", "daily-mail.yml")
+SCHEDULE_WORKFLOW_FILE = os.environ.get("SCHEDULE_WORKFLOW_FILE", "test-schedule.yml")
 GITHUB_API = "https://api.github.com"
 CONFIG_PATH = "config.py"
 PERSONAS_DIR = "personas"
@@ -128,8 +129,9 @@ def _update_file(path, content, message):
     return False, resp.text
 
 
-def _dispatch_workflow(inputs=None):
-    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{WORKFLOW_FILE}/dispatches"
+def _dispatch_workflow(workflow_file=None, inputs=None):
+    file = workflow_file or WORKFLOW_FILE
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{file}/dispatches"
     body = {"ref": GITHUB_BRANCH, "inputs": inputs or {}}
     resp = requests.post(url, headers=_headers(), json=body)
     if resp.status_code == 204:
@@ -363,15 +365,77 @@ def dispatch():
     if "attachment_mode" in inputs:
         valid_inputs["attachment_mode"] = str(inputs["attachment_mode"])
 
-    ok, msg = _dispatch_workflow(valid_inputs if valid_inputs else None)
+    ok, msg = _dispatch_workflow(WORKFLOW_FILE, valid_inputs if valid_inputs else None)
     if not ok:
         return _cors_resp({"error": msg}, 500)
 
     return _cors_resp({"status": "ok", "message": "已触发，约1-2分钟后收到邮件"})
 
 
-def _list_runs(limit=5):
-    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{WORKFLOW_FILE}/runs"
+@app.route("/api/dispatch-schedule", methods=["POST"])
+def dispatch_schedule():
+    """触发 GitHub Action 生成日程"""
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
+
+    body = request.get_json(silent=True) or {}
+    character = body.get("character", "maodie")
+    mode = body.get("mode", "full")  # full: 完整一天, future: 只生成未来
+
+    ok, msg = _dispatch_workflow(
+        SCHEDULE_WORKFLOW_FILE,
+        {"character": character, "mode": mode}
+    )
+    if not ok:
+        return _cors_resp({"error": msg}, 500)
+
+    return _cors_resp({"status": "ok", "message": msg})
+
+
+@app.route("/api/schedule-jobs", methods=["GET", "OPTIONS"])
+def schedule_jobs():
+    """获取日程生成工作流运行记录"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
+    
+    runs, err = _list_runs(SCHEDULE_WORKFLOW_FILE, limit=10)
+    if err:
+        return _cors_resp({"error": err}, 500)
+    
+    return _cors_resp({"jobs": runs})
+
+
+@app.route("/api/schedule-jobs/<job_id>", methods=["GET", "OPTIONS"])
+def schedule_job_detail(job_id):
+    """获取日程生成工作流运行详情和日志"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        return _cors_resp({"error": "未配置 GITHUB_TOKEN 或 GITHUB_REPO 环境变量"}, 400)
+    
+    logs, err = _get_run_logs(job_id)
+    if err:
+        return _cors_resp({"error": err}, 500)
+    
+    # 获取运行信息
+    runs, _ = _list_runs(SCHEDULE_WORKFLOW_FILE, limit=20)
+    run_info = None
+    if runs:
+        for r in runs:
+            if str(r["id"]) == str(job_id):
+                run_info = r
+                break
+    
+    return _cors_resp({"job": run_info, "logs": logs})
+
+
+def _list_runs(workflow_file=None, limit=5):
+    file = workflow_file or WORKFLOW_FILE
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/actions/workflows/{file}/runs"
     params = {"per_page": limit, "branch": GITHUB_BRANCH}
     resp = requests.get(url, headers=_headers(), params=params)
     if resp.status_code != 200:
@@ -387,6 +451,7 @@ def _list_runs(limit=5):
             "html_url": r["html_url"],
             "name": r["name"],
             "event": r["event"],
+            "inputs": r.get("inputs", {}),
         })
     return runs, None
 
