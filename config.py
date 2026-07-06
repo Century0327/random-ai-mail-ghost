@@ -47,12 +47,13 @@ FOOTER = '<a href="https://github.com/Century0327/random-ai-mail-ghost" style="c
 
 # ============ AI 供应商配置 ============
 # 选择 AI 供应商，URL 会自动填写，只需在 GitHub Secrets 中设置 AI_API_KEY
-# 可选供应商：siliconflow(硅基流动), openai, moonshot, aliyun(阿里云百炼), deepseek, custom(自定义)
+# 可选供应商：siliconflow(硅基流动), openai, moonshot, aliyun(阿里云百炼), deepseek, openrouter, custom(自定义)
 AI_PROVIDER = "siliconflow"
 # AI_PROVIDER = "openai"
 # AI_PROVIDER = "moonshot"
 # AI_PROVIDER = "aliyun"
 # AI_PROVIDER = "deepseek"
+# AI_PROVIDER = "openrouter"
 # AI_PROVIDER = "custom"
 
 # 模型名称（根据供应商选择对应模型）
@@ -61,6 +62,7 @@ AI_PROVIDER = "siliconflow"
 # Moonshot：moonshot-v1-8k, moonshot-v1-32k
 # 阿里云：qwen-max, qwen-plus
 # DeepSeek：deepseek-chat, deepseek-reasoner
+# OpenRouter：google/gemini-2.0-flash-exp:free, deepseek/deepseek-chat, anthropic/claude-3.5-sonnet
 AI_MODEL = "deepseek-ai/DeepSeek-V3"
 
 # 自定义 URL（仅在 AI_PROVIDER = "custom" 时生效）

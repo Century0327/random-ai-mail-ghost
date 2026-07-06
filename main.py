@@ -40,6 +40,7 @@ AI_PROVIDER_URLS = {
     "moonshot": "https://api.moonshot.cn/v1/chat/completions",
     "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
     "deepseek": "https://api.deepseek.com/v1/chat/completions",
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
 }
 
 def _resolve_ai_url():
