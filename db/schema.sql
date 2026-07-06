@@ -67,6 +67,27 @@ CREATE TABLE IF NOT EXISTS user_states (
     PRIMARY KEY (device_id, character_id)
 );
 
+-- 商店物品表
+CREATE TABLE IF NOT EXISTS shop_items (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'item',  -- food / toy / furniture / decoration / item
+    price INTEGER DEFAULT 0,
+    image TEXT,
+    emoji_color TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 插入商店物品初始数据
+INSERT INTO shop_items (id, name, description, category, price, image, emoji_color) VALUES
+('fish_snack', '小鱼干零食', '猫咪最爱的香脆小鱼干，元气满满。', 'food', 12, '/room/item-fish.png', '#e8a87c'),
+('yarn_ball', '毛线球玩具', '软软的毛线球，可以陪它玩一下午。', 'toy', 18, '/room/item-yarn.png', '#d98ea0'),
+('cushion', '暖阳软垫', '放在窗台的柔软坐垫，晒太阳专用。', 'furniture', 45, '/room/item-cushion.png', '#e6c88a'),
+('letter_paper', '手写信纸', '给记忆收藏夹添一封新的信。', 'item', 9, '/room/letter.png', '#c9b79c'),
+('plant', '小盆栽', '给房间添一抹绿意，猫咪也喜欢。', 'decoration', 28, '/room/item-plant.png', '#8fb07a')
+ON CONFLICT (id) DO NOTHING;
+
 -- 插入角色数据
 INSERT INTO characters (id, name, description, personality, stat_name, stat_color) VALUES
 ('kitty', 'Kitty', '傲娇的小猫', '傲娇、温柔', '好感度', '#e8a0a0'),
