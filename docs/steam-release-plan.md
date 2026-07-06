@@ -453,3 +453,131 @@ Phase 5: Steam 上架准备（素材、测试、商店页）
 ```
 
 每个阶段结束后都有可交付物，可以独立测试和验证。
+
+---
+
+## 九、缺失资源清单（需你补充）
+
+> 以下清单记录了所有需要人工设计/绘制的图形资源。请按"应放位置"存放，不要修改代码，代码会自动读取。
+
+### 9.1 应用图标（Electron 打包必需）
+
+| 资源 | 规格 | 应放位置 | 说明 |
+|------|------|----------|------|
+| 应用图标 PNG | 512×512px，透明背景 | `electron/assets/icon.png` | 主程序图标 |
+| Windows 图标 ICO | 256×256px 多尺寸 | `electron/assets/icon.ico` | Windows 安装包用 |
+| macOS 图标 ICNS | 512×512px 多尺寸 | `electron/assets/icon.icns` | macOS 安装包用 |
+| 托盘图标 PNG | 32×32px，透明背景 | `electron/assets/tray.png` | 系统托盘小图标 |
+| 商店图标 PNG | 512×512px | `electron/assets/store-icon.png` | Steam 商店用 |
+
+> 当前 `electron/assets/` 目录被 `.gitignore` 排除，请在本地生成后手动添加。可用 `electron/generate-icons.js` 生成占位图（纯色圆形），但正式发布前必须替换为设计好的图标。
+
+### 9.2 角色立绘（Web 端 + Electron 共用）
+
+| 角色 | 规格 | 应放位置 | 说明 |
+|------|------|----------|------|
+| Kitty 立绘 | 正方形，推荐 512×512px，像素风/手绘 | `ghost-mail-ui/artifacts/miao-room/public/room/cat.png` | 当前已有，需确认是否最终版 |
+| Puppy 立绘 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/puppy.png` | 需补充 |
+| Foxy 立绘 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/foxy.png` | 需补充 |
+| Birb 立绘 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/birb.png` | 需补充 |
+| 耄耋（Maodie）| 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/maodie.png` | 如有计划，需补充 |
+
+> 后端 `db/schema.sql` 中 `characters` 表已预置 `image` 字段路径，新增角色只需：1) 放入图片文件；2) 执行 `INSERT INTO characters`；3) 前端重新构建。无需改代码。
+
+### 9.3 商店物品图标
+
+| 物品 | 规格 | 应放位置 |
+|------|------|----------|
+| 小鱼干零食 | 正方形，128×128px | `ghost-mail-ui/artifacts/miao-room/public/room/item-fish.png` |
+| 毛线球玩具 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/item-yarn.png` |
+| 暖阳软垫 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/item-cushion.png` |
+| 手写信纸 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/letter.png` |
+| 小盆栽 | 同上 | `ghost-mail-ui/artifacts/miao-room/public/room/item-plant.png` |
+
+> 当前 `item-cushion.png`、`item-fish.png`、`item-plant.png` 已存在，但需确认是否最终版本。`item-yarn.png`、`letter.png` 需补充。
+
+### 9.4 Steam 商店页面素材
+
+| 素材 | 规格 | 应放位置 | 说明 |
+|------|------|----------|------|
+| 主 Capsule（小） | 460×215px | `docs/steam/capsule-460x215.png` | Steam 商店列表页 |
+| 主 Capsule（大） | 920×430px | `docs/steam/capsule-920x430.png` | Steam 高分辨率 |
+| 头图 Header | 460×215px | `docs/steam/header.jpg` | 商店页顶部 |
+| 截图 1-6 | 1920×1080px | `docs/steam/screenshot-1.png` ~ `screenshot-6.png` | 实际游戏画面 |
+| 预告片 | 1920×1080, 30-60秒 | `docs/steam/trailer.mp4` | 核心玩法展示 |
+| 游戏 Logo | 透明 PNG | `docs/steam/logo.png` | 商店页标题用 |
+
+### 9.5 桌宠资源（Electron 专用）
+
+| 资源 | 规格 | 应放位置 | 说明 |
+|------|------|----------|------|
+| 桌宠 Kitty 精灵图 | 建议 APNG 或序列帧 | `electron/renderer/assets/pet-kitty.png` | 待机动画、点击反馈 |
+| 桌宠 Puppy 精灵图 | 同上 | `electron/renderer/assets/pet-puppy.png` | 同上 |
+| 桌宠 Foxy 精灵图 | 同上 | `electron/renderer/assets/pet-foxy.png` | 同上 |
+| 桌宠 Birb 精灵图 | 同上 | `electron/renderer/assets/pet-birb.png` | 同上 |
+| 爱心特效 | 小尺寸 PNG 序列 | `electron/renderer/assets/heart-effect.png` | 点击互动时飘出 |
+| 气泡框 | 9-patch 或 CSS 可拉伸 | `electron/renderer/assets/bubble.png` | 对话/通知气泡 |
+
+> 当前桌宠使用 CSS 绘制的简单图形（圆形 + 表情），可作为占位。正式发布前建议替换为真实立绘/动画。
+
+### 9.6 房间背景（Cozy Room）
+
+| 资源 | 规格 | 应放位置 | 说明 |
+|------|------|----------|------|
+| 房间背景 | 等距视角，约 2000×1200px | `ghost-mail-ui/artifacts/miao-room/public/room/room-bg.png` | 主场景背景 |
+| 家具图层 | 透明 PNG | `ghost-mail-ui/artifacts/miao-room/public/room/furniture-*.png` | 可交互的家具 |
+
+> 当前 Cozy Room 使用 CSS 绘制的房间，所有"物品"都是 emoji 或纯色块。可作为早期版本，但 Steam 付费用户预期更高质量的美术。
+
+---
+
+## 十、Vercel Web 预览部署清单（Steam 发布前）
+
+在 Steam 桌面版之前，建议先部署一个 Web 版本用于预览和测试。Web 版不需要 Electron 和 Steamworks，只需：
+
+### 10.1 后端部署（Vercel）
+
+在 Vercel 后台 → 你的后端项目 → Settings → Environment Variables：
+
+| 变量名 | 值 | 说明 |
+|--------|-----|------|
+| `DATABASE_URL` | `postgresql://...` | Neon 连接串（必须）|
+| `AI_API_KEY` 或 `AI_API_KEY_key1` | 你的硅基流动 Key | AI 调用（必须）|
+| `GITHUB_TOKEN` | `ghp_...` | 管理控制台用（可选）|
+| `ADMIN_SECRET` | 任意强密码 | 管理后台保护（可选）|
+
+部署后，后端会自动执行 `schema.sql` 初始化数据库（首次访问时）。
+
+### 10.2 前端部署（Vercel）
+
+前端 `ghost-mail-ui/artifacts/miao-room` 是一个独立的 Vite 项目，需要：
+
+```bash
+cd ghost-mail-ui/artifacts/miao-room
+pnpm install
+pnpm build
+```
+
+构建产物在 `dist/public/`，部署到 Vercel。
+
+**注意**：前端 `src/lib/companion-api.ts` 中 `API_BASE = ''` 使用相对路径。如果前端和后端**分开部署**（不同域名），需要修改 `API_BASE` 为后端地址，例如：
+
+```typescript
+const API_BASE = 'https://your-backend.vercel.app'
+```
+
+如果前端和后端**同域名部署**（Vercel rewrite 代理），则保持 `''` 即可。
+
+### 10.3 Web 版 vs Steam 版差异
+
+| 功能 | Web 版 | Steam 版 |
+|------|--------|----------|
+| 登录 | 设备 ID（自动）| Steam ID |
+| 桌宠 | ❌ 无 | ✅ 有 |
+| 系统通知 | ❌ 无 | ✅ 有 |
+| 离线运行 | ❌ 需联网 | ✅ 可缓存 |
+| 云存档 | 后端数据库 | Steam Cloud + 后端 |
+| 成就 | ❌ 无 | ✅ Steam 成就 |
+| DLC | ❌ 无 | ✅ Steam DLC |
+
+---
