@@ -153,7 +153,22 @@ def main():
     try:
         print(f"[DEBUG] 发送请求到: {api_url}")
         print(f"[DEBUG] 请求模型: {model}")
-        resp = requests.post(api_url, headers=headers, json=payload, timeout=60)
+        
+        from urllib3.util.retry import Retry
+        from requests.adapters import HTTPAdapter
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=2,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        
+        resp = session.post(api_url, headers=headers, json=payload, timeout=120)
         print(f"[DEBUG] HTTP 状态码: {resp.status_code}")
         
         if resp.status_code != 200:
