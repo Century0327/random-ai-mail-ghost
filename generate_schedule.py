@@ -300,6 +300,36 @@ def main():
     print(f"角色: {character}")
     print(f"日程数: {len(final_items)}")
     
+    # 如果配置了数据库，也保存到数据库
+    database_url = os.environ.get("DATABASE_URL", "")
+    if database_url:
+        print("[DB] 检测到 DATABASE_URL，保存到数据库...")
+        try:
+            import psycopg2
+            conn = psycopg2.connect(database_url, sslmode="require")
+            cur = conn.cursor()
+            
+            # 先删除今天的旧数据
+            cur.execute("DELETE FROM schedules WHERE character_id = %s AND date = %s", (character, today))
+            print(f"[DB] 已删除旧数据 {cur.rowcount} 条")
+            
+            # 插入新数据
+            for item in final_items:
+                cur.execute(
+                    "INSERT INTO schedules (character_id, date, time, activity, location, thought, done) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (character, today, item.get("time", "00:00"), item.get("activity", ""), item.get("location", ""), item.get("thought", ""), item.get("done", False))
+                )
+            conn.commit()
+            print(f"[DB] 成功插入 {len(final_items)} 条日程")
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"[DB ERROR] 数据库保存失败: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print("[DB] 未配置 DATABASE_URL，跳过数据库保存")
+    
     # 打印所有日程
     print("\n--- 完整日程 ---")
     for item in final_items:

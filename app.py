@@ -1123,6 +1123,20 @@ def generate_schedule():
     _update_schedule_job(job_id, progress=90)
     _add_schedule_log(job_id, "保存日程到文件...")
     
+    # 保存到数据库（优先）
+    if DATABASE_URL:
+        try:
+            _db_execute("DELETE FROM schedules WHERE character_id = %s AND date = CURRENT_DATE", (character_id,))
+            for item in schedule_items:
+                _db_execute(
+                    "INSERT INTO schedules (character_id, date, time, activity, location, thought, done) VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s)",
+                    (character_id, item.get("time", "00:00"), item.get("activity", ""), item.get("location", ""), item.get("thought", ""), item.get("done", False))
+                )
+            _add_schedule_log(job_id, f"数据库保存成功，共 {len(schedule_items)} 条日程")
+        except Exception as e:
+            print(f"[DB SAVE ERROR] 保存日程到数据库失败: {e}")
+            _add_schedule_log(job_id, f"数据库保存失败: {e}", "error")
+    
     # 保存到 JSON 文件（持久化）
     try:
         schedules_data = _load_json_data("schedules.json", {})

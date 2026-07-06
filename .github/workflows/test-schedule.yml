@@ -35,7 +35,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests psycopg2-binary
 
       - name: List directory structure
         run: |
@@ -55,6 +55,7 @@ jobs:
           AI_MODEL: ${{ secrets.AI_MODEL }}
           CHARACTER: ${{ inputs.character }}
           MODE: ${{ inputs.mode }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python generate_schedule.py
 
       - name: Show generated schedule
