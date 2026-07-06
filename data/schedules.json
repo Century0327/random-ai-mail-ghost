@@ -1,7 +1,6 @@
 {
   "maodie": {
     "2026-07-06": {
-      "date": "2026-07-06",
       "items": [
         {
           "time": "07:00",
@@ -15,60 +14,80 @@
           "activity": "吃早餐",
           "location": "食盆旁",
           "thought": "今天的小鱼干真香",
-          "done": true
+          "done": false
+        },
+        {
+          "time": "09:15",
+          "activity": "整理旧信件",
+          "location": "书桌旁",
+          "thought": "这些字迹是否还记得我的名字？",
+          "done": false
         },
         {
           "time": "10:00",
-          "activity": "在窗台发呆",
+          "activity": "窗台发呆",
           "location": "窗台",
-          "thought": "太阳照在身上真舒服",
-          "done": true
+          "thought": "蝴蝶为何总在黄昏飞走？",
+          "done": false
+        },
+        {
+          "time": "11:30",
+          "activity": "晒太阳打盹",
+          "location": "窗台",
+          "thought": "阳光是否也藏着岁月的密码？",
+          "done": false
         },
         {
           "time": "12:00",
           "activity": "午睡",
-          "location": "沙发上",
-          "thought": "暖暖的阳光好舒服",
+          "location": "猫窝",
+          "thought": "梦里有雨声吗？",
           "done": false
         },
         {
           "time": "14:00",
-          "activity": "在沙发上散步",
-          "location": "地毯上",
-          "thought": "地毯的触感很温暖",
+          "activity": "沙发上踱步",
+          "location": "沙发",
+          "thought": "人类为何总急着奔向远方？",
           "done": false
         },
         {
-          "time": "16:00",
-          "activity": "整理旧信件",
-          "location": "书桌旁",
-          "thought": "翻到好多回忆",
+          "time": "15:45",
+          "activity": "观察窗外树影",
+          "location": "窗台",
+          "thought": "树的年轮是否记得所有故事？",
           "done": false
         },
         {
-          "time": "18:00",
-          "activity": "等主人回家",
-          "location": "门口",
-          "thought": "怎么还不回来呀",
+          "time": "17:00",
+          "activity": "听雨声发呆",
+          "location": "窗台",
+          "thought": "雨滴是天空的叹息吗？",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "舔爪休息",
+          "location": "地毯",
+          "thought": "毛发间还残留着旧日的温度？",
           "done": false
         },
         {
           "time": "20:00",
-          "activity": "吃晚餐",
-          "location": "食盆旁",
-          "thought": "晚餐时间到啦",
+          "activity": "窗边凝望星空",
+          "location": "窗台",
+          "thought": "星星是否也曾在某人窗前停留？",
           "done": false
         },
         {
-          "time": "22:00",
-          "activity": "准备睡觉",
+          "time": "22:30",
+          "activity": "打呼噜入睡",
           "location": "猫窝",
-          "thought": "今天过得真开心",
+          "thought": "明天还会遇见怎样的黄昏？",
           "done": false
         }
       ],
-      "summary": "猫叠在窗台上晒了一上午太阳，下午在沙发上散步，过得很悠闲。",
-      "generatedAt": "2026-07-06T00:00:00"
+      "generated_at": "2026-07-06T07:58:29.799677"
     }
   },
   "kitty": {
