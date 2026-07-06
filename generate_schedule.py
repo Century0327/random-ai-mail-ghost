@@ -152,41 +152,18 @@ def main():
     try:
         print(f"[DEBUG] 发送请求到: {api_url}")
         print(f"[DEBUG] 请求模型: {model}")
+        resp = requests.post(api_url, headers=headers, json=payload, timeout=60)
+        print(f"[DEBUG] HTTP 状态码: {resp.status_code}")
         
-        max_retries = 3
-        last_error = None
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"[DEBUG] 第 {attempt + 1}/{max_retries} 次尝试...")
-                resp = requests.post(api_url, headers=headers, json=payload, timeout=120)
-                print(f"[DEBUG] HTTP 状态码: {resp.status_code}")
-                
-                if resp.status_code != 200:
-                    print(f"[ERROR] HTTP 错误: {resp.status_code}")
-                    print(f"[ERROR] 响应内容: {resp.text[:500]}")
-                    last_error = f"HTTP 错误 {resp.status_code}"
-                    continue
-                
-                data = resp.json()
-                ai_response = data["choices"][0]["message"]["content"].strip()
-                print(f"[DEBUG] AI 响应长度: {len(ai_response)}字")
-                print(f"[DEBUG] AI 响应前200字: {ai_response[:200]}")
-                break
-                
-            except requests.exceptions.Timeout:
-                last_error = "请求超时"
-                print(f"[WARN] 第 {attempt + 1} 次请求超时，等待后重试...")
-                import time
-                time.sleep(5 * (attempt + 1))
-            except Exception as e:
-                last_error = str(e)
-                print(f"[WARN] 第 {attempt + 1} 次请求失败: {e}")
-                import time
-                time.sleep(3 * (attempt + 1))
-        else:
-            print(f"[ERROR] AI 调用失败，已重试 {max_retries} 次: {last_error}")
+        if resp.status_code != 200:
+            print(f"[ERROR] HTTP 错误: {resp.status_code}")
+            print(f"[ERROR] 响应内容: {resp.text[:500]}")
             sys.exit(1)
+            
+        data = resp.json()
+        ai_response = data["choices"][0]["message"]["content"].strip()
+        print(f"[DEBUG] AI 响应长度: {len(ai_response)}字")
+        print(f"[DEBUG] AI 响应前200字: {ai_response[:200]}")
         
     except Exception as e:
         print(f"[ERROR] AI 调用失败: {e}")
@@ -215,14 +192,45 @@ def main():
     # 按时间排序
     schedule_items.sort(key=lambda x: x.get("time", ""))
     
-    # 标记已过时间的日程为完成
+    # 获取当前时间（用于判断已过时）
     now_hour = datetime.now().hour
     now_min = datetime.now().minute
     now_total = now_hour * 60 + now_min
     
-    for item in schedule_items:
-        item.setdefault("done", False)
+    # 检查是否已有今日日程，如果有，保留已过时的部分
+    existing_items = []
+    char_schedules = all_schedules.get(character, {})
+    if isinstance(char_schedules, dict) and today in char_schedules:
+        existing_items = char_schedules[today].get("items", [])
+        print(f"[DEBUG] 找到今日已有日程，共 {len(existing_items)} 条")
+    
+    # 合并：保留已过时的日程，用新生成的替换未过时的
+    final_items = []
+    existing_done_times = set()
+    
+    # 收集已过时的时间点
+    for item in existing_items:
         t = item.get("time", "00:00")
+        try:
+            h, m = map(int, t.split(":"))
+            total = h * 60 + m
+            if total < now_total:
+                existing_done_times.add(t)
+                final_items.append(item)
+                print(f"[DEBUG] 保留已过时日程: {t} - {item.get('activity', '')}")
+        except:
+            pass
+    
+    # 添加新生成的未过时日程（跳过已保留的时间点）
+    for item in schedule_items:
+        t = item.get("time", "00:00")
+        if t in existing_done_times:
+            continue
+        
+        # 标记为未完成
+        item.setdefault("done", False)
+        
+        # 计算时间是否已过
         try:
             h, m = map(int, t.split(":"))
             total = h * 60 + m
@@ -230,12 +238,19 @@ def main():
                 item["done"] = True
         except:
             pass
+        
+        final_items.append(item)
+        done_mark = "✓" if item.get("done") else "○"
+        print(f"[DEBUG] 添加新日程: {done_mark} {t} - {item.get('activity', '')}")
+    
+    # 按时间重新排序
+    final_items.sort(key=lambda x: x.get("time", ""))
     
     # 保存
     if character not in all_schedules or not isinstance(all_schedules[character], dict):
         all_schedules[character] = {}
     all_schedules[character][today] = {
-        "items": schedule_items,
+        "items": final_items,
         "generated_at": datetime.now().isoformat()
     }
     
@@ -245,11 +260,11 @@ def main():
     print(f"=== 已保存到 data/schedules.json ===")
     print(f"日期: {today}")
     print(f"角色: {character}")
-    print(f"日程数: {len(schedule_items)}")
+    print(f"日程数: {len(final_items)}")
     
     # 打印所有日程
     print("\n--- 完整日程 ---")
-    for item in schedule_items:
+    for item in final_items:
         done_mark = "✓" if item.get("done") else "○"
         print(f"  {done_mark} {item['time']} - {item['activity']} @ {item.get('location', '')}")
 
