@@ -915,7 +915,13 @@ function applyConfig(config) {
   document.getElementById('config-signature').value = config.SIGNATURE || '';
   document.getElementById('config-location').value = config.ATTACHMENT_LOCATION || '';
   document.getElementById('config-ai-provider').value = config.AI_PROVIDER || 'siliconflow';
-  document.getElementById('config-ai-model').value = config.AI_MODEL || '';
+  const modelInput = document.getElementById('config-ai-model');
+  modelInput.value = '';
+  modelInput.dataset.current = config.AI_MODEL || '';
+  const modelHint = document.getElementById('ai-model-hint');
+  if (modelHint) {
+    modelHint.textContent = config.AI_MODEL ? `当前模型：${config.AI_MODEL}（清空可查看全部选项）` : '可从下拉列表选择或手动输入模型名称';
+  }
   document.getElementById('config-ai-custom-url').value = config.AI_CUSTOM_URL || '';
   document.getElementById('config-ai-key-selector').value = config.AI_KEY_SELECTOR || 'key1';
   onAIProviderChange();
@@ -1096,7 +1102,7 @@ function collectConfig() {
     SIGNATURE: document.getElementById('config-signature').value,
     ATTACHMENT_LOCATION: document.getElementById('config-location').value,
     AI_PROVIDER: document.getElementById('config-ai-provider').value,
-    AI_MODEL: document.getElementById('config-ai-model').value,
+    AI_MODEL: document.getElementById('config-ai-model').value || document.getElementById('config-ai-model').dataset.current || '',
     AI_CUSTOM_URL: document.getElementById('config-ai-custom-url').value,
     AI_KEY_SELECTOR: document.getElementById('config-ai-key-selector').value,
     MIN_DAYS: parseInt(document.getElementById('config-min-days').value) || 0,
