@@ -94,32 +94,73 @@ class DataService:
 
     # ==================== Characters ====================
 
+    def _enrich_character(self, c: Dict) -> Dict:
+        cid = c.get("id", "")
+        personalities_raw = c.get("personality", "") or ""
+        personalities = [p.strip() for p in personalities_raw.replace("、", ",").replace("，", ",").split(",") if p.strip()]
+
+        image_map = {
+            "kitty": "/room/cat.png",
+            "puppy": "/room/puppy.png",
+            "foxy": "/room/foxy.png",
+            "birb": "/room/birb.png",
+        }
+
+        result = dict(c)
+        result["bio"] = c.get("description") or c.get("bio") or ""
+        result["image"] = c.get("image") or image_map.get(cid, f"/room/{cid}.png")
+        result["personalities"] = personalities
+        result["statMax"] = c.get("stat_max", 100)
+        result["isOfficial"] = c.get("is_official", True)
+        result["isPublic"] = c.get("is_public", True)
+        result["statName"] = c.get("stat_name") or c.get("statName") or "好感度"
+        result["statColor"] = c.get("stat_color") or c.get("statColor") or "#e8a0a0"
+        return result
+
     def get_characters(self) -> List[Dict]:
         rows = self._query(
-            'SELECT id, name, description, personality, stat_name AS "statName", stat_color AS "statColor" FROM characters ORDER BY id'
+            'SELECT id, name, description, personality, stat_name, stat_color FROM characters ORDER BY id'
         )
         if rows is not None:
-            return [dict(r) for r in rows]
+            return [self._enrich_character(dict(r)) for r in rows]
         # Fallback
-        return _load_json("characters.json", [
+        raw = _load_json("characters.json", [
             {"id": "kitty", "name": "Kitty", "description": "傲娇的小猫", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0"},
             {"id": "puppy", "name": "Puppy", "description": "忠诚的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
             {"id": "foxy", "name": "Foxy", "description": "狡猾的小狐狸", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
             {"id": "birb", "name": "Birb", "description": "活泼的小鸟", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
         ])
+        return [self._enrich_character(c) for c in raw]
 
     def get_character(self, character_id: str) -> Optional[Dict]:
         rows = self._query(
-            'SELECT id, name, description, personality, stat_name AS "statName", stat_color AS "statColor" FROM characters WHERE id = %s',
+            'SELECT id, name, description, personality, stat_name, stat_color FROM characters WHERE id = %s',
             (character_id,), fetch_one=True
         )
         if rows is not None:
-            return dict(rows)
+            return self._enrich_character(dict(rows))
         # Fallback
         for c in self.get_characters():
             if c["id"] == character_id:
                 return c
         return None
+
+    # ==================== Shop Items ====================
+
+    def get_items(self) -> List[Dict]:
+        rows = self._query(
+            "SELECT id, name, description AS desc, category, price, image, emoji_color AS \"emojiColor\" FROM shop_items ORDER BY id"
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        # Fallback
+        return [
+            {"id": "fish_snack", "name": "小鱼干零食", "desc": "猫咪最爱的香脆小鱼干，元气满满。", "price": 12, "emojiColor": "#e8a87c", "image": "/room/item-fish.png", "category": "food"},
+            {"id": "yarn_ball", "name": "毛线球玩具", "desc": "软软的毛线球，可以陪它玩一下午。", "price": 18, "emojiColor": "#d98ea0", "image": "/room/item-yarn.png", "category": "toy"},
+            {"id": "cushion", "name": "暖阳软垫", "desc": "放在窗台的柔软坐垫，晒太阳专用。", "price": 45, "emojiColor": "#e6c88a", "image": "/room/item-cushion.png", "category": "furniture"},
+            {"id": "letter_paper", "name": "手写信纸", "desc": "给记忆收藏夹添一封新的信。", "price": 9, "emojiColor": "#c9b79c", "image": "/room/letter.png", "category": "item"},
+            {"id": "plant", "name": "小盆栽", "desc": "给房间添一抹绿意，猫咪也喜欢。", "price": 28, "emojiColor": "#8fb07a", "image": "/room/item-plant.png", "category": "decoration"},
+        ]
 
     # ==================== Letters ====================
 

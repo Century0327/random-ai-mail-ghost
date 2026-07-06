@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify, render_template
 from core.data_service import DataService, ds
 from core.auth import auth_required, quota_required, check_quota, increment_usage, get_or_create_user
 from core.ai_gateway import ai_call, list_ai_keys, add_ai_key, toggle_ai_key, delete_ai_key
+from core.affection_stages import get_stage_by_affection
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -591,21 +592,26 @@ def companion_status(character_id):
         ]
     
     letters = ds.get_letters(character_id, 5)
-    interact_count = state.get("stat_value", 50)
+    stat_value = state.get("stat_value", 50)
+    interact_count = stat_value
     history_summary = ""
     if letters and len(letters) > 0:
         latest = letters[0]
         history_summary = latest.get("body", "")[:100]
     
+    stage_info = get_stage_by_affection(stat_value)
+    
     return _cors_resp({
         "character": char,
         "userState": {
-            "statValue": state["stat_value"],
+            "statValue": stat_value,
             "position": {"x": state["position_x"], "y": state["position_y"]},
             "mood": state["mood"],
             "schedule": schedule,
             "interactCount": interact_count,
-            "historySummary": history_summary
+            "historySummary": history_summary,
+            "stage": stage_info["level"],
+            "stageName": stage_info["name"],
         }
     })
 
@@ -645,14 +651,7 @@ def companion_position(character_id):
 def companion_items():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    return _cors_resp({
-        "items": [
-            {"id": "cat_bed", "name": "猫窝", "category": "furniture", "price": 0, "description": "温暖的小家"},
-            {"id": "window_plant", "name": "窗台绿植", "category": "decoration", "price": 50},
-            {"id": "carpet", "name": "地毯", "category": "furniture", "price": 0},
-            {"id": "lamp", "name": "台灯", "category": "furniture", "price": 0},
-        ]
-    })
+    return _cors_resp({"items": ds.get_items()})
 
 
 # ============ Schedules API ============

@@ -1,8 +1,10 @@
 # Ghost Mail - Steam 上架完整方案
 
 > 最后更新：2026-07-07
-> 当前阶段：Phase 1-4 核心功能已完成，准备数据库部署和联调
-> 代码仓库：Century0327/random-ai-mail-ghost
+> 当前阶段：Phase 1-4 核心功能已完成，前后端 API 对齐中
+> 代码仓库：
+> - 后端：Century0327/random-ai-mail-ghost（Flask + PostgreSQL）
+> - 前端：Century0327/ghost-mail-ui（React + Vite + Cozy Room 等距房间）
 
 ---
 
@@ -371,6 +373,21 @@ electron-app/
 | birb | Birb 小鸟 | ✅ `personas/birb.md` | ✅ CSS 变体 | ✅ 4阶段 |
 
 > 角色系统已动态化：新增角色只需数据库插入 + `personas/` 下放人设文件，无需改代码。桌宠样式和菜单需要新增角色有图后再加。
+
+### 前后端 API 对齐状态
+
+前端仓库：`Century0327/ghost-mail-ui`（Cozy Room 陪伴空间）
+
+| API 端点 | 后端 | 前端期望 | 状态 |
+|----------|------|---------|------|
+| `GET /api/companion/characters` | ✅ 角色列表，含 image/bio/personalities/statMax/isOfficial | ✅ 相同结构 | ✅ 已对齐 |
+| `GET /api/companion/items` | ✅ 物品列表，含 desc/price/emojiColor/image | ✅ 相同结构 | ✅ 已对齐 |
+| `GET /api/companion/user/characters/<id>/status` | ✅ 含 statValue/position/mood/schedule/stage/stageName/interactCount/historySummary | ✅ 相同结构 | ✅ 已对齐 |
+| `GET /api/companion/letters` | ✅ 信件列表（snake_case） | 前端做 snake→camel 转换 | ✅ 兼容 |
+| `GET /api/companion/schedules` | ✅ 日程（按角色分组或数组） | 前端做格式兼容 | ✅ 兼容 |
+| `GET /api/companion/attachments` | ✅ 附件列表 | 前端做 snake→camel 转换 | ✅ 兼容 |
+| `POST /api/companion/generate-schedule` | ✅ AI 生成日程 | ✅ 相同 | ✅ 已对齐 |
+| `POST /api/companion/user/characters/<id>/interact` | ✅ 互动加分 | ✅ 相同 | ✅ 已对齐 |
 
 ---
 
