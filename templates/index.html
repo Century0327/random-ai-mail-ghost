@@ -451,6 +451,36 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
       </div>
 
       <div class="panel">
+        <div class="panel-header">🤖 AI 供应商配置</div>
+        <div class="panel-body">
+          <div class="row-2">
+            <div class="form-group">
+              <label>AI 供应商</label>
+              <select id="config-ai-provider" onchange="onAIProviderChange(); updatePreview();">
+                <option value="siliconflow">硅基流动</option>
+                <option value="openai">OpenAI</option>
+                <option value="moonshot">Moonshot (Kimi)</option>
+                <option value="aliyun">阿里云百炼</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="custom">自定义</option>
+              </select>
+              <div class="hint">选择供应商后 URL 自动填写，只需在 GitHub Secrets 设置 AI_API_KEY</div>
+            </div>
+            <div class="form-group">
+              <label>模型名称</label>
+              <input type="text" id="config-ai-model" placeholder="deepseek-ai/DeepSeek-V3" oninput="updatePreview()">
+              <div class="hint" id="ai-model-hint">硅基流动常用：deepseek-ai/DeepSeek-V3</div>
+            </div>
+          </div>
+          <div class="form-group" id="ai-custom-url-group" style="display:none;">
+            <label>自定义 API URL</label>
+            <input type="text" id="config-ai-custom-url" placeholder="https://api.example.com/v1/chat/completions" oninput="updatePreview()">
+            <div class="hint">仅在「自定义」供应商时生效</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="panel-header">⏰ 发送计划</div>
         <div class="panel-body">
           <div class="tab-bar">
@@ -711,6 +741,9 @@ const defaultConfig = {
   SUBJECT_PREFIX: '',
   SIGNATURE: '',
   ATTACHMENT_LOCATION: '',
+  AI_PROVIDER: 'siliconflow',
+  AI_MODEL: 'deepseek-ai/DeepSeek-V3',
+  AI_CUSTOM_URL: '',
   MIN_DAYS: 0,
   MAX_DAYS: 3,
   ENABLE_CONVERSATION: true,
@@ -839,6 +872,10 @@ function applyConfig(config) {
   document.getElementById('config-subject').value = config.SUBJECT_PREFIX || '';
   document.getElementById('config-signature').value = config.SIGNATURE || '';
   document.getElementById('config-location').value = config.ATTACHMENT_LOCATION || '';
+  document.getElementById('config-ai-provider').value = config.AI_PROVIDER || 'siliconflow';
+  document.getElementById('config-ai-model').value = config.AI_MODEL || '';
+  document.getElementById('config-ai-custom-url').value = config.AI_CUSTOM_URL || '';
+  onAIProviderChange();
   document.getElementById('config-min-days').value = config.MIN_DAYS != null ? config.MIN_DAYS : 0;
   document.getElementById('config-max-days').value = config.MAX_DAYS != null ? config.MAX_DAYS : 3;
   document.getElementById('config-conversation').checked = config.ENABLE_CONVERSATION !== false;
@@ -931,6 +968,31 @@ function setNow() {
   updatePreview();
 }
 
+const AI_PROVIDER_HINTS = {
+  siliconflow: '硅基流动常用：deepseek-ai/DeepSeek-V3, Qwen/Qwen2.5-72B-Instruct',
+  openai: 'OpenAI 常用：gpt-4o, gpt-4o-mini',
+  moonshot: 'Moonshot 常用：moonshot-v1-8k, moonshot-v1-32k',
+  aliyun: '阿里云常用：qwen-max, qwen-plus',
+  deepseek: 'DeepSeek 常用：deepseek-chat, deepseek-reasoner',
+  custom: '自定义供应商，请填写完整 URL',
+};
+
+function onAIProviderChange() {
+  const provider = document.getElementById('config-ai-provider').value;
+  const customGroup = document.getElementById('ai-custom-url-group');
+  const hint = document.getElementById('ai-model-hint');
+  
+  if (provider === 'custom') {
+    customGroup.style.display = 'block';
+  } else {
+    customGroup.style.display = 'none';
+  }
+  
+  if (hint) {
+    hint.textContent = AI_PROVIDER_HINTS[provider] || '';
+  }
+}
+
 function updatePreview() {
   const persona = document.getElementById('config-persona').value;
   const template = document.getElementById('config-template').value;
@@ -954,9 +1016,16 @@ function updatePreview() {
     ? `${minDays}-${maxDays} 天`
     : '精确时间';
 
+  const aiProvider = document.getElementById('config-ai-provider').value;
+  const aiModel = document.getElementById('config-ai-model').value;
+  const aiCustomUrl = document.getElementById('config-ai-custom-url').value;
+  const providerLabels = { siliconflow: '硅基流动', openai: 'OpenAI', moonshot: 'Moonshot', aliyun: '阿里云', deepseek: 'DeepSeek', custom: '自定义' };
+  
   const rows = [
     ['人设', persona || '--'],
     ['模板', template || '--'],
+    ['AI 供应商', providerLabels[aiProvider] || aiProvider],
+    ['AI 模型', aiModel || '（未设置）'],
     ['主题前缀', subject || '（无）'],
     ['署名', signature || '（无）'],
     ['附件地点', location || '（无）'],
@@ -985,6 +1054,9 @@ function collectConfig() {
     SUBJECT_PREFIX: document.getElementById('config-subject').value,
     SIGNATURE: document.getElementById('config-signature').value,
     ATTACHMENT_LOCATION: document.getElementById('config-location').value,
+    AI_PROVIDER: document.getElementById('config-ai-provider').value,
+    AI_MODEL: document.getElementById('config-ai-model').value,
+    AI_CUSTOM_URL: document.getElementById('config-ai-custom-url').value,
     MIN_DAYS: parseInt(document.getElementById('config-min-days').value) || 0,
     MAX_DAYS: parseInt(document.getElementById('config-max-days').value) || 3,
     ENABLE_CONVERSATION: document.getElementById('config-conversation').checked,
@@ -1024,6 +1096,7 @@ function loadConfig() {
       config: data.config,
       personas: data.personas,
       templates: data.templates,
+      aiProviders: data.aiProviders,
       repo: data.repo,
       branch: data.branch,
     });
