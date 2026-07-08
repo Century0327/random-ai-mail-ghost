@@ -843,6 +843,8 @@ def _get_ai_config():
     key_selector = config.get("AI_KEY_SELECTOR", "1")
     api_key = _get_env(
         f"AI_API_KEY{key_selector}",
+        f"AI_API_KEY_{key_selector}",
+        f"AI_API_KEY_key{key_selector}",
         "AI_API_KEY"
     )
     return {
@@ -857,7 +859,7 @@ def _call_ai(prompt, system_context=""):
     if not ai_config:
         return None, "AI 配置未找到（请在控制台选择供应商和模型）"
     if not ai_config.get("key"):
-        return None, "AI API Key 未配置（请在 GitHub Secrets 设置 AI_API_KEY 或 AI_API_KEY_key1/key2/key3）"
+        return None, "AI API Key 未配置（请设置环境变量 AI_API_KEY1 / AI_API_KEY2 / AI_API_KEY）"
     if not ai_config.get("url"):
         return None, "AI URL 未配置（请在控制台选择供应商）"
     
