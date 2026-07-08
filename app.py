@@ -1389,7 +1389,7 @@ def auth_update_profile():
 
 # ============ AI Key 池管理（管理后台） ============
 
-ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "admin123")
 
 def _admin_required():
     """管理员认证"""
