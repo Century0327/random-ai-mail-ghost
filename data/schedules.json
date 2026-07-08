@@ -159,6 +159,95 @@
         }
       ],
       "generatedAt": "2026-07-06T21:20:25.659337"
+    },
+    "2026-07-08": {
+      "items": [
+        {
+          "time": "07:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "新的一天开始啦（*^▽^*）",
+          "done": false
+        },
+        {
+          "time": "08:00",
+          "activity": "躲在纸箱里",
+          "location": "纸箱",
+          "thought": "有声音，有点害怕（；´д`）",
+          "done": false
+        },
+        {
+          "time": "09:30",
+          "activity": "蹭蹭主人腿",
+          "location": "玄关",
+          "thought": "主人还没回来，好想黏人（>﹏<）",
+          "done": false
+        },
+        {
+          "time": "10:15",
+          "activity": "舔爪子发呆",
+          "location": "窗台",
+          "thought": "阳光真暖，想晒个够（￣^￣)ゞ",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "蜷缩打盹",
+          "location": "沙发",
+          "thought": "眯眼时听到脚步声（*´д`*）",
+          "done": false
+        },
+        {
+          "time": "13:00",
+          "activity": "舔毛梳理",
+          "location": "猫窝",
+          "thought": "蹭蹭主人的手掌（*๑•̀ㅂ•́）و✧",
+          "done": false
+        },
+        {
+          "time": "15:30",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "发现新角落，好兴奋（ﾉ≧∀≦）",
+          "done": false
+        },
+        {
+          "time": "16:30",
+          "activity": "追逐光斑",
+          "location": "地板",
+          "thought": "影子在动，必须扑上去（≧∀≦）",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "线头太有趣，抓到啦（＾▽＾）",
+          "done": false
+        },
+        {
+          "time": "19:30",
+          "activity": "蜷在主人腿",
+          "location": "床边",
+          "thought": "主人体温真好，想多靠一会儿（*´▽`*）",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "听雨声发呆",
+          "location": "窗台",
+          "thought": "雨滴声像在说晚安（•‾̑⌣‾̑•）",
+          "done": false
+        },
+        {
+          "time": "22:30",
+          "activity": "蜷成毛球睡觉",
+          "location": "窝里",
+          "thought": "终于可以安心睡了（^▽^）",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-08T21:00:59.623163"
     }
   }
 }
