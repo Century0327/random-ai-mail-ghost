@@ -67,6 +67,10 @@ function createPNG(width, height, r, g, b, a = 255) {
 
 const assetsDir = path.join(__dirname, 'assets');
 
+if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+}
+
 const icon512 = createPNG(512, 512, 147, 112, 219);
 const icon256 = createPNG(256, 256, 147, 112, 219);
 const icon128 = createPNG(128, 128, 147, 112, 219);
