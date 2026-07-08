@@ -25,8 +25,7 @@ def main():
         return ""
     
     api_key = _get_env(
-        f"AI_API_KEY_{AI_KEY_SELECTOR}",
-        f"AI_API_KEY{AI_KEY_SELECTOR.replace('key', '')}",
+        f"AI_API_KEY{AI_KEY_SELECTOR}",
         "AI_API_KEY"
     )
     

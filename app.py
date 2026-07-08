@@ -326,7 +326,7 @@ def _build_config(config):
             val = str(config["FOOTER"]).replace('"', '\\"')
             out.append(f'{indent}FOOTER = "{val}"')
             replaced = True
-        if not replaced and s.startswith("CONTACTS = ["):
+        if not replaced and s.startswith("CONTACTS = [") and "CONTACTS" in config:
             indent = line[:len(line) - len(line.lstrip())]
             out.append(f"{indent}CONTACTS = [")
             for c in config.get("CONTACTS", []):
@@ -582,15 +582,20 @@ def companion_status(character_id):
     schedule = ds.get_schedules(character_id)
     if not schedule:
         schedule = [
-            {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": True},
-            {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": True},
-            {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": True},
-            {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
-            {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
-            {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
-            {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
-            {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
-            {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
+            {"time": "05:30", "activity": "清晨巡逻", "location": "窗台", "thought": "天快亮了，先去看看领地", "done": True},
+            {"time": "06:00", "activity": "叫主人起床", "location": "主人枕头边", "thought": "起床啦！饭饭时间到！", "done": True},
+            {"time": "06:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的猫粮味道还不错", "done": True},
+            {"time": "07:30", "activity": "晨间捕猎练习", "location": "客厅", "thought": "这个逗猫棒休想逃过我的爪子", "done": True},
+            {"time": "09:00", "activity": "上午第一觉", "location": "阳光里的地毯上", "thought": "暖暖的阳光，好困...zzZ", "done": True},
+            {"time": "12:00", "activity": "午觉", "location": "沙发靠背", "thought": "中午就该睡觉，人类懂什么", "done": True},
+            {"time": "14:30", "activity": "下午小憩", "location": "猫爬架顶层", "thought": "高处睡得香，还能监视全家", "done": False},
+            {"time": "16:00", "activity": "舔毛理容", "location": "窗台上", "thought": "猫猫要保持帅气的发型", "done": False},
+            {"time": "17:30", "activity": "黄昏捕猎练习", "location": "客厅", "thought": "黄昏是猫的黄金时间！", "done": False},
+            {"time": "18:30", "activity": "吃晚餐", "location": "食盆旁", "thought": "终于开饭了，饿死喵了", "done": False},
+            {"time": "19:30", "activity": "陪主人看电视", "location": "主人腿上", "thought": "主人的腿好暖和", "done": False},
+            {"time": "21:00", "activity": "夜间疯跑", "location": "全家乱窜", "thought": "冲啊！午夜竞速开始！", "done": False},
+            {"time": "22:30", "activity": "睡前舔毛", "location": "主人床上", "thought": "把自己舔干净才能上床睡", "done": False},
+            {"time": "23:30", "activity": "夜巡", "location": "各个房间", "thought": "夜间巡逻，确保全家安全", "done": False},
         ]
     
     letters = ds.get_letters(character_id, 5)
@@ -835,10 +840,9 @@ def _get_ai_config():
     if not config_content:
         return None
     config = _parse_config(config_content)
-    key_selector = config.get("AI_KEY_SELECTOR", "key1")
+    key_selector = config.get("AI_KEY_SELECTOR", "1")
     api_key = _get_env(
-        f"AI_API_KEY_{key_selector}",
-        f"AI_API_KEY{key_selector.replace('key', '')}",
+        f"AI_API_KEY{key_selector}",
         "AI_API_KEY"
     )
     return {

@@ -77,12 +77,11 @@ AI_MODEL = ""
 AI_CUSTOM_URL = ""
 
 # ============ AI Key 选择 ============
-# 在 GitHub Secrets / Vercel 环境变量中设置多个 Key：AI_API_KEY_key1, AI_API_KEY_key2, AI_API_KEY_key3
+# 在 GitHub Secrets / Vercel 环境变量中设置多个 Key：AI_API_KEY1, AI_API_KEY2, AI_API_KEY3
 # 通过这里选择使用哪个 Key，方便切换和负载均衡
-AI_KEY_SELECTOR = "AI_API_KEY_key1"
-# AI_KEY_SELECTOR = "AI_API_KEY_key2"
-# AI_KEY_SELECTOR = "AI_API_KEY_key3""custom" 时生效）
-AI_CUSTOM_URL = ""
+AI_KEY_SELECTOR = "1"
+# AI_KEY_SELECTOR = "2"
+# AI_KEY_SELECTOR = "3"
 
 # ============ API 重试配置 ============
 # AI API 调用失败后的重试次数

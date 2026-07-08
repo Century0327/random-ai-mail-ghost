@@ -484,11 +484,11 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
             <div class="form-group">
               <label>API Key 选择</label>
               <select id="config-ai-key-selector" onchange="updatePreview()">
-                <option value="key1">Key 1</option>
-                <option value="key2">Key 2</option>
-                <option value="key3">Key 3</option>
+                <option value="1">Key 1</option>
+                <option value="2">Key 2</option>
+                <option value="3">Key 3</option>
               </select>
-              <div class="hint">对应 GitHub Secrets：AI_API_KEY_1 / AI_API_KEY_2 / AI_API_KEY_3</div>
+              <div class="hint">对应环境变量：AI_API_KEY1 / AI_API_KEY2 / AI_API_KEY3</div>
             </div>
           </div>
           <div class="form-group" id="ai-custom-url-group" style="display:none;">
@@ -815,7 +815,7 @@ const defaultConfig = {
   AI_PROVIDER: 'siliconflow',
   AI_MODEL: '',
   AI_CUSTOM_URL: '',
-  AI_KEY_SELECTOR: 'key1',
+  AI_KEY_SELECTOR: '1',
   MIN_DAYS: 0,
   MAX_DAYS: 3,
   ENABLE_CONVERSATION: true,
@@ -947,7 +947,7 @@ function applyConfig(config) {
   document.getElementById('config-ai-provider').value = config.AI_PROVIDER || 'siliconflow';
   document.getElementById('config-ai-model').value = config.AI_MODEL || '';
   document.getElementById('config-ai-custom-url').value = config.AI_CUSTOM_URL || '';
-  document.getElementById('config-ai-key-selector').value = config.AI_KEY_SELECTOR || 'key1';
+  document.getElementById('config-ai-key-selector').value = config.AI_KEY_SELECTOR || '1';
   onAIProviderChange();
   document.getElementById('config-min-days').value = config.MIN_DAYS != null ? config.MIN_DAYS : 0;
   document.getElementById('config-max-days').value = config.MAX_DAYS != null ? config.MAX_DAYS : 3;
