@@ -266,6 +266,7 @@ AI_PROVIDER_URLS = {
     "moonshot": "https://api.moonshot.cn/v1/chat/completions",
     "aliyun": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
     "deepseek": "https://api.deepseek.com/v1/chat/completions",
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
 }
 
 AI_PROVIDER_LABELS = {
@@ -274,6 +275,7 @@ AI_PROVIDER_LABELS = {
     "moonshot": "Moonshot (Kimi)",
     "aliyun": "阿里云百炼",
     "deepseek": "DeepSeek",
+    "openrouter": "OpenRouter",
     "custom": "自定义",
 }
 
@@ -827,7 +829,7 @@ def _get_ai_config():
         return None
     config = _parse_config(config_content)
     key_selector = config.get("AI_KEY_SELECTOR", "key1")
-    api_key = os.environ.get(f"AI_API_KEY_{key_selector}", os.environ.get("AI_API_KEY", ""))
+    api_key = os.environ.get(f"AI_API_KEY_{key_selector}", os.environ.get(f"AI_API_KEY{key_selector.replace('key', '')}", os.environ.get("AI_API_KEY", "")))
     return {
         "url": _resolve_ai_url(config),
         "model": config.get("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
@@ -2178,7 +2180,7 @@ def admin_list_users():
         
         offset = (page - 1) * per_page
         cur.execute(
-            f"SELECT id, steam_id, steam_name, tier, ai_quota_daily, ai_used_today, email, created_at, last_login_at FROM users {where_clause} ORDER BY last_login_at DESC LIMIT %s OFFSET %s",
+            f"SELECT id, steam_id, steam_name, tier, coins, ai_quota_daily, ai_used_today, email, created_at, last_login_at FROM users {where_clause} ORDER BY last_login_at DESC LIMIT %s OFFSET %s",
             params + [per_page, offset]
         )
         users = [dict(r) for r in cur.fetchall()]
@@ -2253,6 +2255,9 @@ def admin_update_user(user_id):
         if "steam_name" in body:
             updates.append("steam_name = %s")
             params.append(body["steam_name"])
+        if "coins" in body:
+            updates.append("coins = %s")
+            params.append(body["coins"])
         
         if not updates:
             return _cors_resp({"error": "没有可更新的字段"}, 400)

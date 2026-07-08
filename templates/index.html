@@ -458,6 +458,7 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
               <label>AI 供应商</label>
               <select id="config-ai-provider" onchange="onAIProviderChange(); updatePreview();">
                 <option value="siliconflow">硅基流动</option>
+                <option value="openrouter">OpenRouter</option>
                 <option value="openai">OpenAI</option>
                 <option value="moonshot">Moonshot (Kimi)</option>
                 <option value="aliyun">阿里云百炼</option>
@@ -468,8 +469,15 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
             </div>
             <div class="form-group">
               <label>模型名称</label>
-              <input type="text" id="config-ai-model" placeholder="deepseek-ai/DeepSeek-V3" oninput="updatePreview()">
-              <div class="hint" id="ai-model-hint">硅基流动常用：deepseek-ai/DeepSeek-V3</div>
+              <input type="text" id="config-ai-model" placeholder="选择或输入模型名称" list="ai-model-presets" oninput="updatePreview()">
+              <datalist id="ai-model-presets">
+                <option value="Qwen/Qwen3-8B">Qwen/Qwen3-8B（硅基流动）</option>
+                <option value="meta-llama/llama-3.3-70b-instruct:free">meta-llama/llama-3.3-70b-instruct:free（OpenRouter）</option>
+                <option value="openai/gpt-oss-120b:free">openai/gpt-oss-120b:free（OpenRouter）</option>
+                <option value="qwen/qwen3-next-80b-a3b-instruct:free">qwen/qwen3-next-80b-a3b-instruct:free（OpenRouter）</option>
+                <option value="deepseek-ai/DeepSeek-V3">deepseek-ai/DeepSeek-V3（硅基流动）</option>
+              </datalist>
+              <div class="hint" id="ai-model-hint">可手动输入或从下拉选择预设</div>
             </div>
           </div>
           <div class="row-2">
@@ -672,6 +680,58 @@ textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size
       </div>
 
       <div class="panel">
+        <div class="panel-header">🏺 罐罐管理（管理员）</div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label>管理员 Token</label>
+            <input type="password" id="admin-token" placeholder="输入管理员 Token（X-Admin-Token）">
+            <div class="hint">用于调用管理员 API，保存在本地浏览器中</div>
+          </div>
+          <div class="form-group">
+            <label>搜索用户</label>
+            <div class="row">
+              <input type="text" id="user-search" placeholder="Steam ID 或昵称" style="flex:1;">
+              <button class="btn btn-secondary btn-sm" onclick="searchUsers()">🔍 搜索</button>
+            </div>
+          </div>
+          <div id="user-list" style="max-height:300px; overflow-y:auto; margin-bottom:12px;">
+            <span style="color:#656d76; font-size:13px;">输入管理员 Token 后搜索用户</span>
+          </div>
+          <div id="user-edit-panel" style="display:none; padding:12px; background:#f6f8fa; border-radius:6px;">
+            <div style="font-weight:600; font-size:13px; margin-bottom:8px;">编辑用户：<span id="edit-user-name"></span></div>
+            <div class="row-2">
+              <div class="form-group">
+                <label>🏺 罐罐（代币）</label>
+                <input type="number" id="edit-user-coins" min="0">
+              </div>
+              <div class="form-group">
+                <label>用户等级</label>
+                <select id="edit-user-tier">
+                  <option value="basic">基础</option>
+                  <option value="premium">高级</option>
+                  <option value="admin">管理员</option>
+                </select>
+              </div>
+            </div>
+            <div class="row-2">
+              <div class="form-group">
+                <label>每日 AI 配额</label>
+                <input type="number" id="edit-user-quota" min="0">
+              </div>
+              <div class="form-group">
+                <label>今日已用</label>
+                <input type="number" id="edit-user-used" min="0">
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="cancelEditUser()">取消</button>
+              <button class="btn btn-primary btn-sm" onclick="saveUserEdit()">💾 保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="panel-header">🔍 调试工具</div>
         <div class="panel-body">
           <div class="quick-btns">
@@ -753,7 +813,7 @@ const defaultConfig = {
   SIGNATURE: '',
   ATTACHMENT_LOCATION: '',
   AI_PROVIDER: 'siliconflow',
-  AI_MODEL: 'deepseek-ai/DeepSeek-V3',
+  AI_MODEL: '',
   AI_CUSTOM_URL: '',
   AI_KEY_SELECTOR: 'key1',
   MIN_DAYS: 0,
@@ -982,7 +1042,8 @@ function setNow() {
 }
 
 const AI_PROVIDER_HINTS = {
-  siliconflow: '硅基流动常用：deepseek-ai/DeepSeek-V3, Qwen/Qwen2.5-72B-Instruct',
+  siliconflow: '硅基流动常用：deepseek-ai/DeepSeek-V3, Qwen/Qwen3-8B',
+  openrouter: 'OpenRouter 免费模型：meta-llama/llama-3.3-70b-instruct:free, openai/gpt-oss-120b:free',
   openai: 'OpenAI 常用：gpt-4o, gpt-4o-mini',
   moonshot: 'Moonshot 常用：moonshot-v1-8k, moonshot-v1-32k',
   aliyun: '阿里云常用：qwen-max, qwen-plus',
@@ -1695,6 +1756,135 @@ renderContacts(defaultConfig.CONTACTS);
 updatePreview();
 loadTestCharacters();
 loadScheduleJobs();
+
+// ===== 罐罐管理（管理员） =====
+
+let currentEditUser = null;
+
+function getAdminToken() {
+  return localStorage.getItem('admin_token') || document.getElementById('admin-token').value;
+}
+
+function saveAdminTokenToLocal() {
+  const token = document.getElementById('admin-token').value;
+  if (token) {
+    localStorage.setItem('admin_token', token);
+  }
+}
+
+function adminApi(endpoint, method='GET', body=null) {
+  saveAdminTokenToLocal();
+  const token = getAdminToken();
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Token': token,
+    },
+  };
+  if (body) options.body = JSON.stringify(body);
+  return fetch(endpoint, options).then(r => {
+    if (!r.ok) {
+      return r.json().then(data => {
+        throw new Error(data.error || data.message || ('HTTP ' + r.status));
+      }).catch(() => {
+        throw new Error('HTTP ' + r.status);
+      });
+    }
+    return r.json();
+  });
+}
+
+function searchUsers() {
+  const search = document.getElementById('user-search').value.trim();
+  const listEl = document.getElementById('user-list');
+  
+  if (!getAdminToken()) {
+    showStatus('请先输入管理员 Token', 'warning');
+    return;
+  }
+  
+  listEl.innerHTML = '<span style="color:#656d76; font-size:13px;">加载中...</span>';
+  
+  adminApi('/api/admin/users?per_page=20&search=' + encodeURIComponent(search)).then(data => {
+    const users = data.users || [];
+    if (users.length === 0) {
+      listEl.innerHTML = '<span style="color:#656d76; font-size:13px;">未找到用户</span>';
+      return;
+    }
+    
+    let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+    users.forEach(user => {
+      html += `
+        <div style="padding:10px 12px; border:1px solid #d0d7de; border-radius:6px; background:#fff; cursor:pointer;"
+             onclick="editUser(${user.id})"
+             onmouseover="this.style.background='#f6f8fa'" onmouseout="this.style.background='#fff'">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <span style="font-weight:600; font-size:13px;">${escape(user.steam_name || user.steam_id)}</span>
+              <span style="font-size:11px; color:#656d76; margin-left:6px;">${escape(user.steam_id)}</span>
+            </div>
+            <span style="font-size:12px; background:#f6f8fa; padding:2px 8px; border-radius:10px;">🏺 ${user.coins !== undefined ? user.coins : '--'}</span>
+          </div>
+          <div style="font-size:11px; color:#656d76; margin-top:4px;">
+            等级: ${user.tier || 'basic'} | 配额: ${user.ai_used_today || 0}/${user.ai_quota_daily || 0}
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+  }).catch(err => {
+    listEl.innerHTML = `<span style="color:#cf222e; font-size:13px;">加载失败: ${escape(err.message)}</span>`;
+  });
+}
+
+function editUser(userId) {
+  const panel = document.getElementById('user-edit-panel');
+  panel.style.display = 'block';
+  
+  adminApi('/api/admin/users/' + userId).then(data => {
+    const user = data.user;
+    currentEditUser = user;
+    
+    document.getElementById('edit-user-name').textContent = user.steam_name || user.steam_id;
+    document.getElementById('edit-user-coins').value = user.coins !== undefined ? user.coins : 0;
+    document.getElementById('edit-user-tier').value = user.tier || 'basic';
+    document.getElementById('edit-user-quota').value = user.ai_quota_daily || 0;
+    document.getElementById('edit-user-used').value = user.ai_used_today || 0;
+  }).catch(err => {
+    showStatus('获取用户详情失败: ' + err.message, 'error');
+  });
+}
+
+function cancelEditUser() {
+  currentEditUser = null;
+  document.getElementById('user-edit-panel').style.display = 'none';
+}
+
+function saveUserEdit() {
+  if (!currentEditUser) return;
+  
+  const body = {
+    coins: parseInt(document.getElementById('edit-user-coins').value) || 0,
+    tier: document.getElementById('edit-user-tier').value,
+    ai_quota_daily: parseInt(document.getElementById('edit-user-quota').value) || 0,
+    ai_used_today: parseInt(document.getElementById('edit-user-used').value) || 0,
+  };
+  
+  adminApi('/api/admin/users/' + currentEditUser.id, 'PUT', body).then(data => {
+    showStatus('用户信息已更新 ✓', 'success');
+    currentEditUser = data.user;
+    searchUsers();
+  }).catch(err => {
+    showStatus('更新失败: ' + err.message, 'error');
+  });
+}
+
+// 初始化时从 localStorage 恢复 admin token
+const savedAdminToken = localStorage.getItem('admin_token');
+if (savedAdminToken) {
+  document.getElementById('admin-token').value = savedAdminToken;
+}
 
 const hasCache = loadFromCache();
 loadConfig();
