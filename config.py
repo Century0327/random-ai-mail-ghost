@@ -71,7 +71,7 @@ AI_PROVIDER = "siliconflow"
 #             cognitivecomputations/dolphin-mistral-24b-venice-edition:free, openai/gpt-oss-20b:free,
 #             nvidia/nemotron-nano-12b-v2-vl:free, nvidia/nemotron-nano-9b-v2:free
 #   基准：Qwen/Qwen3-8B, qwen/qwen3-coder:free
-AI_MODEL = ""
+AI_MODEL = "Qwen/Qwen3-8B"
 
 # 自定义 URL（仅在 AI_PROVIDER = "custom" 时生效）
 AI_CUSTOM_URL = ""
