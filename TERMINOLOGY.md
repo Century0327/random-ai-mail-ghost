@@ -83,4 +83,19 @@ artifacts/miao-room/
 
 ---
 
+## 🔗 Vercel 项目面板
+
+| 项目 | 面板链接 | 说明 |
+|------|----------|------|
+| 控制台部署 | — | （vercel.com 后端项目面板，待补充） |
+| 游戏界面部署 | https://vercel.com/century0327s-projects/ghost-mail-ui-miao-room/GupS8N1KbUD4uG212nR4BsNhnPKX | 前端 Vercel 构建/部署日志 |
+
+---
+
+## 💡 已知问题 / 注意事项
+
+- **schedule-panel.tsx sourcemap 警告**：Vercel 构建时会报 `Can't resolve original location of error`，不影响功能，仅 sourcemap 定位可能有偏差。
+
+---
+
 *最后更新：2026-07-09*
