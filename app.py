@@ -1001,8 +1001,9 @@ def generate_schedule():
 4. 考虑角色性格和历史摘要中的偏好
 5. 如果用户互动多，可以安排一些互动相关活动
 6. 参考最近信件内容，角色可能会因为来信/回信的内容而调整心情和计划
-7. 重要：必须生成完整一天的日程，过去的时间也要有（标注已完成），不能留空或跳过
-8. 已过时间的日程，可以根据实际情况标记为已完成或进行中
+7. 重要：必须生成完整一天的日程，过去的时间也要有，不能留空或跳过
+8. 重要：activity 活动描述必须使用现在时或将来时，绝对不能使用过去时、完成时（如"吃了"、"睡了"、"看完了"等），因为这是计划日程，不是已发生的记录
+9. 重要：activity 中不能出现感受描述（如"心满意足"、"很开心"、"好舒服"等），感受和心情只能放在 thought 内心想法里
 
 ## 输出格式
 只返回 JSON 数组，不要其他文字：
@@ -2121,6 +2122,206 @@ def api_affection_progress(character_id):
             for s in LEVEL_STAGES
         ],
     })
+
+
+# ============ 管理员：用户管理 ============
+
+@app.route("/api/admin/login", methods=["POST", "OPTIONS"])
+def admin_login():
+    """管理员登录验证"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    
+    body = request.get_json(silent=True) or {}
+    token = body.get("token", "")
+    
+    if not ADMIN_SECRET:
+        return _cors_resp({"error": "管理员未配置"}, 500)
+    
+    if token == ADMIN_SECRET:
+        return _cors_resp({"status": "ok", "message": "登录成功"})
+    else:
+        return _cors_resp({"error": "密码错误"}, 401)
+
+
+@app.route("/api/admin/users", methods=["GET", "OPTIONS"])
+def admin_list_users():
+    """获取用户列表"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    search = request.args.get("search", "")
+    
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        where_clause = ""
+        params = []
+        if search:
+            where_clause = "WHERE steam_id LIKE %s OR steam_name LIKE %s"
+            params = [f"%{search}%", f"%{search}%"]
+        
+        cur.execute(f"SELECT COUNT(*) as total FROM users {where_clause}", params)
+        total = cur.fetchone()["total"]
+        
+        offset = (page - 1) * per_page
+        cur.execute(
+            f"SELECT id, steam_id, steam_name, tier, ai_quota_daily, ai_used_today, email, created_at, last_login_at FROM users {where_clause} ORDER BY last_login_at DESC LIMIT %s OFFSET %s",
+            params + [per_page, offset]
+        )
+        users = [dict(r) for r in cur.fetchall()]
+        
+        return _cors_resp({
+            "users": users,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+        })
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["GET", "OPTIONS"])
+def admin_get_user(user_id):
+    """获取单个用户详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            return _cors_resp({"error": "用户不存在"}, 404)
+        return _cors_resp({"user": dict(user)})
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["PUT", "OPTIONS"])
+def admin_update_user(user_id):
+    """更新用户信息（额度、等级等）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    
+    body = request.get_json(silent=True) or {}
+    
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        updates = []
+        params = []
+        
+        if "ai_quota_daily" in body:
+            updates.append("ai_quota_daily = %s")
+            params.append(body["ai_quota_daily"])
+        if "ai_used_today" in body:
+            updates.append("ai_used_today = %s")
+            params.append(body["ai_used_today"])
+        if "tier" in body:
+            updates.append("tier = %s")
+            params.append(body["tier"])
+        if "email" in body:
+            updates.append("email = %s")
+            params.append(body["email"])
+        if "steam_name" in body:
+            updates.append("steam_name = %s")
+            params.append(body["steam_name"])
+        
+        if not updates:
+            return _cors_resp({"error": "没有可更新的字段"}, 400)
+        
+        params.append(user_id)
+        cur.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = %s RETURNING *", params)
+        conn.commit()
+        user = cur.fetchone()
+        
+        return _cors_resp({"status": "ok", "user": dict(user)})
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["DELETE", "OPTIONS"])
+def admin_delete_user(user_id):
+    """删除用户"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        conn.commit()
+        return _cors_resp({"status": "ok", "message": "用户已删除"})
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/stats", methods=["GET", "OPTIONS"])
+def admin_stats():
+    """获取系统统计数据"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    if not _admin_required():
+        return _cors_resp({"error": "需要管理员权限"}, 403)
+    
+    conn = _db_conn()
+    if not conn:
+        return _cors_resp({"error": "数据库未配置"}, 500)
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT COUNT(*) as total_users FROM users")
+        total_users = cur.fetchone()["total_users"]
+        
+        cur.execute("SELECT COUNT(*) as active_today FROM users WHERE last_login_at > NOW() - INTERVAL '1 day'")
+        active_today = cur.fetchone()["active_today"]
+        
+        cur.execute("SELECT COUNT(*) as active_7d FROM users WHERE last_login_at > NOW() - INTERVAL '7 days'")
+        active_7d = cur.fetchone()["active_7d"]
+        
+        cur.execute("SELECT COALESCE(SUM(ai_used_today), 0) as total_used_today FROM users")
+        total_used_today = cur.fetchone()["total_used_today"]
+        
+        return _cors_resp({
+            "total_users": total_users,
+            "active_today": active_today,
+            "active_7d": active_7d,
+            "total_used_today": total_used_today,
+        })
+    except Exception as e:
+        return _cors_resp({"error": str(e)}, 500)
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
