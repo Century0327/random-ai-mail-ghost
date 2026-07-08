@@ -3,1733 +3,282 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ghost Mail 控制台</title>
+<title>Ghost Mail - 幽灵邮件</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  background: #f6f8fa;
-  color: #24292f;
-  padding: 20px;
-}
-.container { max-width: 1200px; margin: 0 auto; }
-
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-header h1 { font-size: 22px; font-weight: 600; }
-header .subtitle { font-size: 13px; color: #656d76; margin-top: 4px; }
-
-.dashboard {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.stat-card {
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  padding: 14px;
-}
-.stat-card .label { font-size: 12px; color: #656d76; margin-bottom: 6px; }
-.stat-card .value { font-size: 18px; font-weight: 600; }
-
-.main-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 16px;
-}
-
-.panels {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.panel {
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  overflow: hidden;
-}
-.panel-header {
-  background: #f6f8fa;
-  border-bottom: 1px solid #d0d7de;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.panel-body { padding: 14px; }
-
-.form-group { margin-bottom: 12px; }
-.form-group:last-child { margin-bottom: 0; }
-.form-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 6px;
-  color: #24292f;
-}
-.form-group .hint {
-  font-size: 12px;
-  color: #656d76;
-  margin-top: 4px;
-}
-
-select, input[type="text"], input[type="number"], input[type="date"], input[type="datetime-local"], textarea {
-  width: 100%;
-  padding: 6px 10px;
-  font-size: 14px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #fff;
-  color: #24292f;
-  outline: none;
-  transition: border-color 0.15s;
-  -webkit-appearance: none;
-  appearance: none;
-}
-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%23656d76' d='M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 32px;
-  cursor: pointer;
-}
-select:focus, input:focus, textarea:focus {
-  border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
-}
-textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size: 13px; }
-
-.row { display: flex; gap: 10px; }
-.row .form-group { flex: 1; }
-.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 6px;
-  border: 1px solid;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.btn-primary {
-  background: #2da44e;
-  border-color: rgba(27, 31, 36, 0.15);
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh;
   color: #fff;
 }
-.btn-primary:hover { background: #2c974b; }
-.btn-primary:disabled { background: #94d3a2; cursor: not-allowed; }
-.btn-secondary {
-  background: #f6f8fa;
-  border-color: rgba(27, 31, 36, 0.15);
-  color: #24292f;
-}
-.btn-secondary:hover { background: #f3f4f6; }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
 
-.actions {
-  margin-top: 16px;
+header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.logo {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+h1 {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle {
+  font-size: 18px;
+  color: #b0b0b0;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin-bottom: 60px;
+}
+.feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.feature-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-5px);
+}
+.feature-icon { font-size: 36px; margin-bottom: 16px; }
+.feature-card h3 { font-size: 18px; margin-bottom: 12px; }
+.feature-card p { font-size: 14px; color: #888; line-height: 1.6; }
+
+.cta {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.cta-buttons {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  gap: 20px;
+  justify-content: center;
   flex-wrap: wrap;
 }
-
-.toggle-switch {
+.btn {
+  padding: 16px 40px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
 }
-.toggle-switch input { display: none; }
-.toggle-slider {
-  flex-shrink: 0;
-  width: 36px;
-  height: 20px;
-  background: #d0d7de;
-  border-radius: 10px;
-  position: relative;
-  transition: background 0.2s;
+.btn-primary {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+  color: #1a1a2e;
 }
-.toggle-slider::after {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  top: 2px;
-  left: 2px;
-  transition: left 0.2s;
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 40px rgba(255, 154, 158, 0.4);
 }
-.toggle-switch span.label-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: #24292f;
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
-.toggle-switch input:checked + .toggle-slider { background: #2da44e; }
-.toggle-switch input:checked + .toggle-slider::after { left: 18px; }
-
-.contact-item {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: flex-start;
-}
-.contact-item select, .contact-item input { flex: 1; min-width: 0; }
-.contact-item .remove-btn {
-  padding: 6px 10px;
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #cf222e;
-  flex-shrink: 0;
-  font-size: 12px;
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
 }
 
-.tab-bar {
-  display: flex;
-  border-bottom: 1px solid #d0d7de;
-  margin-bottom: 12px;
+.download-section {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 40px;
+  margin-bottom: 60px;
 }
-.tab-bar button {
-  padding: 8px 14px;
-  font-size: 13px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  color: #656d76;
+.download-section h2 {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 30px;
 }
-.tab-bar button.active {
-  color: #0969da;
-  border-bottom-color: #0969da;
-  font-weight: 500;
-}
-
-.status-bar {
-  margin-top: 16px;
-  padding: 12px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  display: none;
-  position: relative;
-  word-break: break-word;
-}
-.status-bar.success {
-  background: #dafbe1;
-  color: #1a7f37;
-  border: 1px solid #2da44e;
-  display: block;
-}
-.status-bar.error {
-  background: #ffebe9;
-  color: #cf222e;
-  border: 1px solid #ff8182;
-  display: block;
-}
-.status-bar.info {
-  background: #ddf4ff;
-  color: #0969da;
-  border: 1px solid #54aeff;
-  display: block;
-}
-.status-bar.warning {
-  background: #fff8c5;
-  color: #9a6700;
-  border: 1px solid #d4a72c;
-  display: block;
-}
-.status-bar .status-icon {
-  font-weight: bold;
-  margin-right: 6px;
-}
-
-.loading-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #d0d7de;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-.loading-dot.loading { background: #f0883e; animation: pulse 1s infinite; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.preview-panel {
-  position: sticky;
-  top: 20px;
-}
-.preview-content {
-  font-size: 13px;
-  line-height: 1.7;
-}
-.preview-row {
-  display: flex;
-  padding: 6px 0;
-  border-bottom: 1px solid #d0d7de;
-}
-.preview-row:last-child { border-bottom: none; }
-.preview-key {
-  width: 100px;
-  color: #656d76;
-  flex-shrink: 0;
-}
-.preview-val {
-  flex: 1;
-  color: #24292f;
-  word-break: break-all;
-}
-.preview-val code {
-  background: #f6f8fa;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-.run-log {
-  margin-top: 12px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  overflow: hidden;
-}
-.run-log-header {
-  background: #f6f8fa;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.run-log-body {
-  display: none;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  background: #0d1117;
-  color: #c9d1d9;
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.run-log-body.open { display: block; }
-.job-item { margin-bottom: 10px; }
-.job-name {
-  color: #58a6ff;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.step-item {
-  padding: 2px 0 2px 16px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.step-item .step-status { font-size: 11px; }
-.step-item.success .step-status { color: #3fb950; }
-.step-item.failure .step-status { color: #f85149; }
-.step-item.pending .step-status { color: #d29922; }
-.step-item.in-progress .step-status { color: #58a6ff; }
-
-.quick-btns { display: flex; gap: 8px; margin-bottom: 8px; }
-.quick-btns .btn { flex: 1; justify-content: center; }
-
-.generate-mode-btn {
-  font-size: 13px;
-  font-weight: 500;
-  border-color: #d0d7de;
-}
-.generate-mode-btn.active {
-  border-color: #0969da;
-  background: #eff6ff;
-  color: #0969da;
-}
-.generate-mode-btn:not(.active):hover {
-  background: #f3f4f6;
-}
-
-.test-monitor-row {
+.download-links {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.download-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.download-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.download-icon { font-size: 40px; margin-bottom: 12px; }
+.download-item h3 { font-size: 16px; margin-bottom: 8px; }
+.download-item p { font-size: 13px; color: #888; margin-bottom: 16px; }
+.download-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+.download-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-@media (max-width: 900px) {
-  .main-grid { grid-template-columns: 1fr; }
-  .dashboard { grid-template-columns: repeat(2, 1fr); }
+.characters {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.characters h2 {
+  font-size: 28px;
+  margin-bottom: 30px;
+}
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.character-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+}
+.character-icon { font-size: 48px; margin-bottom: 12px; }
+.character-item h3 { font-size: 16px; }
+
+footer {
+  text-align: center;
+  padding: 30px;
+  color: #666;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 30px; }
+  .features { grid-template-columns: 1fr; }
+  .download-links { grid-template-columns: 1fr; }
+  .character-grid { grid-template-columns: repeat(2, 1fr); }
+  .cta-buttons { flex-direction: column; align-items: center; }
+  .btn { width: 100%; justify-content: center; }
 }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <div>
-      <h1>📬 Ghost Mail 控制台</h1>
-      <div class="subtitle" id="repoInfo"><span class="loading-dot loading"></span>加载中...</div>
-    </div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn btn-secondary btn-sm" onclick="loadConfig()">🔄 刷新</button>
-      <button class="btn btn-primary" id="testBtn" onclick="testSend()">🚀 立即发送</button>
-    </div>
+    <div class="logo">📬</div>
+    <h1>Ghost Mail</h1>
+    <p class="subtitle">来自异世界的神秘来信，与 AI 角色建立深厚羁绊</p>
   </header>
 
-  <div class="dashboard">
-    <div class="stat-card">
-      <div class="label">当前人设</div>
-      <div class="value" id="statPersona">--</div>
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">💌</div>
+      <h3>不定时来信</h3>
+      <p>AI 角色会在节日或随机时刻给你寄信，带来惊喜和温暖</p>
     </div>
-    <div class="stat-card">
-      <div class="label">邮件模板</div>
-      <div class="value" id="statTemplate">--</div>
+    <div class="feature-card">
+      <div class="feature-icon">❤️</div>
+      <h3>好感度系统</h3>
+      <p>通过互动提升好感度，解锁专属故事和特殊信件</p>
     </div>
-    <div class="stat-card">
-      <div class="label">联系人</div>
-      <div class="value" id="statContacts">--</div>
+    <div class="feature-card">
+      <div class="feature-icon">📅</div>
+      <h3>角色日程</h3>
+      <p>角色每天会自动规划自己的小日程，记录生活点滴</p>
     </div>
-    <div class="stat-card">
-      <div class="label">发送间隔</div>
-      <div class="value" id="statInterval">--</div>
+    <div class="feature-card">
+      <div class="feature-icon">🎁</div>
+      <h3>信件收藏</h3>
+      <p>收藏珍贵的信件和附件，留住每一个美好瞬间</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏆</div>
+      <h3>成就系统</h3>
+      <p>完成各种成就，解锁特殊奖励</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🐱</div>
+      <h3>桌宠陪伴</h3>
+      <p>可爱的角色桌宠陪伴你的每一天</p>
     </div>
   </div>
 
-  <div class="main-grid">
-    <div class="panels">
-      <div class="panel">
-        <div class="panel-header">👤 基础设置</div>
-        <div class="panel-body">
-          <div class="row-2">
-            <div class="form-group">
-              <label>人设</label>
-              <select id="config-persona" onchange="updatePreview()">
-                <option value="">加载中...</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>邮件模板</label>
-              <select id="config-template" onchange="updatePreview()">
-                <option value="">加载中...</option>
-              </select>
-            </div>
-          </div>
-          <div class="row-2">
-            <div class="form-group">
-              <label>主题前缀</label>
-              <input type="text" id="config-subject" placeholder="【猫猫来信】" oninput="updatePreview()">
-            </div>
-            <div class="form-group">
-              <label>署名</label>
-              <input type="text" id="config-signature" placeholder="留空则不署名" oninput="updatePreview()">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>附件水印地点</label>
-            <input type="text" id="config-location" placeholder="如：上海 / 杭州 / 留空不显示" oninput="updatePreview()">
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">🤖 AI 供应商配置</div>
-        <div class="panel-body">
-          <div class="row-2">
-            <div class="form-group">
-              <label>AI 供应商</label>
-              <select id="config-ai-provider" onchange="onAIProviderChange(); updatePreview();">
-                <option value="siliconflow">硅基流动</option>
-                <option value="openai">OpenAI</option>
-                <option value="moonshot">Moonshot (Kimi)</option>
-                <option value="aliyun">阿里云百炼</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="custom">自定义</option>
-              </select>
-              <div class="hint">选择供应商后 URL 自动填写，只需在 GitHub Secrets 设置 AI_API_KEY</div>
-            </div>
-            <div class="form-group">
-              <label>模型名称</label>
-              <input type="text" id="config-ai-model" placeholder="选择或输入模型名称" list="ai-model-list" oninput="updatePreview()">
-              <datalist id="ai-model-list">
-                <option value="deepseek-ai/DeepSeek-V3"></option>
-                <option value="deepseek-ai/DeepSeek-R1"></option>
-                <option value="Qwen/Qwen2.5-72B-Instruct"></option>
-                <option value="gpt-4o"></option>
-                <option value="gpt-4o-mini"></option>
-                <option value="moonshot-v1-8k"></option>
-                <option value="moonshot-v1-32k"></option>
-                <option value="qwen-max"></option>
-                <option value="qwen-plus"></option>
-                <option value="deepseek-chat"></option>
-                <option value="deepseek-reasoner"></option>
-                <option value="meta-llama/llama-3.3-70b-instruct:free"></option>
-                <option value="qwen/qwen3-next-80b-a3b-instruct:free"></option>
-                <option value="openai/gpt-oss-120b:free"></option>
-                <option value="nousresearch/hermes-3-llama-3.1-405b:free"></option>
-                <option value="nvidia/nemotron-3-ultra-550b-a55b:free"></option>
-                <option value="tencent/hy3:free"></option>
-                <option value="google/gemma-4-31b-it:free"></option>
-                <option value="google/gemma-4-26b-a4b-it:free"></option>
-                <option value="nvidia/nemotron-3-nano-30b-a3b:free"></option>
-                <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"></option>
-                <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free"></option>
-                <option value="openai/gpt-oss-20b:free"></option>
-                <option value="nvidia/nemotron-nano-12b-v2-vl:free"></option>
-                <option value="nvidia/nemotron-nano-9b-v2:free"></option>
-                <option value="Qwen/Qwen3-8B"></option>
-                <option value="qwen/qwen3-coder:free"></option>
-              </datalist>
-              <div class="hint" id="ai-model-hint">可从下拉列表选择或手动输入模型名称</div>
-            </div>
-          </div>
-          <div class="row-2">
-            <div class="form-group">
-              <label>API Key 选择</label>
-              <select id="config-ai-key-selector" onchange="updatePreview()">
-                <option value="key1">Key 1</option>
-                <option value="key2">Key 2</option>
-                <option value="key3">Key 3</option>
-              </select>
-              <div class="hint">对应 GitHub Secrets：AI_API_KEY_1 / AI_API_KEY_2 / AI_API_KEY_3</div>
-            </div>
-          </div>
-          <div class="form-group" id="ai-custom-url-group" style="display:none;">
-            <label>自定义 API URL</label>
-            <input type="text" id="config-ai-custom-url" placeholder="https://api.example.com/v1/chat/completions" oninput="updatePreview()">
-            <div class="hint">仅在「自定义」供应商时生效</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">⏰ 发送计划</div>
-        <div class="panel-body">
-          <div class="tab-bar">
-            <button class="active" onclick="switchScheduleMode('random', this)">随机间隔</button>
-            <button onclick="switchScheduleMode('fixed', this)">精确时间</button>
-          </div>
-          <div id="schedule-random">
-            <div class="row">
-              <div class="form-group">
-                <label>最少间隔（天）</label>
-                <input type="number" id="config-min-days" min="0" max="30" oninput="updatePreview()">
-              </div>
-              <div class="form-group">
-                <label>最大间隔（天）</label>
-                <input type="number" id="config-max-days" min="0" max="30" oninput="updatePreview()">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>附件模式</label>
-              <select id="config-attachment-mode" onchange="updatePreview()">
-                <option value="normal">正常（按触发策略）</option>
-                <option value="force_on">强制有附件</option>
-                <option value="force_off">强制无附件</option>
-              </select>
-              <div class="hint">测试时可临时覆盖</div>
-            </div>
-          </div>
-          <div id="schedule-fixed" style="display:none;">
-            <div class="quick-btns">
-              <button class="btn btn-secondary btn-sm" onclick="setToday()">📅 今天</button>
-              <button class="btn btn-secondary btn-sm" onclick="setNow()">🕐 当前时间</button>
-            </div>
-            <div class="form-group">
-              <label>日期时间（北京时间）</label>
-              <input type="datetime-local" id="config-fixed-datetime" onchange="updatePreview()">
-            </div>
-            <div class="hint">⚠️ 精确时间配合 GitHub Actions cron 使用</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">💬 连续对话</div>
-        <div class="panel-body">
-          <div class="form-group">
-            <label class="toggle-switch">
-              <input type="checkbox" id="config-conversation" onchange="updatePreview()">
-              <span class="toggle-slider"></span>
-              <span class="label-text">启用连续对话（记住历史消息）</span>
-            </label>
-            <div class="hint" style="margin-top:8px;">开启后 AI 会参考之前的邮件内容，保持话题连贯性</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">👥 联系人</div>
-        <div class="panel-body">
-          <div id="contacts-list"></div>
-          <button class="btn btn-secondary btn-sm" style="width:100%; margin-top:8px; justify-content:center;" onclick="addContact()">+ 添加联系人</button>
-          <div class="hint" style="margin-top:8px;">邮箱由 GitHub Secrets 配置，这里只能选择和改昵称</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">📎 页脚设置</div>
-        <div class="panel-body">
-          <div class="row-2">
-            <div class="form-group">
-              <label>显示文字</label>
-              <input type="text" id="config-footer-text" placeholder="— From Ghost Mail" oninput="updatePreview()">
-            </div>
-            <div class="form-group">
-              <label>链接地址</label>
-              <input type="text" id="config-footer-link" placeholder="https://github.com/..." oninput="updatePreview()">
-            </div>
-          </div>
-          <div class="hint">页脚会显示为可点击的链接，留空则不显示</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">🔧 高级设置</div>
-        <div class="panel-body">
-          <div class="row-2">
-            <div class="form-group">
-              <label>API 重试次数</label>
-              <input type="number" id="config-retries" min="0" max="5" oninput="updatePreview()">
-            </div>
-            <div class="form-group">
-              <label>完整历史保留</label>
-              <input type="number" id="config-history-size" min="1" max="20" oninput="updatePreview()">
-            </div>
-          </div>
-          <div class="row-2">
-            <div class="form-group">
-              <label>摘要触发阈值</label>
-              <input type="number" id="config-summary-trigger" min="2" max="20" oninput="updatePreview()">
-            </div>
-            <div class="form-group">
-              <label>摘要最大长度</label>
-              <input type="number" id="config-summary-length" min="50" max="500" oninput="updatePreview()">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="test-monitor-row">
-        <div class="panel test-panel">
-          <div class="panel-header">🧪 日程生成测试</div>
-          <div class="panel-body">
-            <div class="form-group">
-              <label>角色</label>
-              <select id="test-character-id" onchange="onTestCharacterChange()">
-                <option value="">加载中...</option>
-              </select>
-            </div>
-            <div id="test-character-info" style="display:none; padding:10px; background:#f6f8fa; border-radius:6px; margin-bottom:12px; font-size:12px; color:#656d76;">
-              <div id="test-character-summary">选择角色后自动加载...</div>
-            </div>
-            
-            <div class="form-group">
-              <label>生成模式</label>
-              <div style="display:flex; gap:8px;">
-                <button 
-                  onclick="setGenerateMode('full', this)"
-                  class="generate-mode-btn active flex-1 py-2 px-3 rounded-lg border-2 border-d0d7de bg-card text-foreground font-sm transition-colors"
-                >
-                  📅 完整一天
-                </button>
-                <button 
-                  onclick="setGenerateMode('future', this)"
-                  class="generate-mode-btn flex-1 py-2 px-3 rounded-lg border-2 border-d0d7de bg-secondary/30 text-muted-foreground font-sm transition-colors"
-                >
-                  ⏭️ 只生成未来
-                </button>
-              </div>
-              <div class="hint" style="margin-top:6px;">完整一天：生成全天日程（包括已过时的）；只生成未来：保留已过时日程，只更新未完成的部分</div>
-            </div>
-
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="testGenerateSchedule()" id="testGenScheduleBtn">✨ 生成日程（触发 GitHub Action）</button>
-            <div class="hint" style="margin-top:8px;">自动加载角色日程、历史摘要和信件，调用 AI 生成今日安排</div>
-            
-            <div id="schedule-test-result" style="display:none; margin-top:12px; padding:12px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:6px;">
-              <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 生成结果</div>
-              <div id="schedule-test-summary" style="font-size:12px; color:#656d76; margin-bottom:8px;"></div>
-              <div id="schedule-test-items" style="font-size:13px;"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel monitor-panel">
-          <div class="panel-header">
-            <span>📊 生成监控</span>
-            <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="loadScheduleJobs()">🔄 刷新</button>
-          </div>
-          <div class="panel-body">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-              <button class="btn btn-secondary btn-sm" onclick="loadScheduleJobs()" style="flex:1;">🔄 刷新任务列表</button>
-              <span id="monitor-status" style="font-size:12px; color:#656d76;">点击刷新加载</span>
-            </div>
-            
-            <div id="schedule-jobs-list" style="margin-bottom:12px; max-height:250px; overflow-y:auto; pr-2;">
-              <span style="color:#656d76; font-size:13px;">暂无任务记录</span>
-            </div>
-            
-            <div id="job-detail-panel" style="display:none; border-top:1px solid #d0d7de; padding-top:12px;">
-              <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📋 任务详情</div>
-              <div id="job-detail-info" style="font-size:12px; color:#656d76; margin-bottom:8px;"></div>
-              <div style="height:6px; background:#d0d7de; border-radius:3px; overflow:hidden; margin-bottom:10px;">
-                <div id="job-progress-bar" style="height:100%; background:#2da44e; width:0%; transition:width 0.3s;"></div>
-              </div>
-              <div style="font-weight:600; font-size:12px; margin-bottom:6px;">📝 日志</div>
-              <div id="job-logs" style="font-family:monospace; font-size:11px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:150px; overflow-y:auto; white-space:pre-wrap;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">🔍 调试工具</div>
-        <div class="panel-body">
-          <div class="quick-btns">
-            <button class="btn btn-secondary btn-sm" onclick="inspectFrontendState()">📱 前端状态</button>
-            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('letters')">💌 信件</button>
-            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('schedules')">📅 日程</button>
-            <button class="btn btn-secondary btn-sm" onclick="loadBackendData('attachments')">📎 附件</button>
-          </div>
-          <div id="debug-data-display" style="font-family:monospace; font-size:12px; background:#0d1117; color:#c9d1d9; padding:10px; border-radius:6px; max-height:200px; overflow-y:auto; white-space:pre-wrap; margin-top:8px;">点击上方按钮查看数据...</div>
-        </div>
-      </div>
+  <div class="cta">
+    <div class="cta-buttons">
+      <a href="/app/" class="btn btn-primary">🚀 立即游玩</a>
+      <a href="#download" class="btn btn-secondary">📦 下载客户端</a>
     </div>
+  </div>
 
-    <div class="preview-panel">
-      <div class="panel">
-        <div class="panel-header">📋 当前配置预览</div>
-        <div class="panel-body">
-          <div class="preview-content" id="previewContent"></div>
-        </div>
+  <div id="download" class="download-section">
+    <h2>📦 下载客户端</h2>
+    <div class="download-links">
+      <div class="download-item">
+        <div class="download-icon">🪟</div>
+        <h3>Windows</h3>
+        <p>Windows 10 / 11</p>
+        <a href="/download/ghost-mail-win.exe" class="download-btn">下载 EXE</a>
       </div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-header">
-          <span>📊 最近运行</span>
-          <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="loadRuns()">刷新</button>
-        </div>
-        <div class="panel-body">
-          <div id="runsList"><span style="color:#656d76;font-size:13px;">加载中...</span></div>
-        </div>
+      <div class="download-item">
+        <div class="download-icon">🍎</div>
+        <h3>macOS</h3>
+        <p>macOS 10.15+</p>
+        <a href="/download/ghost-mail-mac.dmg" class="download-btn">下载 DMG</a>
+      </div>
+      <div class="download-item">
+        <div class="download-icon">🐧</div>
+        <h3>Linux</h3>
+        <p>Ubuntu / Fedora</p>
+        <a href="/download/ghost-mail-linux.AppImage" class="download-btn">下载 AppImage</a>
       </div>
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn btn-secondary" onclick="loadConfig()">重置</button>
-    <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 保存配置</button>
-    <button class="btn btn-primary" id="saveTestBtn" onclick="saveAndTest()">💾 保存并立即发送</button>
-  </div>
-
-  <div class="status-bar" id="statusBar"></div>
-
-  <div id="logModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; padding:40px;">
-    <div style="background:#fff; border-radius:8px; max-width:900px; margin:0 auto; max-height:calc(100vh - 80px); display:flex; flex-direction:column;">
-      <div style="padding:14px 16px; border-bottom:1px solid #d0d7de; display:flex; align-items:center; justify-content:space-between;">
-        <strong id="logTitle">运行日志</strong>
-        <button class="btn btn-secondary btn-sm" onclick="closeLogModal()">关闭</button>
+  <div class="characters">
+    <h2>👥 角色伙伴</h2>
+    <div class="character-grid">
+      <div class="character-item">
+        <div class="character-icon">🐱</div>
+        <h3>Kitty</h3>
       </div>
-      <div id="logContent" style="flex:1; overflow-y:auto; padding:12px; background:#0d1117; color:#c9d1d9; font-family:monospace; font-size:12px; line-height:1.6;"></div>
+      <div class="character-item">
+        <div class="character-icon">🐶</div>
+        <h3>Puppy</h3>
+      </div>
+      <div class="character-item">
+        <div class="character-icon">🦊</div>
+        <h3>Foxy</h3>
+      </div>
+      <div class="character-item">
+        <div class="character-icon">🐦</div>
+        <h3>Birb</h3>
+      </div>
     </div>
   </div>
+
+  <footer>
+    <p>Ghost Mail · 2026 · Made with 💖</p>
+  </footer>
 </div>
-
-<script>
-window.onerror = function(msg, url, line, col, error) {
-  try {
-    var bar = document.getElementById('statusBar');
-    if (bar) {
-      bar.className = 'status-bar error';
-      bar.innerHTML = '<span class="status-icon">❌</span>JS 错误: ' + msg + ' (行 ' + line + ')';
-    }
-  } catch(e) {}
-  return false;
-};
-
-const STORAGE_KEY = 'ghostmail_config_cache';
-const EMAIL_ENV_OPTIONS = ['TO_EMAIL_1', 'TO_EMAIL_2', 'TO_EMAIL_3', 'TO_EMAIL_4', 'TO_EMAIL_5'];
-
-let personaList = [];
-let templateList = [];
-let scheduleMode = 'random';
-let isLoading = false;
-let currentRunId = null;
-let pollTimer = null;
-
-const defaultConfig = {
-  PERSONA: '',
-  EMAIL_TEMPLATE: '',
-  SUBJECT_PREFIX: '',
-  SIGNATURE: '',
-  ATTACHMENT_LOCATION: '',
-  AI_PROVIDER: 'siliconflow',
-  AI_MODEL: 'deepseek-ai/DeepSeek-V3',
-  AI_CUSTOM_URL: '',
-  AI_KEY_SELECTOR: 'key1',
-  MIN_DAYS: 0,
-  MAX_DAYS: 3,
-  ENABLE_CONVERSATION: true,
-  MAX_RETRIES: 2,
-  FULL_HISTORY_SIZE: 1,
-  SUMMARY_TRIGGER: 5,
-  SUMMARY_MAX_LENGTH: 200,
-  FOOTER_TEXT: '— From Ghost Mail',
-  FOOTER_LINK: 'https://github.com/Century0327/random-ai-mail-ghost',
-  CONTACTS: [
-    { name: '小令狐', email_env: 'TO_EMAIL_1' },
-    { name: '鼠鼠', email_env: 'TO_EMAIL_2' },
-  ],
-  ATTACHMENT_MODE: 'normal',
-  FIXED_DATETIME: '',
-};
-
-function api(endpoint, method='GET', body=null) {
-  const options = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-  };
-  if (body) options.body = JSON.stringify(body);
-  return fetch(endpoint, options).then(r => {
-    if (!r.ok) {
-      return r.json().then(data => {
-        throw new Error(data.error || data.message || ('HTTP ' + r.status));
-      }).catch(() => {
-        throw new Error('HTTP ' + r.status);
-      });
-    }
-    return r.json();
-  });
-}
-
-function showStatus(msg, type='info', autoHide=true) {
-  const bar = document.getElementById('statusBar');
-  bar.className = 'status-bar ' + type;
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-  const icon = icons[type] || 'ℹ️';
-  bar.innerHTML = '<span class="status-icon">' + icon + '</span>' + msg;
-  if (autoHide) {
-    setTimeout(() => { bar.style.display = 'none'; }, 10000);
-  }
-}
-
-function hideStatus() {
-  document.getElementById('statusBar').style.display = 'none';
-}
-
-function loadFromCache() {
-  try {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      const data = JSON.parse(cached);
-      if (data.config) applyConfig(data.config);
-      if (data.personas) fillPersonaSelect(data.personas);
-      if (data.templates) fillTemplateSelect(data.templates);
-      if (data.repo) {
-        document.getElementById('repoInfo').innerHTML = `<span class="loading-dot loading"></span>${data.repo} · ${data.branch || 'main'}（缓存中）`;
-      }
-      updatePreview();
-      return true;
-    }
-  } catch(e) { console.warn('缓存读取失败', e); }
-  return false;
-}
-
-function saveToCache(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch(e) {}
-}
-
-function fillPersonaSelect(personas) {
-  personaList = personas;
-  const sel = document.getElementById('config-persona');
-  const current = sel.value;
-  sel.innerHTML = '';
-  personas.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p;
-    opt.textContent = p;
-    sel.appendChild(opt);
-  });
-  if (current && personas.includes(current)) {
-    sel.value = current;
-  }
-}
-
-function fillTemplateSelect(templates) {
-  templateList = templates;
-  const sel = document.getElementById('config-template');
-  const current = sel.value;
-  sel.innerHTML = '';
-  templates.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t;
-    opt.textContent = t;
-    sel.appendChild(opt);
-  });
-  if (current && templates.includes(current)) {
-    sel.value = current;
-  }
-}
-
-function parseFooterToTextLink(footerHtml) {
-  if (!footerHtml) return { text: '', link: '' };
-  const m = footerHtml.match(/<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
-  if (m) return { text: m[2], link: m[1] };
-  return { text: footerHtml.replace(/<[^>]+>/g, ''), link: '' };
-}
-
-function buildFooterHtml(text, link) {
-  if (!text && !link) return '';
-  const t = text || '— From Ghost Mail';
-  if (link) {
-    return `<a href="${link}" style="color:#999; text-decoration:none;">${t}</a>`;
-  }
-  return t;
-}
-
-function applyConfig(config) {
-  document.getElementById('config-persona').value = config.PERSONA || '';
-  document.getElementById('config-template').value = config.EMAIL_TEMPLATE || '';
-  document.getElementById('config-subject').value = config.SUBJECT_PREFIX || '';
-  document.getElementById('config-signature').value = config.SIGNATURE || '';
-  document.getElementById('config-location').value = config.ATTACHMENT_LOCATION || '';
-  document.getElementById('config-ai-provider').value = config.AI_PROVIDER || 'siliconflow';
-  const modelInput = document.getElementById('config-ai-model');
-  modelInput.value = '';
-  modelInput.dataset.current = config.AI_MODEL || '';
-  const modelHint = document.getElementById('ai-model-hint');
-  if (modelHint) {
-    modelHint.textContent = config.AI_MODEL ? `当前模型：${config.AI_MODEL}（清空可查看全部选项）` : '可从下拉列表选择或手动输入模型名称';
-  }
-  document.getElementById('config-ai-custom-url').value = config.AI_CUSTOM_URL || '';
-  document.getElementById('config-ai-key-selector').value = config.AI_KEY_SELECTOR || 'key1';
-  onAIProviderChange();
-  document.getElementById('config-min-days').value = config.MIN_DAYS != null ? config.MIN_DAYS : 0;
-  document.getElementById('config-max-days').value = config.MAX_DAYS != null ? config.MAX_DAYS : 3;
-  document.getElementById('config-conversation').checked = config.ENABLE_CONVERSATION !== false;
-  document.getElementById('config-retries').value = config.MAX_RETRIES != null ? config.MAX_RETRIES : 2;
-  document.getElementById('config-history-size').value = config.FULL_HISTORY_SIZE != null ? config.FULL_HISTORY_SIZE : 1;
-  document.getElementById('config-summary-trigger').value = config.SUMMARY_TRIGGER != null ? config.SUMMARY_TRIGGER : 5;
-  document.getElementById('config-summary-length').value = config.SUMMARY_MAX_LENGTH != null ? config.SUMMARY_MAX_LENGTH : 200;
-
-  const footerParsed = parseFooterToTextLink(config.FOOTER || '');
-  document.getElementById('config-footer-text').value = footerParsed.text || '';
-  document.getElementById('config-footer-link').value = footerParsed.link || '';
-
-  if (config.ATTACHMENT_MODE) {
-    document.getElementById('config-attachment-mode').value = config.ATTACHMENT_MODE;
-  }
-  renderContacts(config.CONTACTS || []);
-}
-
-function renderContacts(contacts) {
-  const list = document.getElementById('contacts-list');
-  list.innerHTML = '';
-  contacts.forEach((c, i) => {
-    const item = document.createElement('div');
-    item.className = 'contact-item';
-    const envOptions = EMAIL_ENV_OPTIONS.map(e =>
-      `<option value="${e}" ${e === c.email_env ? 'selected' : ''}>${e}</option>`
-    ).join('');
-    item.innerHTML = `
-      <input type="text" placeholder="昵称" value="${escape(c.name || '')}" data-idx="${i}" data-field="name" oninput="updatePreview()">
-      <select data-idx="${i}" data-field="email_env" onchange="updatePreview()">${envOptions}</select>
-      <button class="remove-btn" onclick="removeContact(${i})">✕</button>
-    `;
-    list.appendChild(item);
-  });
-}
-
-function escape(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-}
-
-function addContact() {
-  const contacts = getContactsFromUI();
-  const nextNum = contacts.length + 1;
-  contacts.push({ name: '', email_env: 'TO_EMAIL_' + nextNum });
-  renderContacts(contacts);
-  updatePreview();
-}
-
-function removeContact(idx) {
-  const contacts = getContactsFromUI();
-  contacts.splice(idx, 1);
-  renderContacts(contacts);
-  updatePreview();
-}
-
-function getContactsFromUI() {
-  const items = document.querySelectorAll('.contact-item');
-  const contacts = [];
-  items.forEach(item => {
-    const name = item.querySelector('[data-field="name"]').value.trim();
-    const email_env = item.querySelector('[data-field="email_env"]').value.trim();
-    if (name && email_env) {
-      contacts.push({ name, email_env });
-    }
-  });
-  return contacts;
-}
-
-function getBeijingTime() {
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const beijing = new Date(utc + 8 * 3600 * 1000);
-  return beijing;
-}
-
-function formatDateTimeLocal(d) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-function setToday() {
-  const now = getBeijingTime();
-  now.setHours(0, 0, 0, 0);
-  document.getElementById('config-fixed-datetime').value = formatDateTimeLocal(now);
-  updatePreview();
-}
-
-function setNow() {
-  document.getElementById('config-fixed-datetime').value = formatDateTimeLocal(getBeijingTime());
-  updatePreview();
-}
-
-const AI_PROVIDER_HINTS = {
-  siliconflow: '硅基流动常用：deepseek-ai/DeepSeek-V3, Qwen/Qwen2.5-72B-Instruct',
-  openai: 'OpenAI 常用：gpt-4o, gpt-4o-mini',
-  moonshot: 'Moonshot 常用：moonshot-v1-8k, moonshot-v1-32k',
-  aliyun: '阿里云常用：qwen-max, qwen-plus',
-  deepseek: 'DeepSeek 常用：deepseek-chat, deepseek-reasoner',
-  openrouter: 'OpenRouter 免费模型：meta-llama/llama-3.3-70b-instruct:free, qwen/qwen3-next-80b-a3b-instruct:free',
-  custom: '自定义供应商，请填写完整 URL',
-};
-
-function onAIProviderChange() {
-  const provider = document.getElementById('config-ai-provider').value;
-  const customGroup = document.getElementById('ai-custom-url-group');
-  
-  if (provider === 'custom') {
-    customGroup.style.display = 'block';
-  } else {
-    customGroup.style.display = 'none';
-  }
-}
-
-function updatePreview() {
-  const persona = document.getElementById('config-persona').value;
-  const template = document.getElementById('config-template').value;
-  const subject = document.getElementById('config-subject').value;
-  const signature = document.getElementById('config-signature').value;
-  const location = document.getElementById('config-location').value;
-  const minDays = document.getElementById('config-min-days').value;
-  const maxDays = document.getElementById('config-max-days').value;
-  const conv = document.getElementById('config-conversation').checked;
-  const attMode = document.getElementById('config-attachment-mode').value;
-  const footerText = document.getElementById('config-footer-text').value;
-  const footerLink = document.getElementById('config-footer-link').value;
-  const contacts = getContactsFromUI();
-  const retries = document.getElementById('config-retries').value;
-  const historySize = document.getElementById('config-history-size').value;
-
-  document.getElementById('statPersona').textContent = persona || '--';
-  document.getElementById('statTemplate').textContent = template || '--';
-  document.getElementById('statContacts').textContent = contacts.length + ' 人';
-  document.getElementById('statInterval').textContent = scheduleMode === 'random'
-    ? `${minDays}-${maxDays} 天`
-    : '精确时间';
-
-  const aiProvider = document.getElementById('config-ai-provider').value;
-  const aiModel = document.getElementById('config-ai-model').value;
-  const aiCustomUrl = document.getElementById('config-ai-custom-url').value;
-  const aiKeySelector = document.getElementById('config-ai-key-selector').value;
-  const providerLabels = { siliconflow: '硅基流动', openai: 'OpenAI', moonshot: 'Moonshot', aliyun: '阿里云', deepseek: 'DeepSeek', openrouter: 'OpenRouter', custom: '自定义' };
-  
-  const rows = [
-    ['人设', persona || '--'],
-    ['模板', template || '--'],
-    ['AI 供应商', providerLabels[aiProvider] || aiProvider],
-    ['AI 模型', aiModel || '（未设置）'],
-    ['API Key', aiKeySelector.toUpperCase()],
-    ['主题前缀', subject || '（无）'],
-    ['署名', signature || '（无）'],
-    ['附件地点', location || '（无）'],
-    ['发送模式', scheduleMode === 'random' ? '随机间隔' : '精确时间'],
-    ['间隔', scheduleMode === 'random' ? `${minDays}-${maxDays} 天` : document.getElementById('config-fixed-datetime').value || '未设置'],
-    ['附件模式', {normal:'正常',force_on:'强制有附件',force_off:'强制无附件'}[attMode] || '正常'],
-    ['连续对话', conv ? '✅ 开启' : '❌ 关闭'],
-    ['联系人', contacts.map(c => `${c.name} (${c.email_env})`).join('<br>') || '（无）'],
-    ['页脚文字', footerText || '（无）'],
-    ['页脚链接', footerLink || '（无）'],
-    ['重试次数', retries + ' 次'],
-    ['历史保留', historySize + ' 轮'],
-  ];
-
-  document.getElementById('previewContent').innerHTML = rows.map(r =>
-    `<div class="preview-row"><div class="preview-key">${r[0]}</div><div class="preview-val">${r[1]}</div></div>`
-  ).join('');
-}
-
-function collectConfig() {
-  const footerText = document.getElementById('config-footer-text').value;
-  const footerLink = document.getElementById('config-footer-link').value;
-  return {
-    PERSONA: document.getElementById('config-persona').value,
-    EMAIL_TEMPLATE: document.getElementById('config-template').value,
-    SUBJECT_PREFIX: document.getElementById('config-subject').value,
-    SIGNATURE: document.getElementById('config-signature').value,
-    ATTACHMENT_LOCATION: document.getElementById('config-location').value,
-    AI_PROVIDER: document.getElementById('config-ai-provider').value,
-    AI_MODEL: document.getElementById('config-ai-model').value || document.getElementById('config-ai-model').dataset.current || '',
-    AI_CUSTOM_URL: document.getElementById('config-ai-custom-url').value,
-    AI_KEY_SELECTOR: document.getElementById('config-ai-key-selector').value,
-    MIN_DAYS: parseInt(document.getElementById('config-min-days').value) || 0,
-    MAX_DAYS: parseInt(document.getElementById('config-max-days').value) || 3,
-    ENABLE_CONVERSATION: document.getElementById('config-conversation').checked,
-    MAX_RETRIES: parseInt(document.getElementById('config-retries').value) || 2,
-    FULL_HISTORY_SIZE: parseInt(document.getElementById('config-history-size').value) || 1,
-    SUMMARY_TRIGGER: parseInt(document.getElementById('config-summary-trigger').value) || 5,
-    SUMMARY_MAX_LENGTH: parseInt(document.getElementById('config-summary-length').value) || 200,
-    FOOTER: buildFooterHtml(footerText, footerLink),
-    CONTACTS: getContactsFromUI(),
-    ATTACHMENT_MODE: document.getElementById('config-attachment-mode').value,
-  };
-}
-
-function setButtonsDisabled(disabled) {
-  document.getElementById('testBtn').disabled = disabled;
-  document.getElementById('saveBtn').disabled = disabled;
-  document.getElementById('saveTestBtn').disabled = disabled;
-}
-
-function loadConfig() {
-  hideStatus();
-  showStatus('正在加载配置...', 'info', false);
-  isLoading = true;
-  setButtonsDisabled(true);
-
-  api('/api/config', 'GET').then(data => {
-    if (data.error) throw new Error(data.error);
-
-    fillPersonaSelect(data.personas);
-    fillTemplateSelect(data.templates);
-    applyConfig(data.config);
-    updatePreview();
-
-    document.getElementById('repoInfo').textContent = `${data.repo} · ${data.branch}`;
-
-    saveToCache({
-      config: data.config,
-      personas: data.personas,
-      templates: data.templates,
-      aiProviders: data.aiProviders,
-      repo: data.repo,
-      branch: data.branch,
-    });
-
-    showStatus('配置已加载 ✓', 'success');
-    isLoading = false;
-    setButtonsDisabled(false);
-    loadRuns();
-  }).catch(err => {
-    console.error(err);
-    isLoading = false;
-    setButtonsDisabled(false);
-    const hasCache = personaList.length > 0 || document.getElementById('config-persona').options.length > 1;
-    if (hasCache) {
-      showStatus('远程加载失败，使用本地缓存。原因: ' + err.message + '。修改后点保存即可更新到仓库。', 'warning', false);
-      document.getElementById('repoInfo').textContent = '离线模式（缓存）';
-    } else {
-      showStatus('加载失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN / GITHUB_REPO 是否配置正确。', 'error', false);
-      document.getElementById('repoInfo').textContent = '加载失败';
-    }
-  });
-}
-
-function saveConfig() {
-  const config = collectConfig();
-  showStatus('保存中...', 'info', false);
-  setButtonsDisabled(true);
-
-  api('/api/config', 'POST', { config }).then(data => {
-    if (data.error) throw new Error(data.error);
-    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    cached.config = config;
-    saveToCache(cached);
-    showStatus('配置已保存到仓库 ✓', 'success');
-    setButtonsDisabled(false);
-    updatePreview();
-  }).catch(err => {
-    setButtonsDisabled(false);
-    showStatus('保存失败: ' + err.message, 'error');
-  });
-}
-
-function statusLabel(s, conclusion) {
-  if (s === 'completed') {
-    return conclusion === 'success' ? '✅ 成功' : conclusion === 'failure' ? '❌ 失败' : '⏹ ' + (conclusion || s);
-  }
-  if (s === 'in_progress') return '🔄 运行中';
-  if (s === 'queued' || s === 'waiting') return '⏳ 排队中';
-  if (s === 'pending') return '⏳ 等待中';
-  return '❓ ' + s;
-}
-
-function loadRuns() {
-  api('/api/runs?limit=5').then(data => {
-    const runs = data.runs || [];
-    const list = document.getElementById('runsList');
-    if (runs.length === 0) {
-      list.innerHTML = '<span style="color:#656d76;font-size:13px;">暂无运行记录</span>';
-      return;
-    }
-    list.innerHTML = runs.map(r => {
-      const time = new Date(r.created_at).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'});
-      const label = statusLabel(r.status, r.conclusion);
-      return `
-        <div style="padding:8px 0; border-bottom:1px solid #d0d7de; font-size:13px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <span style="font-weight:500;">${label}</span>
-            <a href="${r.html_url}" target="_blank" style="font-size:12px; color:#0969da;">查看 →</a>
-          </div>
-          <div style="color:#656d76; font-size:12px; margin-top:2px;">${time}</div>
-          ${r.status === 'in_progress' ? `<button class="btn btn-secondary btn-sm" style="margin-top:4px; width:100%; justify-content:center;" onclick="showRunLog(${r.id})">📜 查看实时日志</button>` : ''}
-        </div>
-      `;
-    }).join('');
-  }).catch(err => {
-    document.getElementById('runsList').innerHTML = '<span style="color:#cf222e;font-size:13px;">加载失败: ' + err.message + '</span>';
-  });
-}
-
-function showRunLog(runId) {
-  currentRunId = runId;
-  document.getElementById('logModal').style.display = 'block';
-  document.getElementById('logTitle').textContent = '运行日志 #' + runId;
-  document.getElementById('logContent').innerHTML = '加载中...';
-  fetchLogDetail(runId);
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(() => {
-    if (currentRunId) fetchLogDetail(currentRunId, true);
-  }, 5000);
-}
-
-function closeLogModal() {
-  document.getElementById('logModal').style.display = 'none';
-  currentRunId = null;
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-}
-
-function fetchLogDetail(runId, silent=false) {
-  api(`/api/runs/${runId}/logs`).then(data => {
-    const jobs = data.jobs || [];
-    let allDone = true;
-    let html = jobs.map(job => {
-      const steps = (job.steps || []).map(s => {
-        let cls = 'pending', icon = '○';
-        if (s.status === 'completed') {
-          cls = s.conclusion === 'success' ? 'success' : 'failure';
-          icon = s.conclusion === 'success' ? '✓' : '✗';
-        } else if (s.status === 'in_progress') {
-          cls = 'in_progress';
-          icon = '●';
-          allDone = false;
-        }
-        return `<div class="step-item ${cls}"><span class="step-status">${icon}</span>${escape(s.name)}</div>`;
-      }).join('');
-      if (job.status !== 'completed') allDone = false;
-      return `<div class="job-item"><div class="job-name">${escape(job.name)} (${statusLabel(job.status, job.conclusion)})</div>${steps}</div>`;
-    }).join('');
-    if (!html) html = '暂无日志数据...';
-    document.getElementById('logContent').innerHTML = html;
-    if (allDone && pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-  }).catch(err => {
-    if (!silent) document.getElementById('logContent').innerHTML = '<span style="color:#f85149;">加载失败: ' + err.message + '</span>';
-  });
-}
-
-function testSend() {
-  const attachmentMode = document.getElementById('config-attachment-mode').value;
-  showStatus('正在触发 GitHub Actions 发送...（Vercel → GitHub）', 'info', false);
-  setButtonsDisabled(true);
-
-  api('/api/dispatch', 'POST', {
-    inputs: {
-      force_send: 'true',
-      attachment_mode: attachmentMode,
-    }
-  }).then(data => {
-    if (data.error) throw new Error(data.error);
-    showStatus('发送已触发 ✓ 下方可查看实时进度，约 1-2 分钟后收到邮件', 'success');
-    setButtonsDisabled(false);
-    setTimeout(() => loadRuns(), 2000);
-  }).catch(err => {
-    setButtonsDisabled(false);
-    showStatus('触发失败: ' + err.message + '。请检查 Vercel 环境变量 GITHUB_TOKEN 和 GITHUB_REPO 是否已配置。', 'error');
-  });
-}
-
-function saveAndTest() {
-  const config = collectConfig();
-  const attachmentMode = document.getElementById('config-attachment-mode').value;
-  showStatus('第1步/2步：正在保存配置到 GitHub...', 'info', false);
-  setButtonsDisabled(true);
-
-  api('/api/config', 'POST', { config }).then(data => {
-    if (data.error) throw new Error(data.error);
-    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    cached.config = config;
-    saveToCache(cached);
-
-    showStatus('第2步/2步：正在触发 GitHub Actions 发送...', 'info', false);
-
-    setTimeout(() => {
-      api('/api/dispatch', 'POST', {
-        inputs: {
-          force_send: 'true',
-          attachment_mode: attachmentMode,
-        }
-      }).then(d => {
-        if (d.error) {
-          showStatus('配置已保存 ✓ 但触发失败: ' + d.error + '。请检查 GITHUB_TOKEN 权限。', 'error');
-        } else {
-          showStatus('配置已保存，发送已触发 ✓ 下方可查看进度，约 1-2 分钟后查收', 'success');
-        }
-        setButtonsDisabled(false);
-        setTimeout(() => loadRuns(), 2000);
-      }).catch(err => {
-          setButtonsDisabled(false);
-          showStatus('配置已保存 ✓ 但触发失败: ' + err.message + '。请检查 Vercel 环境变量。', 'error');
-        });
-    }, 800);
-  }).catch(err => {
-    setButtonsDisabled(false);
-    showStatus('保存失败: ' + err.message, 'error');
-  });
-}
-
-function switchScheduleMode(mode, btn) {
-  scheduleMode = mode;
-  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('schedule-random').style.display = mode === 'random' ? 'block' : 'none';
-  document.getElementById('schedule-fixed').style.display = mode === 'fixed' ? 'block' : 'none';
-  updatePreview();
-}
-
-// ===== Test & Monitor Panel =====
-
-let testCharacterData = {};
-let generateMode = 'full';
-
-function setGenerateMode(mode, btn) {
-  generateMode = mode;
-  document.querySelectorAll('.generate-mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-function loadTestCharacters() {
-  const sel = document.getElementById('test-character-id');
-  if (sel.options.length > 1 && sel.options[1].value !== '') return; // already loaded
-  
-  api('/api/companion/characters').then(data => {
-    const chars = data.characters || [];
-    sel.innerHTML = '';
-    if (chars.length === 0) {
-      sel.innerHTML = '<option value="">无角色</option>';
-      return;
-    }
-    chars.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.name + ' (' + c.id + ')';
-      sel.appendChild(opt);
-    });
-    onTestCharacterChange();
-  }).catch(err => {
-    sel.innerHTML = '<option value="">加载失败</option>';
-    showStatus('角色列表加载失败: ' + err.message, 'warning');
-  });
-}
-
-function onTestCharacterChange() {
-  const characterId = document.getElementById('test-character-id').value;
-  const infoDiv = document.getElementById('test-character-info');
-  const summaryDiv = document.getElementById('test-character-summary');
-  
-  if (!characterId) {
-    infoDiv.style.display = 'none';
-    return;
-  }
-  
-  summaryDiv.textContent = '加载中...';
-  infoDiv.style.display = 'block';
-  
-  // Load character status (schedule, history)
-  api('/api/companion/user/characters/' + characterId + '/status').then(data => {
-    const state = data.userState || {};
-    const schedule = state.schedule || [];
-    const historySummary = state.historySummary || '';
-    const interactCount = state.interactCount || 0;
-    
-    // Load recent letters
-    return api('/api/companion/letters').then(lettersData => {
-      const allLetters = lettersData.letters || [];
-      const charLetters = allLetters.filter(l => l.character_id === characterId).slice(0, 3);
-      
-      testCharacterData = {
-        characterId,
-        schedule,
-        historySummary,
-        interactCount,
-        letters: charLetters
-      };
-      
-      let summaryText = '';
-      if (schedule.length > 0) {
-        summaryText += '当前日程: ' + schedule.length + ' 项\n';
-      }
-      if (historySummary) {
-        summaryText += '历史摘要: ' + historySummary.substring(0, 50) + (historySummary.length > 50 ? '...' : '') + '\n';
-      }
-      summaryText += '互动次数: ' + interactCount + '\n';
-      if (charLetters.length > 0) {
-        summaryText += '最近信件: ' + charLetters.length + ' 封';
-      }
-      
-      summaryDiv.textContent = summaryText || '暂无数据';
-    });
-  }).catch(err => {
-    summaryDiv.textContent = '加载失败: ' + err.message;
-  });
-}
-
-function testGenerateSchedule() {
-  const characterId = document.getElementById('test-character-id').value;
-  
-  if (!characterId) {
-    showStatus('请先选择角色', 'warning');
-    return;
-  }
-  
-  const btn = document.getElementById('testGenScheduleBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ 触发中...';
-  showStatus('正在触发 GitHub Action 生成日程...', 'info', false);
-  
-  api('/api/dispatch-schedule', 'POST', {
-    character: characterId,
-    mode: generateMode
-  }).then(data => {
-    btn.disabled = false;
-    btn.textContent = '✨ 生成日程（触发 GitHub Action）';
-    
-    if (data.error) throw new Error(data.error);
-    
-    showStatus('已触发 GitHub Action，可在右侧监控中查看进度', 'success');
-    
-    // 自动跳转到监控并刷新
-    setTimeout(() => {
-      loadScheduleJobs();
-    }, 1500);
-  }).catch(err => {
-    btn.disabled = false;
-    btn.textContent = '✨ 生成日程（触发 GitHub Action）';
-    showStatus('触发失败: ' + err.message, 'error');
-  });
-}
-
-function inspectFrontendState() {
-  const display = document.getElementById('debug-data-display');
-  try {
-    const keys = Object.keys(localStorage);
-    const data = {};
-    keys.forEach(k => {
-      try { data[k] = JSON.parse(localStorage.getItem(k)); } catch(e) { data[k] = localStorage.getItem(k); }
-    });
-    display.textContent = JSON.stringify(data, null, 2);
-  } catch(e) {
-    display.textContent = '读取失败: ' + e.message;
-  }
-}
-
-function loadBackendData(type) {
-  const display = document.getElementById('debug-data-display');
-  display.textContent = '加载中...';
-  
-  let endpoint = '';
-  if (type === 'letters') endpoint = '/api/companion/letters';
-  else if (type === 'schedules') endpoint = '/api/companion/schedules';
-  else if (type === 'attachments') endpoint = '/api/companion/attachments';
-  else {
-    display.textContent = '未知类型: ' + type;
-    return;
-  }
-  
-  api(endpoint).then(data => {
-    display.textContent = JSON.stringify(data, null, 2);
-  }).catch(err => {
-    display.textContent = '加载失败: ' + err.message + '\n\n请确保后端 API 已部署并支持此接口。';
-  });
-}
-
-// ===== 日程生成监控 =====
-
-let currentJobId = null;
-let jobPollingTimer = null;
-
-function getStatusBadge(status) {
-  const colors = {
-    pending: 'background:#d0d7de;color:#24292f',
-    running: 'background:#bf8700;color:#fff',
-    success: 'background:#2da44e;color:#fff',
-    failed: 'background:#cf222e;color:#fff'
-  };
-  const labels = {
-    pending: '等待中',
-    running: '运行中',
-    success: '成功',
-    failed: '失败'
-  };
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${colors[status] || colors.pending}">${labels[status] || status}</span>`;
-}
-
-function getGHStatusBadge(status, conclusion) {
-  const state = conclusion || status;
-  const colors = {
-    success: 'background:#2da44e;color:#fff',
-    failure: 'background:#cf222e;color:#fff',
-    cancelled: 'background:#656d76;color:#fff',
-    skipped: 'background:#8957e5;color:#fff',
-    in_progress: 'background:#bf8700;color:#fff',
-    queued: 'background:#d0d7de;color:#24292f',
-    pending: 'background:#d0d7de;color:#24292f',
-  };
-  const labels = {
-    success: '成功',
-    failure: '失败',
-    cancelled: '已取消',
-    skipped: '已跳过',
-    in_progress: '进行中',
-    queued: '排队中',
-    pending: '等待中',
-  };
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${colors[state] || colors.pending}">${labels[state] || state}</span>`;
-}
-
-function formatTime(isoStr) {
-  if (!isoStr) return '-';
-  const d = new Date(isoStr);
-  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-function loadScheduleJobs() {
-  const listEl = document.getElementById('schedule-jobs-list');
-  const statusEl = document.getElementById('monitor-status');
-  statusEl.textContent = '加载中...';
-  
-  api('/api/schedule-jobs').then(data => {
-    const jobs = data.jobs || [];
-    statusEl.textContent = `共 ${jobs.length} 个任务`;
-    
-    if (jobs.length === 0) {
-      listEl.innerHTML = '<span style="color:#656d76; font-size:13px;">暂无任务记录</span>';
-      return;
-    }
-    
-    let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
-    jobs.forEach(job => {
-      const inputs = job.inputs || {};
-      const character = inputs.character || '未知';
-      const mode = inputs.mode;
-      let modeText;
-      if (mode === 'full') modeText = '完整一天';
-      else if (mode === 'future') modeText = '只生成未来';
-      else modeText = '未知';
-      
-      const duration = job.updated_at && job.created_at
-        ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
-        : job.status === 'in_progress' ? '进行中...' : '-';
-      
-      html += `
-        <div onclick="viewJobDetail('${job.id}')" style="cursor:pointer; padding:10px 12px; border:1px solid #d0d7de; border-radius:6px; background:#f6f8fa; transition:background 0.2s;"
-             onmouseover="this.style.background='#eaeef2'" onmouseout="this.style.background='#f6f8fa'">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              ${getGHStatusBadge(job.status, job.conclusion)}
-              <span style="font-size:13px; font-weight:600;">${character}</span>
-              <span style="font-size:11px; color:#656d76; background:#e1e4e8; padding:2px 6px; border-radius:3px;">${modeText}</span>
-            </div>
-            <span style="font-size:11px; color:#656d76;">${formatTime(job.created_at)}</span>
-          </div>
-          <div style="display:flex; align-items:center; gap:12px; margin-top:4px; font-size:11px; color:#656d76;">
-            <span>状态: ${job.conclusion || job.status}</span>
-            <span>耗时: ${duration}</span>
-            <span style="margin-left:auto; font-size:10px;">#${job.id}</span>
-          </div>
-        </div>`;
-    });
-    html += '</div>';
-    listEl.innerHTML = html;
-  }).catch(err => {
-    statusEl.textContent = '加载失败';
-    listEl.innerHTML = '<span style="color:#cf222e; font-size:13px;">加载失败: ' + err.message + '</span>';
-  });
-}
-
-function viewJobDetail(jobId) {
-  currentJobId = jobId;
-  
-  // 清除之前的轮询
-  if (jobPollingTimer) {
-    clearInterval(jobPollingTimer);
-    jobPollingTimer = null;
-  }
-  
-  const panel = document.getElementById('job-detail-panel');
-  panel.style.display = 'block';
-  
-  loadJobDetail(jobId);
-  
-  // 如果是运行中，开始轮询
-  setTimeout(() => {
-    checkJobRunning(jobId);
-  }, 500);
-}
-
-function loadJobDetail(jobId) {
-  api('/api/schedule-jobs/' + jobId).then(data => {
-    const job = data.job;
-    const logs = data.logs || [];
-    if (!job) return;
-    
-    const infoEl = document.getElementById('job-detail-info');
-    const progressEl = document.getElementById('job-progress-bar');
-    const logsEl = document.getElementById('job-logs');
-    
-    const inputs = job.inputs || {};
-    const character = inputs.character || '未知';
-    const mode = inputs.mode;
-    let modeText;
-    if (mode === 'full') modeText = '完整一天';
-    else if (mode === 'future') modeText = '只生成未来';
-    else modeText = '未知';
-    
-    const duration = job.updated_at && job.created_at
-      ? ((new Date(job.updated_at) - new Date(job.created_at)) / 1000).toFixed(1) + 's'
-      : '进行中';
-    
-    infoEl.innerHTML = `
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-        ${getGHStatusBadge(job.status, job.conclusion)}
-        <span style="font-weight:600; color:#24292f;">${character}</span>
-        <span style="font-size:11px; color:#656d76; background:#e1e4e8; padding:2px 6px; border-radius:3px;">${modeText}</span>
-        <span style="margin-left:auto;">#${job.id}</span>
-      </div>
-      <div>开始: ${formatTime(job.created_at)} | 更新: ${formatTime(job.updated_at)} | 耗时: ${duration}</div>
-      ${job.html_url ? `<div style="margin-top:4px;"><a href="${job.html_url}" target="_blank" style="color:#0969da; font-size:12px;">🔗 查看 GitHub Action</a></div>` : ''}
-    `;
-    
-    let progress = 0;
-    let progressColor = '#2da44e';
-    if (job.status === 'in_progress') {
-      progress = 50;
-      progressColor = '#bf8700';
-    } else if (job.conclusion === 'success') {
-      progress = 100;
-      progressColor = '#2da44e';
-    } else if (job.conclusion === 'failure') {
-      progress = 100;
-      progressColor = '#cf222e';
-    } else if (job.status === 'queued') {
-      progress = 10;
-      progressColor = '#d0d7de';
-    }
-    progressEl.style.width = progress + '%';
-    progressEl.style.background = progressColor;
-    
-    let logsHtml = '';
-    if (logs.length > 0) {
-      logs.forEach(jobLog => {
-        logsHtml += `<div style="color:#c9d1d9; margin-bottom:8px;"><strong style="color:#8b949e;">=== ${jobLog.name || 'Job'} ===</strong></div>`;
-        (jobLog.steps || []).forEach(step => {
-          const stepStatus = step.conclusion || step.status;
-          const statusColor = stepStatus === 'success' ? '#2da44e' : stepStatus === 'failure' ? '#cf222e' : '#656d76';
-          logsHtml += `<span style="color:${statusColor}">[${stepStatus.toUpperCase()}] ${step.name}</span>\n`;
-          if (step.started_at) {
-            logsHtml += `<span style="color:#656d76;">  开始: ${formatTime(step.started_at)}</span>\n`;
-          }
-          if (step.completed_at) {
-            logsHtml += `<span style="color:#656d76;">  完成: ${formatTime(step.completed_at)}</span>\n`;
-          }
-        });
-      });
-    } else {
-      logsHtml = '暂无日志，点击刷新查看最新状态';
-    }
-    logsEl.innerHTML = logsHtml;
-    logsEl.scrollTop = logsEl.scrollHeight;
-    
-  }).catch(err => {
-    console.error('加载任务详情失败:', err);
-  });
-}
-
-function checkJobRunning(jobId) {
-  if (jobPollingTimer) clearInterval(jobPollingTimer);
-  
-  jobPollingTimer = setInterval(() => {
-    api('/api/schedule-jobs/' + jobId).then(data => {
-      const job = data.job;
-      if (!job) return;
-      
-      loadJobDetail(jobId);
-      
-      if (job.status !== 'in_progress' && job.status !== 'queued' && job.status !== 'pending') {
-        clearInterval(jobPollingTimer);
-        jobPollingTimer = null;
-        loadScheduleJobs();
-      }
-    }).catch(() => {});
-  }, 3000);
-}
-
-showStatus('页面已加载，正在初始化...', 'info', false);
-applyConfig(defaultConfig);
-fillPersonaSelect(['kitty', 'puppy', 'foxy', 'birb']);
-fillTemplateSelect(['default', 'cat', 'dark']);
-renderContacts(defaultConfig.CONTACTS);
-updatePreview();
-loadTestCharacters();
-loadScheduleJobs();
-
-const hasCache = loadFromCache();
-loadConfig();
-</script>
 </body>
 </html>
