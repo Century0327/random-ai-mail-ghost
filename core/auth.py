@@ -29,11 +29,9 @@ def _get_db_conn():
 # ============ Steam ID 认证 ============
 
 def verify_steam_id(steam_id: str) -> bool:
-    """基础校验 Steam ID 格式（17 位数字，或 test 开头的测试账号）"""
+    """基础校验 Steam ID 格式（17 位数字）"""
     if not steam_id:
         return False
-    if steam_id.startswith('test'):
-        return True
     return steam_id.isdigit() and len(steam_id) == 17
 
 
