@@ -8,7 +8,7 @@ const Store = require('electron-store');
 const store = new Store({
     name: 'ghost-mail-config',
     defaults: {
-        apiBaseUrl: 'http://localhost:5000',
+        apiBaseUrl: 'https://random-ai-mail-ghost.vercel.app',
         steamId: '',
         steamName: '',
         petEnabled: true,
