@@ -157,30 +157,84 @@ def increment_usage(user_id: int) -> bool:
 
 # ============ Flask 认证中间件 ============
 
-def auth_required(request) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
+def auth_required(request, allow_device: bool = False) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
     """
-    从请求中提取并验证 Steam ID
+    从请求中提取并验证用户身份
 
-    支持两种方式：
+    支持三种方式（优先级从高到低）：
     1. Header: X-Steam-ID
     2. Query param: steam_id
+    3. Header: X-Device-ID（仅当 allow_device=True 时）
 
     返回 (ok, user, error)
     """
     steam_id = request.headers.get("X-Steam-ID") or request.args.get("steam_id", "")
     steam_name = request.headers.get("X-Steam-Name", "")
+    device_id = request.headers.get("X-Device-ID", "")
 
-    if not steam_id:
-        return False, None, "缺少 Steam ID（请在 Header 中传 X-Steam-ID）"
+    # 优先使用 Steam ID
+    if steam_id:
+        if not verify_steam_id(steam_id):
+            return False, None, "Steam ID 格式无效（应为 17 位数字）"
+        user = get_or_create_user(steam_id, steam_name)
+        if not user:
+            return False, None, "用户创建失败，请检查数据库连接"
+        return True, user, None
 
-    if not verify_steam_id(steam_id):
-        return False, None, "Steam ID 格式无效（应为 17 位数字）"
+    # 如果允许设备 ID，尝试用设备 ID 查找/创建用户
+    if allow_device and device_id:
+        user = get_or_create_user_by_device(device_id)
+        if user:
+            return True, user, None
 
-    user = get_or_create_user(steam_id, steam_name)
-    if not user:
-        return False, None, "用户创建失败，请检查数据库连接"
+    return False, None, "缺少用户标识（请在 Header 中传 X-Steam-ID 或 X-Device-ID）"
 
-    return True, user, None
+
+def get_or_create_user_by_device(device_id: str) -> Optional[Dict[str, Any]]:
+    """根据设备 ID 获取或创建用户（用于匿名用户）"""
+    if not device_id or len(device_id) < 8:
+        return None
+
+    conn = _get_db_conn()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 先检查 users 表是否有 device_id 字段
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'device_id'
+        """)
+        has_device_id = cur.fetchone() is not None
+        
+        if not has_device_id:
+            # 表没有 device_id 字段，返回 None（不支持设备用户）
+            return None
+        
+        # 查找设备关联的用户
+        cur.execute("SELECT * FROM users WHERE device_id = %s", (device_id,))
+        row = cur.fetchone()
+
+        if row:
+            cur.execute("UPDATE users SET last_login_at = NOW() WHERE device_id = %s", (device_id,))
+            conn.commit()
+            return dict(row)
+
+        # 创建新用户（设备用户）
+        cur.execute("""
+            INSERT INTO users (device_id, steam_id, steam_name, tier)
+            VALUES (%s, %s, %s, 'basic')
+            RETURNING *
+        """, (device_id, f"dev_{device_id[:10]}", "访客"))
+        conn.commit()
+        new_row = cur.fetchone()
+        return dict(new_row) if new_row else None
+    except Exception as e:
+        print(f"[Auth] 设备用户获取/创建失败: {e}")
+        return None
+    finally:
+        conn.close()
 
 
 def quota_required(user: Dict[str, Any]) -> Tuple[bool, Optional[str]]:

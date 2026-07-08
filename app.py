@@ -66,6 +66,41 @@ def _db_execute(sql, params=None):
 app = Flask(__name__)
 
 
+# ========== 数据库自动迁移 ==========
+def _run_db_migrations():
+    """应用启动时自动执行数据库迁移"""
+    conn = _db_conn()
+    if not conn:
+        print("[Migration] 数据库未配置，跳过迁移")
+        return
+    try:
+        cur = conn.cursor()
+        
+        # 迁移 1: 给 users 表添加 device_id 字段
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'device_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] 正在添加 users.device_id 字段...")
+            cur.execute("ALTER TABLE users ADD COLUMN device_id VARCHAR(128)")
+            cur.execute("CREATE UNIQUE INDEX idx_users_device_id ON users(device_id)")
+            conn.commit()
+            print("[Migration] users.device_id 字段添加完成")
+        else:
+            print("[Migration] users.device_id 字段已存在，跳过")
+        
+        cur.close()
+    except Exception as e:
+        print(f"[Migration] 迁移失败: {e}")
+    finally:
+        conn.close()
+
+
+# 应用启动时执行迁移
+_run_db_migrations()
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -92,8 +127,8 @@ def _headers():
 def _cors_resp(data, status=200):
     resp = jsonify(data)
     resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Steam-ID, X-Steam-Name, X-Admin-Token"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Steam-ID, X-Steam-Name, X-Device-ID, X-Admin-Token, Authorization"
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
@@ -677,8 +712,34 @@ def companion_buy_item(item_id):
     if request.method == "OPTIONS":
         return _cors_resp({})
     device_id = request.headers.get("X-Device-ID", "default")
+    body = request.get_json(silent=True) or {}
+    price = int(body.get("price", 0))
+
+    # 优先从用户表扣金币（已登录用户）
+    ok, user, _ = auth_required(request, allow_device=True)
+    if ok and user:
+        conn = _db_conn()
+        if conn:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT coins FROM users WHERE id = %s", (user["id"],))
+                row = cur.fetchone()
+                if row and row["coins"] >= price:
+                    cur.execute("UPDATE users SET coins = coins - %s WHERE id = %s RETURNING coins", (price, user["id"]))
+                    conn.commit()
+                    new_coins = cur.fetchone()["coins"]
+                    ds.add_user_item(device_id, item_id, 1)
+                    return _cors_resp({"status": "ok", "message": "购买成功", "coins": new_coins})
+                else:
+                    return _cors_resp({"error": "金币不足"}, 400)
+            except Exception as e:
+                return _cors_resp({"error": str(e)}, 500)
+            finally:
+                conn.close()
+
+    # 匿名模式：直接添加物品，金币由前端本地管理
     ds.add_user_item(device_id, item_id, 1)
-    return _cors_resp({"ok": True, "message": "购买成功"})
+    return _cors_resp({"status": "ok", "message": "购买成功"})
 
 
 # ============ 成就系统 API ============
@@ -1349,6 +1410,7 @@ def auth_login():
             "steam_name": user.get("steam_name", ""),
             "tier": user.get("tier", "basic"),
             "email": user.get("email"),
+            "coins": user.get("coins", 100),
         },
         "quota": {
             "used": used,
@@ -1370,6 +1432,35 @@ def auth_quota():
 
     has_quota, used, limit = check_quota(user["id"])
     return _cors_resp({
+        "quota": {
+            "used": used,
+            "limit": limit,
+            "remaining": max(0, limit - used),
+            "reset_at": "次日 00:00 (UTC)",
+        }
+    })
+
+
+@app.route("/api/auth/profile", methods=["GET", "OPTIONS"])
+def auth_get_profile():
+    """获取当前用户资料（含代币）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    ok, user, error = auth_required(request, allow_device=True)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    has_quota, used, limit = check_quota(user["id"])
+    return _cors_resp({
+        "user": {
+            "id": user["id"],
+            "steam_id": user.get("steam_id", ""),
+            "steam_name": user.get("steam_name", ""),
+            "tier": user.get("tier", "basic"),
+            "email": user.get("email"),
+            "coins": user.get("coins", 100),
+        },
         "quota": {
             "used": used,
             "limit": limit,
@@ -2189,15 +2280,15 @@ def admin_list_users():
         where_clause = ""
         params = []
         if search:
-            where_clause = "WHERE steam_id LIKE %s OR steam_name LIKE %s"
-            params = [f"%{search}%", f"%{search}%"]
+            where_clause = "WHERE steam_id LIKE %s OR steam_name LIKE %s OR device_id LIKE %s"
+            params = [f"%{search}%", f"%{search}%", f"%{search}%"]
         
         cur.execute(f"SELECT COUNT(*) as total FROM users {where_clause}", params)
         total = cur.fetchone()["total"]
         
         offset = (page - 1) * per_page
         cur.execute(
-            f"SELECT id, steam_id, steam_name, tier, coins, ai_quota_daily, ai_used_today, email, created_at, last_login_at FROM users {where_clause} ORDER BY last_login_at DESC LIMIT %s OFFSET %s",
+            f"SELECT id, steam_id, steam_name, device_id, tier, coins, ai_quota_daily, ai_used_today, email, created_at, last_login_at FROM users {where_clause} ORDER BY last_login_at DESC LIMIT %s OFFSET %s",
             params + [per_page, offset]
         )
         users = [dict(r) for r in cur.fetchall()]
