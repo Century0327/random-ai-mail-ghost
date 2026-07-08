@@ -822,6 +822,13 @@ def create_conversation():
 
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 
+def _get_env(*keys):
+    for k in keys:
+        val = os.environ.get(k, "")
+        if val:
+            return val
+    return ""
+
 def _get_ai_config():
     """从 config.py 读取 AI 配置"""
     config_content, _ = _get_file(CONFIG_PATH)
@@ -829,10 +836,14 @@ def _get_ai_config():
         return None
     config = _parse_config(config_content)
     key_selector = config.get("AI_KEY_SELECTOR", "key1")
-    api_key = os.environ.get(f"AI_API_KEY_{key_selector}", os.environ.get(f"AI_API_KEY{key_selector.replace('key', '')}", os.environ.get("AI_API_KEY", "")))
+    api_key = _get_env(
+        f"AI_API_KEY_{key_selector}",
+        f"AI_API_KEY{key_selector.replace('key', '')}",
+        "AI_API_KEY"
+    )
     return {
         "url": _resolve_ai_url(config),
-        "model": config.get("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
+        "model": config.get("AI_MODEL", ""),
         "key": api_key,
     }
 

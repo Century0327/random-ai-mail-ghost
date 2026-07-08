@@ -17,7 +17,18 @@ def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from config import AI_PROVIDER, AI_MODEL, AI_CUSTOM_URL, AI_KEY_SELECTOR
     
-    api_key = os.environ.get(f"AI_API_KEY_{AI_KEY_SELECTOR}", os.environ.get(f"AI_API_KEY{AI_KEY_SELECTOR.replace('key', '')}", os.environ.get("AI_API_KEY", "")))
+    def _get_env(*keys):
+        for k in keys:
+            val = os.environ.get(k, "")
+            if val:
+                return val
+        return ""
+    
+    api_key = _get_env(
+        f"AI_API_KEY_{AI_KEY_SELECTOR}",
+        f"AI_API_KEY{AI_KEY_SELECTOR.replace('key', '')}",
+        "AI_API_KEY"
+    )
     
     AI_PROVIDER_URLS = {
         "siliconflow": "https://api.siliconflow.cn/v1/chat/completions",
