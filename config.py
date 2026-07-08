@@ -71,7 +71,7 @@ AI_PROVIDER = "siliconflow"
 #             cognitivecomputations/dolphin-mistral-24b-venice-edition:free, openai/gpt-oss-20b:free,
 #             nvidia/nemotron-nano-12b-v2-vl:free, nvidia/nemotron-nano-9b-v2:free
 #   基准：Qwen/Qwen3-8B, qwen/qwen3-coder:free
-AI_MODEL = "deepseek-ai/DeepSeek-V3"
+AI_MODEL = ""
 
 # 自定义 URL（仅在 AI_PROVIDER = "custom" 时生效）
 AI_CUSTOM_URL = ""
@@ -79,9 +79,9 @@ AI_CUSTOM_URL = ""
 # ============ AI Key 选择 ============
 # 在 GitHub Secrets / Vercel 环境变量中设置多个 Key：AI_API_KEY_key1, AI_API_KEY_key2, AI_API_KEY_key3
 # 通过这里选择使用哪个 Key，方便切换和负载均衡
-AI_KEY_SELECTOR = "key1"
-# AI_KEY_SELECTOR = "key2"
-# AI_KEY_SELECTOR = "key3""custom" 时生效）
+AI_KEY_SELECTOR = "AI_API_KEY_key1"
+# AI_KEY_SELECTOR = "AI_API_KEY_key2"
+# AI_KEY_SELECTOR = "AI_API_KEY_key3""custom" 时生效）
 AI_CUSTOM_URL = ""
 
 # ============ API 重试配置 ============
