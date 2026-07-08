@@ -441,11 +441,28 @@ def main():
             
             persona_name, persona_text, _ = load_persona(PERSONA)
             
-            schedule_prompt = f"""请为'{persona_name}'生成今天的日程安排。生成8-12条日程，时间跨度覆盖全天（从早上起床到晚上睡觉），每条包含：
+            schedule_prompt = f"""请为'{persona_name}'生成今天的日程安排。
+
+角色设定：
+{persona_text[:800]}
+
+生成 8-12 条日程，时间跨度覆盖全天（从早上起床到晚上睡觉）。
+注意：
+1. 必须生成完整一天的日程，过去的时间也要有
+2. 日程要符合角色性格，更要符合该动物的真实作息规律：
+   - 猫：晨昏性动物，最活跃在黎明(5:00-7:00)和黄昏(18:00-22:00)，白天大部分时间睡觉、打盹、发呆，深夜也可能短时间活动
+   - 狗：昼夜型但有晨昏活动高峰，白天穿插午睡，跟随人类作息，活跃在早晨和傍晚
+   - 狐狸：晨昏+夜行性，白天睡觉休息，活跃在黄昏、夜间、黎明
+   - 鸟：昼行性，日出前醒来(约5:00-6:00)，日落前睡觉(约19:00-20:00)，中午有午休，活跃在清晨和傍晚
+3. 活动要多样化，包括休息、进食、玩耍、发呆、梳理毛发、巡视等日常行为，休息/睡觉应占较大比例
+4. 重要：activity 活动描述必须使用现在时或将来时，绝对不能使用过去时、完成时（如"吃了"、"睡了"、"看完了"等），因为这是计划日程，不是已发生的记录
+5. 重要：activity 中不能出现感受描述（如"心满意足"、"很开心"、"好舒服"等），感受和心情只能放在 thought 内心想法里
+
+每条日程包含：
 - time: 时间（如 "08:00"）
-- activity: 活动描述（15字以内）
+- activity: 活动描述（15字以内，现在时/将来时，不含感受）
 - location: 地点（5字以内）
-- thought: 内心想法（20字以内）
+- thought: 内心想法（20字以内，可以有感受）
 
 请只返回 JSON 数组格式，不要其他文字。例如：
 [
@@ -469,17 +486,20 @@ def main():
                         pass
             
             if not schedule_items:
-                # AI 生成失败，使用默认日程
+                # AI 生成失败，使用默认日程（猫的晨昏性作息）
                 schedule_items = [
-                    {"time": "07:00", "activity": "伸懒腰起床", "location": "猫窝", "thought": "新的一天开始啦", "done": False},
-                    {"time": "08:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的小鱼干真香", "done": False},
-                    {"time": "10:00", "activity": "在窗台看风景", "location": "窗台", "thought": "外面的蝴蝶真好看", "done": False},
-                    {"time": "12:00", "activity": "午睡", "location": "沙发上", "thought": "暖暖的阳光好舒服", "done": False},
-                    {"time": "14:00", "activity": "玩毛线球", "location": "地毯上", "thought": "这个球怎么抓不住", "done": False},
-                    {"time": "16:00", "activity": "整理信件", "location": "书桌旁", "thought": "看看有没有新来信", "done": False},
-                    {"time": "18:00", "activity": "等主人回家", "location": "门口", "thought": "怎么还不回来呀", "done": False},
-                    {"time": "20:00", "activity": "吃晚餐", "location": "食盆旁", "thought": "晚餐时间到啦", "done": False},
-                    {"time": "22:00", "activity": "准备睡觉", "location": "猫窝", "thought": "今天过得真开心", "done": False},
+                    {"time": "05:30", "activity": "清晨巡逻", "location": "窗台", "thought": "天快亮了，先去看看领地", "done": False},
+                    {"time": "06:00", "activity": "叫主人起床", "location": "枕头边", "thought": "起床啦！饭饭时间到！", "done": False},
+                    {"time": "06:30", "activity": "吃早餐", "location": "食盆旁", "thought": "今天的猫粮味道还不错", "done": False},
+                    {"time": "07:30", "activity": "晨间捕猎练习", "location": "客厅", "thought": "这个逗猫棒休想逃过我的爪子", "done": False},
+                    {"time": "09:00", "activity": "上午第一觉", "location": "阳光地毯上", "thought": "暖暖的阳光，好困...zzZ", "done": False},
+                    {"time": "12:00", "activity": "午觉", "location": "沙发靠背", "thought": "中午就该睡觉，人类懂什么", "done": False},
+                    {"time": "14:30", "activity": "下午小憩", "location": "猫爬架顶", "thought": "高处睡得香，还能监视全家", "done": False},
+                    {"time": "16:00", "activity": "舔毛理容", "location": "窗台上", "thought": "猫猫要保持帅气的发型", "done": False},
+                    {"time": "17:30", "activity": "黄昏捕猎练习", "location": "客厅", "thought": "黄昏是猫的黄金时间！", "done": False},
+                    {"time": "18:30", "activity": "吃晚餐", "location": "食盆旁", "thought": "终于开饭了，饿死喵了", "done": False},
+                    {"time": "21:00", "activity": "夜间疯跑", "location": "全家乱窜", "thought": "冲啊！午夜竞速开始！", "done": False},
+                    {"time": "23:30", "activity": "夜巡", "location": "各个房间", "thought": "夜间巡逻，确保全家安全", "done": False},
                 ]
             
             # 按日期存储
