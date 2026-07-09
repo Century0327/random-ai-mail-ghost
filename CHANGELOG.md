@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostgreSQL + JSON dual storage layer
 - GitHub Actions scheduled letter dispatch
 
+### Fixed
+- 批量购买接口匿名模式添加异常捕获，避免未处理异常导致500错误
+- 支持 CORS 预检请求（OPTIONS 方法）
+
 ## [0.1.0] - 2026-07-09
 
 ### Added
