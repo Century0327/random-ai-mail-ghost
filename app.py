@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import base64
+import uuid
 import requests
 
 from flask import Flask, request, jsonify, render_template
@@ -1250,13 +1251,39 @@ def generate_schedule():
 
 
 
-@app.route("/api/companion/attachments", methods=["GET", "OPTIONS"])
+@app.route("/api/companion/attachments", methods=["GET", "POST", "OPTIONS"])
 def companion_attachments():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    
+
+    ok, user, error = auth_required(request, allow_device=True)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        attachment_id = data.get("id") or str(uuid.uuid4())
+        character_id = data.get("character_id", "")
+        src = data.get("src", "")
+        title = data.get("title", "")
+        letter_id = data.get("letter_id")
+        if not src:
+            return _cors_resp({"error": "缺少图片地址 src"}, 400)
+        success = ds.create_attachment(
+            attachment_id=attachment_id,
+            user_id=user["id"],
+            character_id=character_id,
+            src=src,
+            title=title,
+            letter_id=letter_id,
+            is_favorite=True,
+        )
+        if not success:
+            return _cors_resp({"error": "保存到相册失败"}, 500)
+        return _cors_resp({"status": "ok", "attachment": {"id": attachment_id, "src": src, "title": title}})
+
     character_id = request.args.get("character_id")
-    attachments = ds.get_attachments(character_id)
+    attachments = ds.get_attachments(user_id=user["id"], character_id=character_id)
     return _cors_resp({"attachments": attachments})
 
 

@@ -484,16 +484,33 @@ class DataService:
 
     # ==================== Attachments ====================
 
-    def get_attachments(self, character_id: Optional[str] = None) -> List[Dict]:
-        if character_id:
-            rows = self._query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments WHERE character_id = %s ORDER BY created_at DESC",
-                (character_id,)
-            )
+    def get_attachments(self, user_id: Optional[int] = None, character_id: Optional[str] = None) -> List[Dict]:
+        if user_id is not None:
+            if character_id:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments WHERE user_id = %s AND character_id = %s
+                       ORDER BY created_at DESC""",
+                    (user_id, character_id)
+                )
+            else:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments WHERE user_id = %s
+                       ORDER BY created_at DESC""",
+                    (user_id,)
+                )
         else:
-            rows = self._query(
-                "SELECT id, letter_id, character_id, src, title, created_at FROM attachments ORDER BY created_at DESC"
-            )
+            if character_id:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments WHERE character_id = %s ORDER BY created_at DESC""",
+                    (character_id,)
+                )
+            else:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments ORDER BY created_at DESC""")
         if rows is not None:
             return [dict(r) for r in rows]
         attachments = _load_json("attachments.json", [])
@@ -501,11 +518,13 @@ class DataService:
             attachments = [a for a in attachments if a.get("character_id") == character_id]
         return attachments
 
-    def create_attachment(self, attachment_id: str, character_id: str, src: str,
-                          title: str = "", letter_id: Optional[str] = None) -> bool:
+    def create_attachment(self, attachment_id: str, user_id: int, character_id: str, src: str,
+                          title: str = "", letter_id: Optional[str] = None,
+                          is_favorite: bool = False) -> bool:
         return self._execute(
-            "INSERT INTO attachments (id, letter_id, character_id, src, title) VALUES (%s, %s, %s, %s, %s)",
-            (attachment_id, letter_id, character_id, src, title)
+            """INSERT INTO attachments (id, user_id, letter_id, character_id, src, title, is_favorite)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (attachment_id, user_id, letter_id, character_id, src, title, is_favorite)
         )
 
     # ==================== Migration helpers ====================
