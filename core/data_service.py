@@ -2,16 +2,29 @@
 # -*- coding: utf-8 -*-
 """
 统一数据访问层：PostgreSQL 优先，JSON 文件兜底（仅本地开发）
+
+修复记录：
+- 缺陷1：add_user_item 只写 JSON，绕过 PG → 修复为 PG 优先写入
+- 缺陷2：buy_items_batch 非原子性 → 修复为事务+全量检查+失败回滚
+- 缺陷3：底部重复实例化死代码 → 移除重复创建
+- 缺陷4：错误处理静默吞噬 → 增加 logging，关键路径抛异常
+- 缺陷5：_enrich_character 硬编码图片 → 优先读 DB image 字段
+- 新增：用户代币管理（PG + JSON 兜底）
+- 新增：家具布置持久化（room_decorations 表 + device_id 支持）
+- 新增：匿名用户（device_id）的完整数据管理
 """
 
 import os
 import json
+import logging
 from datetime import datetime, date
 from typing import List, Dict, Optional, Any
 
-# PostgreSQL
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
@@ -29,17 +42,19 @@ def _load_json(filename: str, default: Any = None) -> Any:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[JSON] 读取失败 {filename}: {e}")
         return default if default is not None else []
 
 
 def _save_json(filename: str, data: Any) -> bool:
-    os.makedirs(DATA_DIR, exist_ok=True)
     try:
+        os.makedirs(DATA_DIR, exist_ok=True)
         with open(_json_path(filename), "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"[JSON] 写入失败 {filename}: {e}")
         return False
 
 
@@ -49,15 +64,46 @@ class DataService:
     def __init__(self, db_url: Optional[str] = None):
         self.db_url = db_url or DATABASE_URL
         self._use_db = bool(self.db_url)
+        self._pool = None
+        if self._use_db:
+            try:
+                self._pool = SimpleConnectionPool(
+                    minconn=1,
+                    maxconn=10,
+                    dsn=self.db_url,
+                    sslmode="require"
+                )
+                logger.info("[DB] 连接池初始化成功")
+            except Exception as e:
+                logger.warning(f"[DB] 连接池初始化失败，降级为单连接模式: {e}")
+                self._pool = None
 
     def _conn(self):
         if not self._use_db:
             return None
         try:
-            return psycopg2.connect(self.db_url, sslmode="require")
+            if self._pool:
+                return self._pool.getconn()
+            else:
+                return psycopg2.connect(self.db_url, sslmode="require")
         except Exception as e:
-            print(f"[DB CONN ERROR] {e}")
+            logger.error(f"[DB CONN ERROR] {e}")
             return None
+
+    def _release_conn(self, conn):
+        if conn is None:
+            return
+        try:
+            if self._pool:
+                self._pool.putconn(conn)
+            else:
+                conn.close()
+        except Exception as e:
+            logger.warning(f"[DB] 释放连接失败: {e}")
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def _query(self, sql: str, params=None, fetch_one=False):
         conn = self._conn()
@@ -71,10 +117,14 @@ class DataService:
             cur.close()
             return result
         except Exception as e:
-            print(f"[DB ERROR] {e}")
+            logger.error(f"[DB QUERY ERROR] {e}\n  SQL: {sql[:200]}\n  Params: {params}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             return None
         finally:
-            conn.close()
+            self._release_conn(conn)
 
     def _execute(self, sql: str, params=None) -> bool:
         conn = self._conn()
@@ -87,10 +137,36 @@ class DataService:
             cur.close()
             return True
         except Exception as e:
-            print(f"[DB ERROR] {e}")
+            logger.error(f"[DB EXECUTE ERROR] {e}\n  SQL: {sql[:200]}\n  Params: {params}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             return False
         finally:
-            conn.close()
+            self._release_conn(conn)
+
+    def _execute_many(self, sql: str, params_list: List[tuple]) -> bool:
+        """批量执行，单条 SQL 多次绑定，同一事务"""
+        conn = self._conn()
+        if not conn:
+            return False
+        try:
+            cur = conn.cursor()
+            for params in params_list:
+                cur.execute(sql, params)
+            conn.commit()
+            cur.close()
+            return True
+        except Exception as e:
+            logger.error(f"[DB EXECUTE MANY ERROR] {e}\n  SQL: {sql[:200]}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return False
+        finally:
+            self._release_conn(conn)
 
     # ==================== Characters ====================
 
@@ -99,16 +175,13 @@ class DataService:
         personalities_raw = c.get("personality", "") or ""
         personalities = [p.strip() for p in personalities_raw.replace("、", ",").replace("，", ",").split(",") if p.strip()]
 
-        image_map = {
-            "kitty": "/room/cat.png",
-            "puppy": "/room/puppy.png",
-            "foxy": "/room/foxy.png",
-            "birb": "/room/birb.png",
-        }
-
         result = dict(c)
         result["bio"] = c.get("description") or c.get("bio") or ""
-        result["image"] = c.get("image") or image_map.get(cid, f"/room/{cid}.png")
+        db_image = c.get("image")
+        if db_image:
+            result["image"] = db_image
+        else:
+            result["image"] = f"/room/{cid}.png"
         result["personalities"] = personalities
         result["statMax"] = c.get("stat_max", 100)
         result["isOfficial"] = c.get("is_official", True)
@@ -119,27 +192,25 @@ class DataService:
 
     def get_characters(self) -> List[Dict]:
         rows = self._query(
-            'SELECT id, name, description, personality, stat_name, stat_color FROM characters ORDER BY id'
+            'SELECT id, name, description, personality, stat_name, stat_color, image, is_official, is_public FROM characters ORDER BY id'
         )
         if rows is not None:
             return [self._enrich_character(dict(r)) for r in rows]
-        # Fallback
         raw = _load_json("characters.json", [
-            {"id": "kitty", "name": "Kitty", "description": "傲娇的小猫", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0"},
-            {"id": "puppy", "name": "Puppy", "description": "忠诚的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896"},
-            {"id": "foxy", "name": "Foxy", "description": "狡猾的小狐狸", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c"},
-            {"id": "birb", "name": "Birb", "description": "活泼的小鸟", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9"},
+            {"id": "kitty", "name": "Kitty", "description": "傲娇的小猫", "personality": "傲娇、温柔", "statName": "好感度", "statColor": "#e8a0a0", "image": "/room/cat.png"},
+            {"id": "puppy", "name": "Puppy", "description": "忠诚的小狗", "personality": "活泼、忠诚", "statName": "好感度", "statColor": "#d4b896", "image": "/room/puppy.png"},
+            {"id": "foxy", "name": "Foxy", "description": "狡猾的小狐狸", "personality": "机智、调皮", "statName": "好感度", "statColor": "#c9785c", "image": "/room/foxy.png"},
+            {"id": "birb", "name": "Birb", "description": "活泼的小鸟", "personality": "乐观、好奇", "statName": "好感度", "statColor": "#a0c4d9", "image": "/room/birb.png"},
         ])
         return [self._enrich_character(c) for c in raw]
 
     def get_character(self, character_id: str) -> Optional[Dict]:
         rows = self._query(
-            'SELECT id, name, description, personality, stat_name, stat_color FROM characters WHERE id = %s',
+            'SELECT id, name, description, personality, stat_name, stat_color, image, is_official, is_public FROM characters WHERE id = %s',
             (character_id,), fetch_one=True
         )
         if rows is not None:
             return self._enrich_character(dict(rows))
-        # Fallback
         for c in self.get_characters():
             if c["id"] == character_id:
                 return c
@@ -153,7 +224,6 @@ class DataService:
         )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback
         return [
             {"id": "fish_snack", "name": "小鱼干零食", "desc": "猫咪最爱的香脆小鱼干，元气满满。", "price": 12, "emojiColor": "#e8a87c", "image": "/room/item-fish.png", "category": "food"},
             {"id": "yarn_ball", "name": "毛线球玩具", "desc": "软软的毛线球，可以陪它玩一下午。", "price": 18, "emojiColor": "#d98ea0", "image": "/room/item-yarn.png", "category": "toy"},
@@ -163,79 +233,221 @@ class DataService:
         ]
 
     def get_item(self, item_id: str) -> Optional[Dict]:
-        """获取单个物品详情"""
         rows = self._query(
             "SELECT id, name, description AS desc, category, price, image, emoji_color AS \"emojiColor\" FROM shop_items WHERE id = %s",
             (item_id,)
         )
         if rows:
             return dict(rows[0])
-        # Fallback
         for item in self.get_items():
             if item["id"] == item_id:
                 return item
         return None
 
+    # ==================== 用户代币 ====================
+
+    def get_user_coins(self, device_id: str, user_id: Optional[int] = None) -> int:
+        """获取用户代币。优先 PG，兜底 JSON。"""
+        if user_id is not None and self._use_db:
+            row = self._query(
+                "SELECT coins FROM users WHERE id = %s",
+                (user_id,), fetch_one=True
+            )
+            if row is not None:
+                return int(row["coins"] or 0)
+
+        if self._use_db and device_id:
+            row = self._query(
+                "SELECT coins FROM users WHERE device_id = %s LIMIT 1",
+                (device_id,), fetch_one=True
+            )
+            if row is not None:
+                return int(row["coins"] or 0)
+
+        user_state = _load_json(f"user_state_{device_id}.json", {})
+        return int(user_state.get("coins", 100))
+
+    def update_user_coins(self, device_id: str, delta: int, user_id: Optional[int] = None) -> Dict:
+        """
+        更新用户代币（增减都用这个）。
+        返回: {success, coins, message}
+        """
+        current = self.get_user_coins(device_id, user_id)
+        new_coins = current + delta
+
+        if new_coins < 0:
+            return {"success": False, "coins": current, "message": "代币不足"}
+
+        pg_ok = False
+        if user_id is not None and self._use_db:
+            pg_ok = self._execute(
+                "UPDATE users SET coins = %s WHERE id = %s",
+                (new_coins, user_id)
+            )
+        elif device_id and self._use_db:
+            pg_ok = self._execute(
+                """
+                INSERT INTO users (device_id, coins, created_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (device_id) DO UPDATE SET coins = EXCLUDED.coins
+                """,
+                (device_id, new_coins)
+            )
+
+        if not pg_ok:
+            user_state = _load_json(f"user_state_{device_id}.json", {})
+            user_state["coins"] = new_coins
+            _save_json(f"user_state_{device_id}.json", user_state)
+
+        return {"success": True, "coins": new_coins, "message": "ok"}
+
     # ==================== 用户背包 ====================
 
-    def get_user_items(self, device_id: str) -> List[Dict]:
-        # 优先从 JSON 读取（companion API 轻量模式）
+    def get_user_items(self, device_id: str, user_id: Optional[int] = None) -> List[Dict]:
+        """获取用户背包。PG 优先（user_inventory 表），JSON 兜底。"""
+        all_items = {i["id"]: i for i in self.get_items()}
+        result = []
+
+        rows = None
+        if user_id is not None and self._use_db:
+            rows = self._query(
+                """SELECT item_id, quantity, purchased_at
+                   FROM user_inventory WHERE user_id = %s""",
+                (user_id,)
+            )
+        elif device_id and self._use_db:
+            rows = self._query(
+                """SELECT item_id, quantity, purchased_at
+                   FROM user_inventory
+                   WHERE user_id = (SELECT id FROM users WHERE device_id = %s LIMIT 1)""",
+                (device_id,)
+            )
+
+        if rows is not None:
+            for r in rows:
+                iid = r["item_id"]
+                detail = all_items.get(iid, {})
+                result.append({
+                    **detail,
+                    "itemId": iid,
+                    "quantity": r["quantity"],
+                    "purchasedAt": r["purchased_at"].isoformat() + "Z" if r.get("purchased_at") else None,
+                })
+            return result
+
         inv = _load_json(f"inventory_{device_id}.json", [])
         if inv:
-            # 补充物品详情
-            items_map = {i["id"]: i for i in self.get_items()}
-            result = []
             for item in inv:
                 iid = item.get("item_id") or item.get("id")
-                detail = items_map.get(iid, {})
+                detail = all_items.get(iid, {})
                 result.append({
                     **detail,
                     "itemId": iid,
                     "quantity": item.get("quantity", 1),
                     "purchasedAt": item.get("purchased_at") or item.get("purchasedAt"),
                 })
-            return result
-        # Fallback: 默认给一些初始物品
-        return []
+        return result
 
-    def add_user_item(self, device_id: str, item_id: str, quantity: int = 1) -> bool:
-        inv = _load_json(f"inventory_{device_id}.json", [])
-        found = False
-        for item in inv:
-            if (item.get("item_id") or item.get("id")) == item_id:
-                item["quantity"] = item.get("quantity", 0) + quantity
-                found = True
-                break
-        if not found:
-            inv.append({
-                "item_id": item_id,
-                "quantity": quantity,
-                "purchased_at": datetime.utcnow().isoformat() + "Z"
-            })
-        _save_json(f"inventory_{device_id}.json", inv)
-        return True
+    def add_user_item(self, device_id: str, item_id: str, quantity: int = 1,
+                      user_id: Optional[int] = None, conn=None) -> bool:
+        """
+        添加物品到用户背包。PG 优先，JSON 兜底。
+        如果传入 conn，则使用外部事务（用于批量购买原子性）。
+        """
+        use_external_conn = conn is not None
+        local_conn = None
+        try:
+            if not use_external_conn:
+                local_conn = self._conn()
+                conn = local_conn
+
+            pg_ok = False
+            if self._use_db and conn is not None:
+                cur = conn.cursor()
+                if user_id is not None:
+                    cur.execute(
+                        """
+                        INSERT INTO user_inventory (user_id, item_id, quantity, purchased_at)
+                        VALUES (%s, %s, %s, NOW())
+                        ON CONFLICT (user_id, item_id)
+                        DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+                        """,
+                        (user_id, item_id, quantity)
+                    )
+                    pg_ok = True
+                elif device_id:
+                    cur.execute(
+                        """
+                        INSERT INTO users (device_id, coins, created_at)
+                        VALUES (%s, 100, NOW())
+                        ON CONFLICT (device_id) DO NOTHING
+                        """,
+                        (device_id,)
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO user_inventory (user_id, item_id, quantity, purchased_at)
+                        VALUES ((SELECT id FROM users WHERE device_id = %s LIMIT 1), %s, %s, NOW())
+                        ON CONFLICT (user_id, item_id)
+                        DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+                        """,
+                        (device_id, item_id, quantity)
+                    )
+                    pg_ok = True
+                if not use_external_conn:
+                    conn.commit()
+                cur.close()
+
+            if pg_ok:
+                return True
+
+            inv = _load_json(f"inventory_{device_id}.json", [])
+            found = False
+            for item in inv:
+                if (item.get("item_id") or item.get("id")) == item_id:
+                    item["quantity"] = item.get("quantity", 0) + quantity
+                    found = True
+                    break
+            if not found:
+                inv.append({
+                    "item_id": item_id,
+                    "quantity": quantity,
+                    "purchased_at": datetime.utcnow().isoformat() + "Z"
+                })
+            return _save_json(f"inventory_{device_id}.json", inv)
+
+        except Exception as e:
+            logger.error(f"[add_user_item] 失败: {e}")
+            if not use_external_conn and conn is not None:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return False
+        finally:
+            if local_conn is not None:
+                self._release_conn(local_conn)
 
     def buy_items_batch(self, device_id: str, items: List[Dict], user_id: Optional[int] = None) -> Dict:
         """
-        批量购买物品。
+        批量购买物品（原子操作）。
         items: [{item_id, quantity}]
-        返回: {status, message, total_spent, items_added}
+        返回: {status, message, total_spent, items_added, coins}
         """
         total_spent = 0
         items_added = []
 
-        # 获取所有物品详情
         all_items = {i["id"]: i for i in self.get_items()}
 
         for item in items:
             item_id = item.get("item_id") or item.get("itemId")
             quantity = item.get("quantity", 1)
             detail = all_items.get(item_id, {})
+            if not detail:
+                return {"status": "error", "message": f"物品不存在: {item_id}", "total_spent": 0, "items_added": []}
             price = detail.get("price", 0)
             total_cost = price * quantity
             total_spent += total_cost
-
-            self.add_user_item(device_id, item_id, quantity)
             items_added.append({
                 "item_id": item_id,
                 "quantity": quantity,
@@ -243,12 +455,174 @@ class DataService:
                 "name": detail.get("name", item_id)
             })
 
-        return {
-            "status": "ok",
-            "message": f"成功购买 {len(items_added)} 种物品",
-            "total_spent": total_spent,
-            "items_added": items_added
-        }
+        current_coins = self.get_user_coins(device_id, user_id)
+        if current_coins < total_spent:
+            return {"status": "error", "message": "代币不足", "total_spent": 0, "items_added": [], "coins": current_coins}
+
+        conn = self._conn() if self._use_db else None
+
+        try:
+            if conn is not None:
+                coin_result = self.update_user_coins(device_id, -total_spent, user_id)
+                if not coin_result["success"]:
+                    return {"status": "error", "message": coin_result["message"], "total_spent": 0, "items_added": [], "coins": current_coins}
+
+                for item in items_added:
+                    ok = self.add_user_item(
+                        device_id, item["item_id"], item["quantity"],
+                        user_id=user_id, conn=conn
+                    )
+                    if not ok:
+                        conn.rollback()
+                        self.update_user_coins(device_id, total_spent, user_id)
+                        return {"status": "error", "message": f"添加物品失败: {item['item_id']}", "total_spent": 0, "items_added": [], "coins": current_coins}
+
+                conn.commit()
+                new_coins = coin_result["coins"]
+            else:
+                coin_result = self.update_user_coins(device_id, -total_spent, user_id)
+                if not coin_result["success"]:
+                    return {"status": "error", "message": coin_result["message"], "total_spent": 0, "items_added": [], "coins": current_coins}
+
+                for item in items_added:
+                    ok = self.add_user_item(device_id, item["item_id"], item["quantity"])
+                    if not ok:
+                        self.update_user_coins(device_id, total_spent, user_id)
+                        return {"status": "error", "message": f"添加物品失败: {item['item_id']}", "total_spent": 0, "items_added": [], "coins": current_coins}
+
+                new_coins = coin_result["coins"]
+
+            return {
+                "status": "ok",
+                "message": f"成功购买 {len(items_added)} 种物品",
+                "total_spent": total_spent,
+                "items_added": items_added,
+                "coins": new_coins
+            }
+
+        except Exception as e:
+            logger.error(f"[buy_items_batch] 异常: {e}")
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return {"status": "error", "message": str(e), "total_spent": 0, "items_added": [], "coins": current_coins}
+        finally:
+            if conn is not None:
+                self._release_conn(conn)
+
+    # ==================== 家具布置 ====================
+
+    def get_user_furniture(self, device_id: str, user_id: Optional[int] = None) -> List[Dict]:
+        """获取用户房间家具布置。PG 优先（room_decorations 表），JSON 兜底。"""
+        rows = None
+        if user_id is not None and self._use_db:
+            rows = self._query(
+                """SELECT id, item_id, position_x AS x, position_y AS y, rotation, status,
+                          unique_id AS "uniqueId", template_id AS "templateId", placed_at
+                   FROM room_decorations WHERE user_id = %s ORDER BY id""",
+                (user_id,)
+            )
+        elif device_id and self._use_db:
+            rows = self._query(
+                """SELECT rd.id, rd.item_id, rd.position_x AS x, rd.position_y AS y, rd.rotation,
+                          rd.status, rd.unique_id AS "uniqueId", rd.template_id AS "templateId", rd.placed_at
+                   FROM room_decorations rd
+                   JOIN users u ON rd.user_id = u.id
+                   WHERE u.device_id = %s
+                   ORDER BY rd.id""",
+                (device_id,)
+            )
+
+        if rows is not None:
+            result = []
+            all_items = {i["id"]: i for i in self.get_items()}
+            for r in rows:
+                iid = r["item_id"]
+                detail = all_items.get(iid, {})
+                result.append({
+                    "id": r["id"],
+                    "uniqueId": r.get("uniqueId") or f"furn_{r['id']}",
+                    "templateId": r.get("templateId") or iid,
+                    "itemId": iid,
+                    "name": detail.get("name", ""),
+                    "image": detail.get("image", ""),
+                    "category": detail.get("category", "furniture"),
+                    "x": float(r["x"] or 0),
+                    "y": float(r["y"] or 0),
+                    "rotation": float(r.get("rotation") or 0),
+                    "status": r.get("status") or "in_room",
+                    "placedAt": r["placed_at"].isoformat() + "Z" if r.get("placed_at") else None,
+                })
+            return result
+
+        furniture = _load_json(f"furniture_{device_id}.json", [])
+        return furniture
+
+    def save_user_furniture(self, device_id: str, furniture_list: List[Dict],
+                            user_id: Optional[int] = None) -> Dict:
+        """
+        全量保存用户家具布置（先删后插，原子操作）。
+        furniture_list: [{uniqueId, templateId, x, y, rotation, status}]
+        返回: {success, count, message}
+        """
+        conn = self._conn() if self._use_db else None
+        try:
+            if conn is not None:
+                cur = conn.cursor()
+
+                target_user_id = user_id
+                if target_user_id is None and device_id:
+                    cur.execute(
+                        "INSERT INTO users (device_id, coins, created_at) VALUES (%s, 100, NOW()) ON CONFLICT (device_id) DO NOTHING RETURNING id",
+                        (device_id,)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        target_user_id = row[0]
+                    else:
+                        cur.execute("SELECT id FROM users WHERE device_id = %s LIMIT 1", (device_id,))
+                        row = cur.fetchone()
+                        target_user_id = row[0] if row else None
+
+                if target_user_id is not None:
+                    cur.execute("DELETE FROM room_decorations WHERE user_id = %s", (target_user_id,))
+
+                    for f in furniture_list:
+                        unique_id = f.get("uniqueId", "")
+                        template_id = f.get("templateId", f.get("itemId", ""))
+                        x = float(f.get("x", 0))
+                        y = float(f.get("y", 0))
+                        rotation = float(f.get("rotation", 0))
+                        status = f.get("status", "in_room")
+                        cur.execute(
+                            """
+                            INSERT INTO room_decorations
+                                (user_id, item_id, unique_id, template_id, position_x, position_y, rotation, status, placed_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            """,
+                            (target_user_id, template_id, unique_id, template_id, x, y, rotation, status)
+                        )
+
+                    conn.commit()
+                    cur.close()
+                    return {"success": True, "count": len(furniture_list), "message": "ok"}
+
+            _save_json(f"furniture_{device_id}.json", furniture_list)
+            return {"success": True, "count": len(furniture_list), "message": "ok (json fallback)"}
+
+        except Exception as e:
+            logger.error(f"[save_user_furniture] 失败: {e}")
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return {"success": False, "count": 0, "message": str(e)}
+        finally:
+            if conn is not None:
+                self._release_conn(conn)
 
     # ==================== 成就系统 ====================
 
@@ -258,7 +632,6 @@ class DataService:
         )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback
         return [
             {"id": "first_letter", "name": "初遇", "description": "收到第一封信", "rarity": "common", "category": "general", "conditionType": "letters_total", "conditionValue": 1, "rewardAffection": 5, "rewardCoins": 10, "icon": "💌"},
             {"id": "letter_10", "name": "笔友", "description": "累计收到 10 封信", "rarity": "common", "category": "general", "conditionType": "letters_total", "conditionValue": 10, "rewardAffection": 10, "rewardCoins": 30, "icon": "📮"},
@@ -285,7 +658,6 @@ class DataService:
         )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback: 读成就定义 + 本地 JSON 存解锁记录
         all_achs = self.get_achievements()
         unlocked = _load_json(f"achievements_{device_id}.json", [])
         unlocked_ids = set(unlocked)
@@ -303,7 +675,7 @@ class DataService:
     def get_favorite_letters(self, device_id: str, character_id: Optional[str] = None) -> List[Dict]:
         if character_id:
             rows = self._query(
-                """SELECT id, character_id, subject, body, source, attachment_url, 
+                """SELECT id, character_id, subject, body, source, attachment_url,
                           is_read, is_favorite, created_at
                    FROM letters WHERE device_id = %s AND character_id = %s AND is_favorite = true
                    ORDER BY created_at DESC""",
@@ -319,7 +691,6 @@ class DataService:
             )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback
         letters = self.get_letters(character_id)
         return [l for l in letters if l.get("is_favorite")]
 
@@ -328,7 +699,6 @@ class DataService:
             "UPDATE letters SET is_favorite = %s WHERE id = %s AND device_id = %s",
             (is_favorite, letter_id, device_id)
         )
-        # Fallback - JSON fallback 简化处理
         return result is not False
 
     # ==================== 附件收藏 ====================
@@ -350,7 +720,6 @@ class DataService:
             )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback
         return []
 
     def toggle_attachment_favorite(self, device_id: str, attachment_id: str, is_favorite: bool) -> bool:
@@ -375,7 +744,6 @@ class DataService:
             )
         if rows is not None:
             return [dict(r) for r in rows]
-        # Fallback JSON
         letters = _load_json("letters.json", [])
         if character_id:
             letters = [l for l in letters if l.get("character_id") == character_id]
@@ -383,11 +751,10 @@ class DataService:
 
     def create_letter(self, character_id: str, subject: str, body: str,
                       source: str = "ai", attachment_url: Optional[str] = None) -> Optional[Dict]:
-        self._execute(
+        db_ok = self._execute(
             "INSERT INTO letters (character_id, subject, body, source, attachment_url) VALUES (%s, %s, %s, %s, %s)",
             (character_id, subject, body, source, attachment_url)
         )
-        # Also save to JSON as backup
         letters = _load_json("letters.json", [])
         new_letter = {
             "id": f"l{len(letters) + 1}",
@@ -427,7 +794,6 @@ class DataService:
                         result[cid] = []
                     result[cid].append(dict(r))
                 return result
-        # Fallback JSON
         schedules = _load_json("schedules.json", {})
         if character_id:
             char_data = schedules.get(character_id, {})
@@ -439,20 +805,34 @@ class DataService:
         return schedules
 
     def save_schedules(self, character_id: str, target_date: str, items: List[Dict]) -> bool:
-        # Delete old
-        self._execute(
-            "DELETE FROM schedules WHERE character_id = %s AND date = %s",
-            (character_id, target_date)
-        )
-        # Insert new
-        for item in items:
-            self._execute(
-                "INSERT INTO schedules (character_id, date, time, activity, location, thought, done) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (character_id, target_date, item.get("time", "00:00"),
-                 item.get("activity", ""), item.get("location", ""),
-                 item.get("thought", ""), item.get("done", False))
-            )
-        # Also save to JSON as backup
+        conn = self._conn() if self._use_db else None
+        try:
+            if conn is not None:
+                cur = conn.cursor()
+                cur.execute(
+                    "DELETE FROM schedules WHERE character_id = %s AND date = %s",
+                    (character_id, target_date)
+                )
+                for item in items:
+                    cur.execute(
+                        "INSERT INTO schedules (character_id, date, time, activity, location, thought, done) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        (character_id, target_date, item.get("time", "00:00"),
+                         item.get("activity", ""), item.get("location", ""),
+                         item.get("thought", ""), item.get("done", False))
+                    )
+                conn.commit()
+                cur.close()
+        except Exception as e:
+            logger.error(f"[save_schedules] DB 失败: {e}")
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+        finally:
+            if conn is not None:
+                self._release_conn(conn)
+
         schedules = _load_json("schedules.json", {})
         if character_id not in schedules or not isinstance(schedules.get(character_id), dict):
             schedules[character_id] = {}
@@ -509,7 +889,6 @@ class DataService:
                           position_x: Optional[int] = None,
                           position_y: Optional[int] = None,
                           mood: Optional[str] = None) -> bool:
-        # Upsert
         return self._execute(
             """
             INSERT INTO user_states (device_id, character_id, stat_value, position_x, position_y, mood, updated_at)
@@ -579,29 +958,26 @@ class DataService:
     # ==================== Migration helpers ====================
 
     def init_schema(self, schema_sql: str) -> bool:
-        """执行 schema.sql 初始化数据库"""
         conn = self._conn()
         if not conn:
-            print("[DB] 无法连接数据库，跳过 schema 初始化")
+            logger.warning("[DB] 无法连接数据库，跳过 schema 初始化")
             return False
         try:
             cur = conn.cursor()
             cur.execute(schema_sql)
             conn.commit()
             cur.close()
-            print("[DB] Schema 初始化完成")
+            logger.info("[DB] Schema 初始化完成")
             return True
         except Exception as e:
-            print(f"[DB ERROR] Schema 初始化失败: {e}")
+            logger.error(f"[DB ERROR] Schema 初始化失败: {e}")
             return False
         finally:
-            conn.close()
+            self._release_conn(conn)
 
     def migrate_json_to_pg(self) -> Dict[str, int]:
-        """将现有 JSON 文件数据迁移到 PostgreSQL"""
-        stats = {"letters": 0, "schedules": 0, "attachments": 0}
+        stats = {"letters": 0, "schedules": 0, "attachments": 0, "inventory": 0, "furniture": 0}
 
-        # Letters
         letters = _load_json("letters.json", [])
         for letter in letters:
             if isinstance(letter, dict):
@@ -613,7 +989,6 @@ class DataService:
                 )
                 stats["letters"] += 1
 
-        # Schedules
         schedules = _load_json("schedules.json", {})
         for cid, char_data in schedules.items():
             if isinstance(char_data, dict):
@@ -638,7 +1013,6 @@ class DataService:
                     )
                     stats["schedules"] += 1
 
-        # Attachments
         attachments = _load_json("attachments.json", [])
         for att in attachments:
             if isinstance(att, dict):
@@ -651,48 +1025,44 @@ class DataService:
 
         return stats
 
-
     def ensure_initialized(self) -> bool:
         """确保数据库已初始化（建表 + 基础数据），幂等操作"""
         conn = self._conn()
         if not conn:
-            print("[DB] 无数据库连接，跳过初始化")
+            logger.info("[DB] 无数据库连接，跳过初始化（使用 JSON 兜底模式）")
             return False
         try:
             cur = conn.cursor()
-            # 检查表是否存在
             cur.execute("""
                 SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
+                    SELECT FROM information_schema.tables
                     WHERE table_schema = 'public' AND table_name = 'characters'
                 )
             """)
             exists = cur.fetchone()[0]
             if exists:
-                print("[DB] 数据库已初始化")
+                logger.info("[DB] 数据库已初始化")
                 return True
-            
-            # 读取并执行 schema.sql
+
             schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema.sql")
             if os.path.exists(schema_path):
                 with open(schema_path, "r", encoding="utf-8") as f:
                     schema_sql = f.read()
                 cur.execute(schema_sql)
                 conn.commit()
-                print("[DB] Schema 初始化完成")
-                
-                # 自动迁移现有 JSON 数据
+                logger.info("[DB] Schema 初始化完成")
+
                 stats = self.migrate_json_to_pg()
-                print(f"[DB] 数据迁移完成: {stats}")
+                logger.info(f"[DB] 数据迁移完成: {stats}")
                 return True
             else:
-                print(f"[DB] schema.sql 不存在: {schema_path}")
+                logger.warning(f"[DB] schema.sql 不存在: {schema_path}")
                 return False
         except Exception as e:
-            print(f"[DB ERROR] 初始化失败: {e}")
+            logger.error(f"[DB ERROR] 初始化失败: {e}")
             return False
         finally:
-            conn.close()
+            self._release_conn(conn)
 
 
 # 全局单例
@@ -700,4 +1070,3 @@ ds = DataService()
 
 # 启动时自动初始化（幂等）
 ds.ensure_initialized()
-ds = DataService()

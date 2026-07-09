@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS shop_items (
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    steam_id VARCHAR(64) UNIQUE NOT NULL,
+    steam_id VARCHAR(64) UNIQUE,
+    device_id VARCHAR(128) UNIQUE,  -- 匿名设备标识（兼容无登录模式）
     steam_name VARCHAR(128),
     email VARCHAR(256),
     tier VARCHAR(32) DEFAULT 'basic',
@@ -45,6 +46,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_login_at TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_device_id ON users(device_id);
 
 -- AI Key 池表（开发者管理）
 CREATE TABLE IF NOT EXISTS ai_keys (
@@ -231,15 +234,21 @@ CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON user_inventory(user_id);
 -- 房间摆放表（已放置的家具/装饰）
 CREATE TABLE IF NOT EXISTS room_decorations (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id VARCHAR(128),  -- 匿名设备标识
     item_id TEXT NOT NULL REFERENCES shop_items(id),
-    position_x INTEGER DEFAULT 0,
-    position_y INTEGER DEFAULT 0,
+    unique_id VARCHAR(128),  -- 前端生成的唯一ID
+    template_id VARCHAR(128),  -- 模板ID（与item_id一致，前端用）
+    position_x REAL DEFAULT 0,  -- x坐标（百分比）
+    position_y REAL DEFAULT 0,  -- y坐标（百分比）
+    rotation REAL DEFAULT 0,  -- 旋转角度
+    status VARCHAR(32) DEFAULT 'in_room',  -- in_room / in_bag
     layer INTEGER DEFAULT 0,  -- 层级
     placed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_room_deco_user_id ON room_decorations(user_id);
+CREATE INDEX IF NOT EXISTS idx_room_deco_device_id ON room_decorations(device_id);
 
 -- ==================== 初始数据 ====================
 

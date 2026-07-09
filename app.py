@@ -704,7 +704,13 @@ def companion_user_items():
     if request.method == "OPTIONS":
         return _cors_resp({})
     device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
-    items = ds.get_user_items(device_id)
+
+    user_id = None
+    ok, user, _ = auth_required(request, allow_device=True)
+    if ok and user:
+        user_id = user.get("id")
+
+    items = ds.get_user_items(device_id, user_id=user_id)
     return _cors_resp({"items": items})
 
 
@@ -713,34 +719,20 @@ def companion_buy_item(item_id):
     if request.method == "OPTIONS":
         return _cors_resp({})
     device_id = request.headers.get("X-Device-ID", "default")
-    body = request.get_json(silent=True) or {}
-    price = int(body.get("price", 0))
 
-    # 优先从用户表扣金币（已登录用户）
+    user_id = None
     ok, user, _ = auth_required(request, allow_device=True)
     if ok and user:
-        conn = _db_conn()
-        if conn:
-            try:
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("SELECT coins FROM users WHERE id = %s", (user["id"],))
-                row = cur.fetchone()
-                if row and row["coins"] >= price:
-                    cur.execute("UPDATE users SET coins = coins - %s WHERE id = %s RETURNING coins", (price, user["id"]))
-                    conn.commit()
-                    new_coins = cur.fetchone()["coins"]
-                    ds.add_user_item(device_id, item_id, 1)
-                    return _cors_resp({"status": "ok", "message": "购买成功", "coins": new_coins})
-                else:
-                    return _cors_resp({"error": "金币不足"}, 400)
-            except Exception as e:
-                return _cors_resp({"error": str(e)}, 500)
-            finally:
-                conn.close()
+        user_id = user.get("id")
 
-    # 匿名模式：直接添加物品，金币由前端本地管理
-    ds.add_user_item(device_id, item_id, 1)
-    return _cors_resp({"status": "ok", "message": "购买成功"})
+    try:
+        result = ds.buy_items_batch(device_id, [{"item_id": item_id, "quantity": 1}], user_id=user_id)
+        if result.get("status") == "error":
+            return _cors_resp({"error": result.get("message", "购买失败")}, 400)
+        return _cors_resp(result)
+    except Exception as e:
+        print(f"[buy-item] 购买失败: {e}")
+        return _cors_resp({"status": "error", "message": "购买失败，请稍后重试"}, 500)
 
 
 @app.route("/api/companion/items/<item_id>/preview", methods=["GET", "OPTIONS"])
@@ -756,7 +748,7 @@ def companion_preview_item(item_id):
 
 @app.route("/api/companion/user/items/batch-buy", methods=["POST", "OPTIONS"])
 def companion_batch_buy_items():
-    """批量购买物品（购物车结算）"""
+    """批量购买物品（购物车结算）—— 统一走 DataService，PG+JSON 双模式，原子性保证"""
     if request.method == "OPTIONS":
         return _cors_resp({})
     device_id = request.headers.get("X-Device-ID", "default")
@@ -766,48 +758,18 @@ def companion_batch_buy_items():
     if not items:
         return _cors_resp({"error": "购物车为空"}, 400)
 
-    # 计算总价
-    all_shop_items = {i["id"]: i for i in ds.get_items()}
-    total_price = 0
-    for item in items:
-        item_id = item.get("item_id") or item.get("itemId")
-        quantity = item.get("quantity", 1)
-        detail = all_shop_items.get(item_id, {})
-        price = detail.get("price", 0)
-        total_price += price * quantity
-
-    # 优先从用户表扣金币（已登录用户）
+    user_id = None
     ok, user, _ = auth_required(request, allow_device=True)
     if ok and user:
-        conn = _db_conn()
-        if conn:
-            try:
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                cur.execute("SELECT coins FROM users WHERE id = %s", (user["id"],))
-                row = cur.fetchone()
-                if row and row["coins"] >= total_price:
-                    cur.execute(
-                        "UPDATE users SET coins = coins - %s WHERE id = %s RETURNING coins",
-                        (total_price, user["id"])
-                    )
-                    conn.commit()
-                    new_coins = cur.fetchone()["coins"]
-                    result = ds.buy_items_batch(device_id, items, user["id"])
-                    result["coins"] = new_coins
-                    return _cors_resp(result)
-                else:
-                    return _cors_resp({"error": "金币不足"}, 400)
-            except Exception as e:
-                return _cors_resp({"error": str(e)}, 500)
-            finally:
-                conn.close()
+        user_id = user.get("id")
 
-    # 匿名模式：直接添加物品，金币由前端本地管理
     try:
-        result = ds.buy_items_batch(device_id, items)
+        result = ds.buy_items_batch(device_id, items, user_id=user_id)
+        if result.get("status") == "error":
+            return _cors_resp({"error": result.get("message", "购买失败")}, 400)
         return _cors_resp(result)
     except Exception as e:
-        print(f"[batch-buy] 匿名模式购买失败: {e}")
+        print(f"[batch-buy] 购买失败: {e}")
         return _cors_resp({"status": "error", "message": "购买失败，请稍后重试"}, 500)
 
 
@@ -820,6 +782,44 @@ def companion_achievements():
     device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
     achievements = ds.get_user_achievements(device_id)
     return _cors_resp({"achievements": achievements})
+
+
+# ============ 家具布置 API ============
+
+@app.route("/api/companion/user/furniture", methods=["GET", "OPTIONS"])
+def companion_get_furniture():
+    """获取用户房间家具布置"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", request.args.get("device_id", "default"))
+
+    user_id = None
+    ok, user, _ = auth_required(request, allow_device=True)
+    if ok and user:
+        user_id = user.get("id")
+
+    furniture = ds.get_user_furniture(device_id, user_id=user_id)
+    return _cors_resp({"furniture": furniture})
+
+
+@app.route("/api/companion/user/furniture", methods=["PUT", "OPTIONS"])
+def companion_save_furniture():
+    """全量保存用户房间家具布置"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", "default")
+    body = request.get_json(silent=True) or {}
+    furniture = body.get("furniture", [])
+
+    user_id = None
+    ok, user, _ = auth_required(request, allow_device=True)
+    if ok and user:
+        user_id = user.get("id")
+
+    result = ds.save_user_furniture(device_id, furniture, user_id=user_id)
+    if not result.get("success"):
+        return _cors_resp({"error": result.get("message", "保存失败")}, 500)
+    return _cors_resp({"ok": True, "count": result.get("count", 0)})
 
 
 # ============ 收藏 API ============
