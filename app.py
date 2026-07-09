@@ -803,8 +803,12 @@ def companion_batch_buy_items():
                 conn.close()
 
     # 匿名模式：直接添加物品，金币由前端本地管理
-    result = ds.buy_items_batch(device_id, items)
-    return _cors_resp(result)
+    try:
+        result = ds.buy_items_batch(device_id, items)
+        return _cors_resp(result)
+    except Exception as e:
+        print(f"[batch-buy] 匿名模式购买失败: {e}")
+        return _cors_resp({"status": "error", "message": "购买失败，请稍后重试"}, 500)
 
 
 # ============ 成就系统 API ============
