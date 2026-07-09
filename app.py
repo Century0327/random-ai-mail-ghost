@@ -766,7 +766,7 @@ def companion_batch_buy_items():
     try:
         result = ds.buy_items_batch(device_id, items, user_id=user_id)
         if result.get("status") == "error":
-            return _cors_resp({"error": result.get("message", "购买失败")}, 400)
+            return _cors_resp({"status": "error", "message": result.get("message", "购买失败"), "coins": result.get("coins")})
         return _cors_resp(result)
     except Exception as e:
         print(f"[batch-buy] 购买失败: {e}")
