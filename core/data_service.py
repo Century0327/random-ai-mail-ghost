@@ -162,6 +162,20 @@ class DataService:
             {"id": "plant", "name": "小盆栽", "desc": "给房间添一抹绿意，猫咪也喜欢。", "price": 28, "emojiColor": "#8fb07a", "image": "/room/item-plant.png", "category": "decoration"},
         ]
 
+    def get_item(self, item_id: str) -> Optional[Dict]:
+        """获取单个物品详情"""
+        rows = self._query(
+            "SELECT id, name, description AS desc, category, price, image, emoji_color AS \"emojiColor\" FROM shop_items WHERE id = %s",
+            (item_id,)
+        )
+        if rows:
+            return dict(rows[0])
+        # Fallback
+        for item in self.get_items():
+            if item["id"] == item_id:
+                return item
+        return None
+
     # ==================== 用户背包 ====================
 
     def get_user_items(self, device_id: str) -> List[Dict]:
@@ -200,6 +214,41 @@ class DataService:
             })
         _save_json(f"inventory_{device_id}.json", inv)
         return True
+
+    def buy_items_batch(self, device_id: str, items: List[Dict], user_id: Optional[int] = None) -> Dict:
+        """
+        批量购买物品。
+        items: [{item_id, quantity}]
+        返回: {status, message, total_spent, items_added}
+        """
+        total_spent = 0
+        items_added = []
+
+        # 获取所有物品详情
+        all_items = {i["id"]: i for i in self.get_items()}
+
+        for item in items:
+            item_id = item.get("item_id") or item.get("itemId")
+            quantity = item.get("quantity", 1)
+            detail = all_items.get(item_id, {})
+            price = detail.get("price", 0)
+            total_cost = price * quantity
+            total_spent += total_cost
+
+            self.add_user_item(device_id, item_id, quantity)
+            items_added.append({
+                "item_id": item_id,
+                "quantity": quantity,
+                "price": price,
+                "name": detail.get("name", item_id)
+            })
+
+        return {
+            "status": "ok",
+            "message": f"成功购买 {len(items_added)} 种物品",
+            "total_spent": total_spent,
+            "items_added": items_added
+        }
 
     # ==================== 成就系统 ====================
 

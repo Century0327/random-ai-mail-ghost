@@ -743,6 +743,70 @@ def companion_buy_item(item_id):
     return _cors_resp({"status": "ok", "message": "购买成功"})
 
 
+@app.route("/api/companion/items/<item_id>/preview", methods=["GET", "OPTIONS"])
+def companion_preview_item(item_id):
+    """预览物品详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    item = ds.get_item(item_id)
+    if not item:
+        return _cors_resp({"error": "物品不存在"}, 404)
+    return _cors_resp({"item": item})
+
+
+@app.route("/api/companion/user/items/batch-buy", methods=["POST", "OPTIONS"])
+def companion_batch_buy_items():
+    """批量购买物品（购物车结算）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+    device_id = request.headers.get("X-Device-ID", "default")
+    body = request.get_json(silent=True) or {}
+    items = body.get("items", [])
+
+    if not items:
+        return _cors_resp({"error": "购物车为空"}, 400)
+
+    # 计算总价
+    all_shop_items = {i["id"]: i for i in ds.get_items()}
+    total_price = 0
+    for item in items:
+        item_id = item.get("item_id") or item.get("itemId")
+        quantity = item.get("quantity", 1)
+        detail = all_shop_items.get(item_id, {})
+        price = detail.get("price", 0)
+        total_price += price * quantity
+
+    # 优先从用户表扣金币（已登录用户）
+    ok, user, _ = auth_required(request, allow_device=True)
+    if ok and user:
+        conn = _db_conn()
+        if conn:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT coins FROM users WHERE id = %s", (user["id"],))
+                row = cur.fetchone()
+                if row and row["coins"] >= total_price:
+                    cur.execute(
+                        "UPDATE users SET coins = coins - %s WHERE id = %s RETURNING coins",
+                        (total_price, user["id"])
+                    )
+                    conn.commit()
+                    new_coins = cur.fetchone()["coins"]
+                    result = ds.buy_items_batch(device_id, items, user["id"])
+                    result["coins"] = new_coins
+                    return _cors_resp(result)
+                else:
+                    return _cors_resp({"error": "金币不足"}, 400)
+            except Exception as e:
+                return _cors_resp({"error": str(e)}, 500)
+            finally:
+                conn.close()
+
+    # 匿名模式：直接添加物品，金币由前端本地管理
+    result = ds.buy_items_batch(device_id, items)
+    return _cors_resp(result)
+
+
 # ============ 成就系统 API ============
 
 @app.route("/api/companion/achievements", methods=["GET", "OPTIONS"])
