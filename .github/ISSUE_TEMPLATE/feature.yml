@@ -1,0 +1,42 @@
+name: ✨ Feature Request
+about: 建议一个新功能
+title: "[Feature] "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提出功能建议！请描述清楚你的想法。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 你想要什么功能？
+      placeholder: 我希望能够...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 使用场景
+      description: 这个功能在什么场景下有用？
+      placeholder: 当用户...时，需要...
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议实现方案
+      description: 如果你有实现思路，请描述
+      placeholder: 可以通过...实现
+
+  - type: checkboxes
+    id: check
+    attributes:
+      label: 确认
+      options:
+        - label: 我已经搜索过现有 Issue，确认没有重复建议
+          required: true
