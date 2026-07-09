@@ -57,9 +57,47 @@
      - 代币变更时同步写入 localStorage，防止刷新丢失
      - `refreshCoins` 支持 `force` 参数用于强制刷新
 
+8. **登录警告弹窗重复出现**
+   - 根因：`isGuest` 游客状态只存在组件 `useState` 中，未持久化到 localStorage，每次打开设置菜单都重置为 false
+   - 修复：
+     - `companion-local.ts` 新增 `isGuestMode()` / `setGuestMode()` 方法
+     - `CompanionState` 新增 `isGuest` 字段
+     - `settings-menu.tsx` 打开时从 localStorage 读取游客状态
+     - 跳过登录/登录成功/登出时同步写入 localStorage
+
+9. **存入相册缺少取消功能**
+   - 根因：图片已存入相册后按钮置灰禁用，无法再次点击取消
+   - 修复：
+     - `memories-panel.tsx` 中已存入状态下按钮可点击，点击后从相册移除
+     - 按钮文案从"已存入相册"改为"从相册移除"
+     - 移除本地附件后触发 `onImageSaved` 回调刷新相册列表
+
+10. **支付显示 API 400**
+    - 根因：后端错误时返回 HTTP 400 状态码，前端 `apiFetch` 遇到非 2xx 直接抛异常
+    - 修复：后端批量购买接口错误时也返回 200 状态码，用 `status: "error"` 字段区分，前端正常显示错误信息
+
+### 🏗️ 架构升级
+
+- **后端数据层重构**（`data_service.py`）
+  - 缺陷修复：`add_user_item` 改为 PostgreSQL 优先写入（之前只写 JSON）
+  - 缺陷修复：`buy_items_batch` 增加事务原子性 + 代币预检查 + 失败回滚
+  - 缺陷修复：移除底部重复实例化死代码
+  - 缺陷修复：引入 `logging` 模块替代 print，错误时自动 rollback
+  - 缺陷修复：`_enrich_character` 优先读 DB image 字段，不再硬编码
+  - 新增：用户代币管理（`get_user_coins` / `update_user_coins`），PG + JSON 双模式
+  - 新增：家具布置持久化（`get_user_furniture` / `save_user_furniture`），PG + JSON 双模式
+  - 新增：`SimpleConnectionPool` 连接池，Serverless 环境友好
+  - 新增：匿名用户（device_id）完整数据管理支持
+
+- **前端家具与代币后端同步**
+  - `companion-api.ts` 新增 `getFurniture()` / `saveFurniture()` / `getCoins()` 接口
+  - `cozy-room.tsx` 初始化时从后端拉取家具布置，失败用本地兜底
+  - `shop-panel.tsx` 保存布置和购买后同步后端，失败不阻塞本地
+
 ### 🔧 重构
 
-- `companion-local.ts`：新增 `PlayerFurniture`、`FurnitureStatus`、`ShopItemTemplate` 类型；新增 `getPlayerFurniture`、`getRoomFurniture`、`getBagFurniture`、`addFurniture`、`updateFurniture`、`toggleFurnitureStatus`、`removeFurniture`、`saveFurniture` 方法；废弃旧的 `items`/`itemsLayout` 相关方法
+- `companion-local.ts`：新增 `PlayerFurniture`、`FurnitureStatus`、`ShopItemTemplate` 类型；新增 `getPlayerFurniture`、`getRoomFurniture`、`getBagFurniture`、`addFurniture`、`updateFurniture`、`toggleFurnitureStatus`、`removeFurniture`、`saveFurniture`、`isGuestMode`、`setGuestMode` 方法；废弃旧的 `items`/`itemsLayout` 相关方法
 - `shop-panel.tsx`：适配新的 `playerFurniture` 数据结构，props 从 `onPreviewChange` 改为 `onFurnitureChange`
-- `cozy-room.tsx`：适配新数据结构，初始加载从 `getRoomFurniture()` 读取
-- `companion-api.ts`：导出 `resolveAssetUrl` 函数供其他模块使用
+- `cozy-room.tsx`：适配新数据结构，初始加载从后端拉取 + 本地兜底
+- `companion-api.ts`：导出 `resolveAssetUrl` 函数供其他模块使用；新增家具和代币后端接口
+- `resolveAssetUrl`：改为使用相对路径（之前硬编码到后端域名），支持 data:/blob:/api/ 等特殊协议
