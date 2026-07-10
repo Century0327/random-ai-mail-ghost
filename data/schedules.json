@@ -248,6 +248,95 @@
         }
       ],
       "generated_at": "2026-07-08T21:00:59.623163"
+    },
+    "2026-07-10": {
+      "items": [
+        {
+          "time": "07:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "主人别打扰我",
+          "done": false
+        },
+        {
+          "time": "08:00",
+          "activity": "躲进纸箱",
+          "location": "纸箱",
+          "thought": "外面有声音，还是躲着好",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "趴在窗台",
+          "location": "窗台",
+          "thought": "主人别靠近，我在观察",
+          "done": false
+        },
+        {
+          "time": "10:00",
+          "activity": "舔爪子发呆",
+          "location": "沙发",
+          "thought": "无聊，但还是继续",
+          "done": false
+        },
+        {
+          "time": "11:00",
+          "activity": "等待进食",
+          "location": "食盆旁",
+          "thought": "小鱼干什么时候来",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "蜷缩打盹",
+          "location": "床上",
+          "thought": "终于可以好好休息",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "在地毯打滚",
+          "location": "地毯",
+          "thought": "主人别嫌弃我的毛",
+          "done": false
+        },
+        {
+          "time": "15:30",
+          "activity": "追逐毛线球",
+          "location": "客厅",
+          "thought": "毛线球又来了，必须抓住它",
+          "done": false
+        },
+        {
+          "time": "17:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "毛发需要打理",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "跳跃窗台",
+          "location": "窗台",
+          "thought": "黄昏最适合玩耍了",
+          "done": false
+        },
+        {
+          "time": "19:30",
+          "activity": "巡视房间",
+          "location": "客厅",
+          "thought": "确保领地安全",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "蜷缩睡觉",
+          "location": "猫窝",
+          "thought": "终于可以安心睡觉了",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-10T16:31:44.981469"
     }
   }
 }
