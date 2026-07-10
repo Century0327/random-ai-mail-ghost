@@ -4,6 +4,27 @@
 
 ## [Unreleased]
 
+### 🐛 Bug 修复
+
+1. **邮件数据隔离**（2026-07-11）
+   - 根因：`get_letters()`、`create_letter()`、`get_conversations()` 方法缺少 `device_id` 过滤，不同用户邮件混合存储
+   - 修复：三个方法均增加 `device_id` 参数，SQL 添加 `WHERE device_id = %s` 条件
+   - `app.py` 中 `/api/companion/letters`、`/api/companion/letters/latest`、`/api/companion/conversations` 接口从 `X-Device-ID` 请求头提取并传递 device_id
+
+2. **相册数据隔离**（2026-07-11）
+   - 根因：`attachments` 表缺少 `device_id` 字段，`get_attachments()` 匿名用户模式下无设备过滤
+   - 修复：`attachments` 表和 `conversations` 表新增 `device_id` 字段及索引（schema.sql + 迁移脚本 003）
+   - `get_attachments()` 和 `create_attachment()` 增加 `device_id` 参数
+   - `app.py` 启动时自动执行数据库迁移（`_run_db_migrations` 新增迁移 2、3）
+   - `/api/companion/attachments` 接口传递 device_id
+
+3. **登录入口统一**（2026-07-11）
+   - 根因：落地页使用 Steam ID 真实登录，游戏内设置菜单使用 5 种前端模拟登录（未对接后端），体验割裂
+   - 修复：移除 `settings-menu.tsx` 中所有模拟登录 UI（手机号/微信/邮箱/Google/GitHub）
+   - 替换为统一的"前往登录"按钮，跳转到落地页 `/`
+   - 已登录状态显示 `steam_name` 和退出登录按钮
+   - 游客模式保留，提供"前往登录"入口
+
 ### ✨ 新功能
 
 - **物品系统重构**：将 `items` 和 `itemsLayout` 合并重构为 `playerFurniture` 表
