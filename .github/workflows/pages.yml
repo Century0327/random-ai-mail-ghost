@@ -1,4 +1,4 @@
-name: Deploy Frontend to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -22,16 +22,17 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ghost-mail-ui/pnpm-lock.yaml
 
       - name: Install dependencies
         run: |
