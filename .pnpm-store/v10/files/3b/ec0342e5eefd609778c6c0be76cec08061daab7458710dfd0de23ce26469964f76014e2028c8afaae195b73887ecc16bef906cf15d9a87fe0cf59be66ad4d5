@@ -1,0 +1,82 @@
+import { R as RegisterAiKnowledgeProps, z as RegisterAiToolProps } from './room-C5ak1P_z.cjs';
+export { A as AiChatStatus, C as ClientContext, L as LiveblocksProvider, M as MutationContext, B as RoomContext, _ as RoomProvider, S as SendAiMessageOptions, U as UseSendAiMessageOptions, D as UseThreadsOptions, E as createLiveblocksContext, F as createRoomContext, H as useAddReaction, I as useAiChat, J as useAiChatMessages, K as useAiChatStatus, N as useAiChats, O as useAttachmentUrl, P as useBroadcastEvent, Q as useCanRedo, T as useCanUndo, V as useClient, W as useCreateAiChat, X as useCreateComment, Y as useCreateFeed, Z as useCreateFeedMessage, $ as useCreateThread, a0 as useDeleteAiChat, a1 as useDeleteAllInboxNotifications, a2 as useDeleteComment, a3 as useDeleteFeed, a4 as useDeleteFeedMessage, a5 as useDeleteInboxNotification, a6 as useDeleteThread, a7 as useEditComment, a8 as useEditCommentMetadata, a9 as useEditThreadMetadata, aa as useErrorListener, ab as useEventListener, ac as useFeedMessages, ad as useFeeds, ae as useGroupInfo, af as useHistory, ag as useHistoryVersionData, ah as useHistoryVersionYjsData, ai as useHistoryVersions, aj as useInboxNotificationThread, ak as useInboxNotifications, al as useIsInsideRoom, am as useLostConnectionListener, an as useMarkAllInboxNotificationsAsRead, ao as useMarkInboxNotificationAsRead, ap as useMarkThreadAsRead, aq as useMarkThreadAsResolved, ar as useMarkThreadAsUnresolved, as as useMutation, at as useMyPresence, au as useNotificationSettings, av as useOther, aw as useOthers, ax as useOthersConnectionIds, ay as useOthersListener, az as useOthersMapped, aA as useRedo, aB as useRemoveReaction, aC as useRoom, aD as useRoomInfo, aE as useRoomSubscriptionSettings, aF as useSearchComments, aG as useSelf, aH as useSendAiMessage, aI as useStatus, aJ as useStorage, aK as useStorageRoot, aL as useSubscribeToThread, aM as useSyncStatus, aN as useThreadSubscription, aO as useThreads, aP as useUndo, aQ as useUnreadInboxNotificationsCount, aR as useUnsubscribeFromThread, aS as useUpdateFeedMessage, aT as useUpdateFeedMetadata, aU as useUpdateMyPresence, aV as useUpdateNotificationSettings, aW as useUpdateRoomSubscriptionSettings, aX as useUrlMetadata, aY as useUser, aZ as useUserThreads_experimental } from './room-C5ak1P_z.cjs';
+export { Json, JsonObject, isNotificationChannelEnabled, shallow } from '@liveblocks/client';
+import * as react_jsx_runtime from 'react/jsx-runtime';
+import * as react from 'react';
+import { ReactNode } from 'react';
+import '@liveblocks/core';
+
+type Props = {
+    fallback: ReactNode;
+    children: (() => ReactNode | undefined) | ReactNode | undefined;
+};
+/**
+ * Almost like a normal <Suspense> component, except that for server-side
+ * renders, the fallback will be used.
+ *
+ * The child props will have to be provided in a function, i.e. change:
+ *
+ *   <Suspense fallback={<Loading />}>
+ *     <MyRealComponent a={1} />
+ *   </Suspense>
+ *
+ * To:
+ *
+ *   <ClientSideSuspense fallback={<Loading />}>
+ *     <MyRealComponent a={1} />
+ *   </ClientSideSuspense>
+ *
+ */
+declare function ClientSideSuspense(props: Props): react_jsx_runtime.JSX.Element;
+
+/**
+ * Make knowledge about your application state available to any AI used in
+ * a chat or a one-off request.
+ *
+ * For example:
+ *
+ *     <RegisterAiKnowledge
+ *        description="The current mode of my application"
+ *        value="dark" />
+ *
+ * Or scoped to a specific chat:
+ *
+ *     <RegisterAiKnowledge
+ *        description="The current list of todos"
+ *        value={todos}
+ *        chatId="chat-1234" />
+ *
+ * By mounting this component, the AI will get access to this knwoledge.
+ * By unmounting this component, the AI will no longer have access to it.
+ * It can choose to use or ignore this knowledge in its responses.
+ */
+declare const RegisterAiKnowledge: react.NamedExoticComponent<RegisterAiKnowledgeProps>;
+/**
+ * Make a tool available to your AI chat or a one-off request.
+ * A tool is a piece of functionality that the AI can call to perform an action
+ * or look up information on the user's behalf.
+ *
+ * Also, tools are used to render custom UIs for tool invocations, which are
+ * embedded inside the AI chat.
+ *
+ * For example:
+ *
+ *   <RegisterAiTool
+ *     name="list-todos"
+ *     tool={defineAiTool()({ ... })}
+ *     />
+ *
+ * Or scoped to a specific chat:
+ *
+ *   <RegisterAiTool
+ *     name="list-todos"
+ *     tool={defineAiTool()({ ... })}
+ *     chatId="chat-1234"
+ *     />
+ *
+ * By mounting this component, the tool is made available.
+ * By unmounting this component, the tool will no longer be available.
+ */
+declare const RegisterAiTool: react.NamedExoticComponent<RegisterAiToolProps>;
+
+export { ClientSideSuspense, RegisterAiKnowledge, RegisterAiKnowledgeProps, RegisterAiTool, RegisterAiToolProps };

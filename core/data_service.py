@@ -219,17 +219,22 @@ class DataService:
     # ==================== Shop Items ====================
 
     def get_items(self) -> List[Dict]:
+        """获取商店物品列表。数据库是唯一来源，代码中的默认数据仅用于 init_db 初始化。"""
         rows = self._query(
             "SELECT id, name, description AS desc, category, price, image, emoji_color AS \"emojiColor\" FROM shop_items ORDER BY id"
         )
         if rows is not None:
             return [dict(r) for r in rows]
+        if self._use_db:
+            logger.error("[get_items] 数据库连接正常但返回空，可能表未初始化")
+            return []
         return [
-            {"id": "fish_snack", "name": "小鱼干零食", "desc": "猫咪最爱的香脆小鱼干，元气满满。", "price": 12, "emojiColor": "#e8a87c", "image": "/room/item-fish.png", "category": "food"},
-            {"id": "yarn_ball", "name": "毛线球玩具", "desc": "软软的毛线球，可以陪它玩一下午。", "price": 18, "emojiColor": "#d98ea0", "image": "/room/item-yarn.png", "category": "toy"},
-            {"id": "cushion", "name": "暖阳软垫", "desc": "放在窗台的柔软坐垫，晒太阳专用。", "price": 45, "emojiColor": "#e6c88a", "image": "/room/item-cushion.png", "category": "furniture"},
-            {"id": "letter_paper", "name": "手写信纸", "desc": "给记忆收藏夹添一封新的信。", "price": 9, "emojiColor": "#c9b79c", "image": "/room/letter.png", "category": "item"},
-            {"id": "plant", "name": "小盆栽", "desc": "给房间添一抹绿意，猫咪也喜欢。", "price": 28, "emojiColor": "#8fb07a", "image": "/room/item-plant.png", "category": "decoration"},
+            {"id": "s1_fish_snack", "name": "小鱼干零食", "desc": "猫咪最爱的香脆小鱼干，元气满满。", "price": 12, "emojiColor": "#e8a87c", "image": "/room/item-fish.png", "category": "food"},
+            {"id": "s2_yarn_ball", "name": "毛线球玩具", "desc": "软软的毛线球，可以陪它玩一下午。", "price": 18, "emojiColor": "#d98ea0", "image": "/room/item-yarn.png", "category": "toy"},
+            {"id": "s3_cushion", "name": "暖阳软垫", "desc": "放在窗台的柔软坐垫，晒太阳专用。", "price": 45, "emojiColor": "#e6c88a", "image": "/room/item-cushion.png", "category": "furniture"},
+            {"id": "s4_letter_paper", "name": "手写信纸", "desc": "给记忆收藏夹添一封新的信。", "price": 9, "emojiColor": "#c9b79c", "image": "/room/letter.png", "category": "item"},
+            {"id": "s5_plant", "name": "小盆栽", "desc": "给房间添一抹绿意，猫咪也喜欢。", "price": 28, "emojiColor": "#8fb07a", "image": "/room/item-plant.png", "category": "decoration"},
+            {"id": "s6_bell_collar", "name": "铃铛项圈", "desc": "走起路来叮当响的可爱项圈。", "price": 22, "emojiColor": "#e0b04a", "category": "accessory"},
         ]
 
     def get_item(self, item_id: str) -> Optional[Dict]:
@@ -434,18 +439,33 @@ class DataService:
         items: [{item_id, quantity}]
         返回: {status, message, total_spent, items_added, coins}
         """
+        all_items = {i["id"]: i for i in self.get_items()}
+
+        if not all_items:
+            return {"status": "error", "message": "商店物品列表加载失败", "total_spent": 0, "items_added": []}
+
+        missing_items = []
         total_spent = 0
         items_added = []
 
-        all_items = {i["id"]: i for i in self.get_items()}
-
         for item in items:
             item_id = item.get("item_id") or item.get("itemId")
+            if not item_id:
+                return {"status": "error", "message": "物品 ID 不能为空", "total_spent": 0, "items_added": []}
+
+            if item_id not in all_items:
+                missing_items.append(item_id)
+                continue
+
+            detail = all_items[item_id]
             quantity = item.get("quantity", 1)
-            detail = all_items.get(item_id, {})
-            if not detail:
-                return {"status": "error", "message": f"物品不存在: {item_id}", "total_spent": 0, "items_added": []}
+            if quantity <= 0:
+                return {"status": "error", "message": f"购买数量必须大于 0: {item_id}", "total_spent": 0, "items_added": []}
+
             price = detail.get("price", 0)
+            if price < 0:
+                return {"status": "error", "message": f"物品价格无效: {item_id}", "total_spent": 0, "items_added": []}
+
             total_cost = price * quantity
             total_spent += total_cost
             items_added.append({
@@ -454,6 +474,9 @@ class DataService:
                 "price": price,
                 "name": detail.get("name", item_id)
             })
+
+        if missing_items:
+            return {"status": "error", "message": f"物品不存在: {', '.join(missing_items)}", "total_spent": 0, "items_added": []}
 
         current_coins = self.get_user_coins(device_id, user_id)
         if current_coins < total_spent:
