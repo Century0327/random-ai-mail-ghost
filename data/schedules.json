@@ -338,5 +338,89 @@
       ],
       "generated_at": "2026-07-10T16:31:44.981469"
     }
+  },
+  "": {
+    "2026-07-10": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "发现新角落",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "新的一天开始啦",
+          "done": false
+        },
+        {
+          "time": "07:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "睡觉打盹",
+          "location": "窗台",
+          "thought": "阳光太暖了",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "吃午餐",
+          "location": "食盆旁",
+          "thought": "午餐时间到",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "发呆看窗",
+          "location": "窗台",
+          "thought": "看着外面的鸟",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "蜷缩睡觉",
+          "location": "沙发",
+          "thought": "下午需要休息",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "玩毛线球",
+          "location": "客厅",
+          "thought": "毛线球在呼唤",
+          "done": false
+        },
+        {
+          "time": "19:30",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "准备迎接夜晚",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "巡视厨房",
+          "location": "厨房",
+          "thought": "确认所有角落安全",
+          "done": false
+        },
+        {
+          "time": "22:30",
+          "activity": "蜷缩睡觉",
+          "location": "猫窝",
+          "thought": "夜深了，该休息了",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-10T17:48:32.378747"
+    }
   }
 }
