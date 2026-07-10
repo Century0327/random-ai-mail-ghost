@@ -22,26 +22,26 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
 
       - name: Install dependencies
         run: |
-          cd ghost-mail-ui/artifacts/miao-room
-          pnpm install --frozen-lockfile
+          cd ghost-mail-ui
+          pnpm install --no-frozen-lockfile
 
       - name: Build
         run: |
-          cd ghost-mail-ui/artifacts/miao-room
-          pnpm run build
+          cd ghost-mail-ui
+          pnpm --filter @workspace/miao-room run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
