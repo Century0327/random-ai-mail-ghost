@@ -112,6 +112,7 @@ CREATE INDEX IF NOT EXISTS idx_letters_favorite ON letters(user_id, is_favorite)
 CREATE TABLE IF NOT EXISTS attachments (
     id TEXT PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id VARCHAR(128),  -- 匿名设备标识（兼容无登录模式）
     letter_id INTEGER REFERENCES letters(id) ON DELETE CASCADE,
     character_id TEXT REFERENCES characters(id),
     src TEXT NOT NULL,
@@ -121,6 +122,7 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_attachments_user_id ON attachments(user_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_device_id ON attachments(device_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_letter_id ON attachments(letter_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_favorite ON attachments(user_id, is_favorite) WHERE is_favorite = true;
 
@@ -128,6 +130,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_favorite ON attachments(user_id, is_f
 CREATE TABLE IF NOT EXISTS conversations (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id VARCHAR(128),  -- 匿名设备标识（兼容无登录模式）
     character_id TEXT REFERENCES characters(id),
     role TEXT NOT NULL CHECK (role IN ('ghost', 'user')),
     sender TEXT,
@@ -136,6 +139,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversations_user_char ON conversations(user_id, character_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_device_id ON conversations(device_id);
 
 -- ==================== 好感度系统 ====================
 

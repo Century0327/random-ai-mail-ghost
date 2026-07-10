@@ -754,17 +754,30 @@ class DataService:
 
     # ==================== Letters ====================
 
-    def get_letters(self, character_id: Optional[str] = None, limit: int = 50) -> List[Dict]:
-        if character_id:
-            rows = self._query(
-                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
-                (character_id, limit)
-            )
+    def get_letters(self, character_id: Optional[str] = None, limit: int = 50,
+                    device_id: Optional[str] = None) -> List[Dict]:
+        if device_id:
+            if character_id:
+                rows = self._query(
+                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE device_id = %s AND character_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (device_id, character_id, limit)
+                )
+            else:
+                rows = self._query(
+                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE device_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (device_id, limit)
+                )
         else:
-            rows = self._query(
-                "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
-                (limit,)
-            )
+            if character_id:
+                rows = self._query(
+                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (character_id, limit)
+                )
+            else:
+                rows = self._query(
+                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
+                    (limit,)
+                )
         if rows is not None:
             return [dict(r) for r in rows]
         letters = _load_json("letters.json", [])
@@ -773,10 +786,11 @@ class DataService:
         return letters[:limit]
 
     def create_letter(self, character_id: str, subject: str, body: str,
-                      source: str = "ai", attachment_url: Optional[str] = None) -> Optional[Dict]:
+                      source: str = "ai", attachment_url: Optional[str] = None,
+                      device_id: Optional[str] = None) -> Optional[Dict]:
         db_ok = self._execute(
-            "INSERT INTO letters (character_id, subject, body, source, attachment_url) VALUES (%s, %s, %s, %s, %s)",
-            (character_id, subject, body, source, attachment_url)
+            "INSERT INTO letters (character_id, subject, body, source, attachment_url, device_id) VALUES (%s, %s, %s, %s, %s, %s)",
+            (character_id, subject, body, source, attachment_url, device_id)
         )
         letters = _load_json("letters.json", [])
         new_letter = {
@@ -869,17 +883,30 @@ class DataService:
 
     # ==================== Conversations ====================
 
-    def get_conversations(self, character_id: Optional[str] = None, limit: int = 50) -> List[Dict]:
-        if character_id:
-            rows = self._query(
-                "SELECT id, character_id, role, sender, content, created_at FROM conversations WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
-                (character_id, limit)
-            )
+    def get_conversations(self, character_id: Optional[str] = None, limit: int = 50,
+                          device_id: Optional[str] = None) -> List[Dict]:
+        if device_id:
+            if character_id:
+                rows = self._query(
+                    "SELECT id, character_id, role, sender, content, created_at FROM conversations WHERE character_id = %s AND device_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (character_id, device_id, limit)
+                )
+            else:
+                rows = self._query(
+                    "SELECT id, character_id, role, sender, content, created_at FROM conversations WHERE device_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (device_id, limit)
+                )
         else:
-            rows = self._query(
-                "SELECT id, character_id, role, sender, content, created_at FROM conversations ORDER BY created_at DESC LIMIT %s",
-                (limit,)
-            )
+            if character_id:
+                rows = self._query(
+                    "SELECT id, character_id, role, sender, content, created_at FROM conversations WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
+                    (character_id, limit)
+                )
+            else:
+                rows = self._query(
+                    "SELECT id, character_id, role, sender, content, created_at FROM conversations ORDER BY created_at DESC LIMIT %s",
+                    (limit,)
+                )
         if rows is not None:
             return [dict(r) for r in rows]
         return []
@@ -935,7 +962,8 @@ class DataService:
 
     # ==================== Attachments ====================
 
-    def get_attachments(self, user_id: Optional[int] = None, character_id: Optional[str] = None) -> List[Dict]:
+    def get_attachments(self, user_id: Optional[int] = None, character_id: Optional[str] = None,
+                        device_id: Optional[str] = None) -> List[Dict]:
         if user_id is not None:
             if character_id:
                 rows = self._query(
@@ -950,6 +978,21 @@ class DataService:
                        FROM attachments WHERE user_id = %s
                        ORDER BY created_at DESC""",
                     (user_id,)
+                )
+        elif device_id:
+            if character_id:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments WHERE device_id = %s AND character_id = %s
+                       ORDER BY created_at DESC""",
+                    (device_id, character_id)
+                )
+            else:
+                rows = self._query(
+                    """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
+                       FROM attachments WHERE device_id = %s
+                       ORDER BY created_at DESC""",
+                    (device_id,)
                 )
         else:
             if character_id:
@@ -971,11 +1014,11 @@ class DataService:
 
     def create_attachment(self, attachment_id: str, user_id: int, character_id: str, src: str,
                           title: str = "", letter_id: Optional[str] = None,
-                          is_favorite: bool = False) -> bool:
+                          is_favorite: bool = False, device_id: Optional[str] = None) -> bool:
         return self._execute(
-            """INSERT INTO attachments (id, user_id, letter_id, character_id, src, title, is_favorite)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (attachment_id, user_id, letter_id, character_id, src, title, is_favorite)
+            """INSERT INTO attachments (id, user_id, device_id, letter_id, character_id, src, title, is_favorite)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (attachment_id, user_id, device_id, letter_id, character_id, src, title, is_favorite)
         )
 
     # ==================== Migration helpers ====================

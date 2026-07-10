@@ -76,10 +76,10 @@ def _run_db_migrations():
         return
     try:
         cur = conn.cursor()
-        
+
         # 迁移 1: 给 users 表添加 device_id 字段
         cur.execute("""
-            SELECT column_name FROM information_schema.columns 
+            SELECT column_name FROM information_schema.columns
             WHERE table_name = 'users' AND column_name = 'device_id'
         """)
         if not cur.fetchone():
@@ -90,7 +90,35 @@ def _run_db_migrations():
             print("[Migration] users.device_id 字段添加完成")
         else:
             print("[Migration] users.device_id 字段已存在，跳过")
-        
+
+        # 迁移 2: 给 attachments 表添加 device_id 字段
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'attachments' AND column_name = 'device_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] 正在添加 attachments.device_id 字段...")
+            cur.execute("ALTER TABLE attachments ADD COLUMN device_id VARCHAR(128)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_attachments_device_id ON attachments(device_id)")
+            conn.commit()
+            print("[Migration] attachments.device_id 字段添加完成")
+        else:
+            print("[Migration] attachments.device_id 字段已存在，跳过")
+
+        # 迁移 3: 给 conversations 表添加 device_id 字段
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'device_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] 正在添加 conversations.device_id 字段...")
+            cur.execute("ALTER TABLE conversations ADD COLUMN device_id VARCHAR(128)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_conversations_device_id ON conversations(device_id)")
+            conn.commit()
+            print("[Migration] conversations.device_id 字段添加完成")
+        else:
+            print("[Migration] conversations.device_id 字段已存在，跳过")
+
         cur.close()
     except Exception as e:
         print(f"[Migration] 迁移失败: {e}")
@@ -634,7 +662,7 @@ def companion_status(character_id):
             {"time": "23:30", "activity": "夜巡", "location": "各个房间", "thought": "夜间巡逻，确保全家安全", "done": False},
         ]
     
-    letters = ds.get_letters(character_id, 5)
+    letters = ds.get_letters(character_id, 5, device_id=device_id or None)
     stat_value = state.get("stat_value", 50)
     interact_count = stat_value
     history_summary = ""
@@ -884,10 +912,11 @@ def companion_schedules():
 def companion_letters():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    
+
+    device_id = request.headers.get("X-Device-ID", "")
     character_id = request.args.get("character_id")
     limit = request.args.get("limit", 50, type=int)
-    letters = ds.get_letters(character_id, limit)
+    letters = ds.get_letters(character_id, limit, device_id=device_id or None)
     return _cors_resp({"letters": letters})
 
 
@@ -896,18 +925,20 @@ def companion_letters():
 def create_letter():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    
+
+    device_id = request.headers.get("X-Device-ID", "")
     body = request.get_json(silent=True) or {}
     character_id = body.get("character_id")
     subject = body.get("subject", "")
     letter_body = body.get("body", "")
     source = body.get("source", "ai")
     attachment_url = body.get("attachment_url")
-    
+
     if not character_id or not letter_body:
         return _cors_resp({"error": "character_id and body are required"}, 400)
-    
-    new_letter = ds.create_letter(character_id, subject, letter_body, source, attachment_url)
+
+    new_letter = ds.create_letter(character_id, subject, letter_body, source, attachment_url,
+                                  device_id=device_id or None)
     return _cors_resp({"status": "ok", "message": "Letter created", "letter": new_letter})
 
 
@@ -915,9 +946,10 @@ def create_letter():
 def companion_latest_letter():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    
+
+    device_id = request.headers.get("X-Device-ID", "")
     character_id = request.args.get("character_id")
-    letters = ds.get_letters(character_id, 1)
+    letters = ds.get_letters(character_id, 1, device_id=device_id or None)
     latest = letters[0] if letters else None
     return _cors_resp({"latest": latest})
 
@@ -928,10 +960,11 @@ def companion_latest_letter():
 def companion_conversations():
     if request.method == "OPTIONS":
         return _cors_resp({})
-    
+
+    device_id = request.headers.get("X-Device-ID", "")
     character_id = request.args.get("character_id")
     limit = request.args.get("limit", 50, type=int)
-    conversations = ds.get_conversations(character_id, limit)
+    conversations = ds.get_conversations(character_id, limit, device_id=device_id or None)
     return _cors_resp({"conversations": conversations})
 
 
@@ -1324,6 +1357,7 @@ def companion_attachments():
     if request.method == "OPTIONS":
         return _cors_resp({})
 
+    device_id = request.headers.get("X-Device-ID", "")
     ok, user, error = auth_required(request, allow_device=True)
     if not ok:
         return _cors_resp({"error": error}, 401)
@@ -1345,13 +1379,15 @@ def companion_attachments():
             title=title,
             letter_id=letter_id,
             is_favorite=True,
+            device_id=device_id or None,
         )
         if not success:
             return _cors_resp({"error": "保存到相册失败"}, 500)
         return _cors_resp({"status": "ok", "attachment": {"id": attachment_id, "src": src, "title": title}})
 
     character_id = request.args.get("character_id")
-    attachments = ds.get_attachments(user_id=user["id"], character_id=character_id)
+    attachments = ds.get_attachments(user_id=user["id"], character_id=character_id,
+                                     device_id=device_id or None)
     return _cors_resp({"attachments": attachments})
 
 
