@@ -510,6 +510,95 @@
         }
       ],
       "generated_at": "2026-07-11T16:58:22.623250"
+    },
+    "2026-07-12": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "确认领地安全",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "迎接晨光",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "窗台",
+          "thought": "保持毛发整洁",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "睡觉打盹",
+          "location": "沙发",
+          "thought": "温暖的阳光很舒服",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "地毯",
+          "thought": "需要补充能量",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "玩毛线球",
+          "location": "地板",
+          "thought": "毛线球在动",
+          "done": false
+        },
+        {
+          "time": "15:30",
+          "activity": "舔爪",
+          "location": "猫窝",
+          "thought": "放松一下",
+          "done": false
+        },
+        {
+          "time": "17:00",
+          "activity": "晒太阳",
+          "location": "阳台",
+          "thought": "温暖的风很惬意",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "探索角落",
+          "location": "书架",
+          "thought": "发现新玩具",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "睡觉",
+          "location": "猫窝",
+          "thought": "夜色温柔",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "观察窗外",
+          "location": "窗台",
+          "thought": "月光很美",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-12T16:58:07.014636"
     }
   }
 }
