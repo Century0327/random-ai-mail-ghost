@@ -25,6 +25,22 @@
    - 已登录状态显示 `steam_name` 和退出登录按钮
    - 游客模式保留，提供"前往登录"入口
 
+4. **唤醒定时任务**（2026-07-13）
+   - 根因：GitHub 公开仓库 60 天无活跃休眠机制禁用了 schedule 定时调度
+   - 修复：执行空提交 `chore: 唤醒定时任务` 推送至 main 分支，恢复 schedule 触发
+   - 两个 workflow 均已有 `schedule` + `workflow_dispatch` 配置，无需修改 YAML
+     - `ghost-mail.yml`: 每天 UTC 02:00（北京时间 10:00）
+     - `test-schedule.yml`: 每天 UTC 16:00（北京时间 00:00）
+
+5. **相册图片加载失败**（2026-07-13）
+   - 根因：存入相册时直接保存图片 src URL，但后端没有图片存储和静态文件服务，相对路径 /assets/xxx.jpg 无法访问
+   - 修复：
+     - 后端新增 `/api/companion/attachments/upload` 接口，接收 base64 图片保存到 `data/attachments/`
+     - 后端新增 `/api/attachments/<filename>` 静态文件路由，提供图片访问
+     - 前端新增 `uploadAttachment` API 和 `imageToBase64` 工具函数
+     - `memories-panel.tsx` 存入相册改为上传 base64 到后端，失败时回退本地存储
+     - `resolveAssetUrl` 已有 `/api/` 路径补全逻辑，图片 URL 可正常访问
+
 ### ✨ 新功能
 
 - **物品系统重构**：将 `items` 和 `itemsLayout` 合并重构为 `playerFurniture` 表
