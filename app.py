@@ -1391,6 +1391,100 @@ def companion_attachments():
     return _cors_resp({"attachments": attachments})
 
 
+# ============ 附件图片上传 ============
+
+ATTACHMENTS_DIR = os.path.join(DATA_DIR, "attachments")
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+
+
+@app.route("/api/companion/attachments/upload", methods=["POST", "OPTIONS"])
+def upload_attachment():
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    device_id = request.headers.get("X-Device-ID", "")
+    ok, user, error = auth_required(request, allow_device=True)
+    if not ok:
+        return _cors_resp({"error": error}, 401)
+
+    data = request.get_json(silent=True) or {}
+    image_base64 = data.get("image", "")
+    character_id = data.get("character_id", "")
+    title = data.get("title", "")
+    letter_id = data.get("letter_id")
+
+    if not image_base64:
+        return _cors_resp({"error": "缺少图片数据"}, 400)
+
+    try:
+        if image_base64.startswith("data:image"):
+            image_base64 = image_base64.split(",", 1)[1]
+        image_bytes = base64.b64decode(image_base64)
+        if len(image_bytes) < 100:
+            return _cors_resp({"error": "图片数据过小"}, 400)
+    except Exception as e:
+        return _cors_resp({"error": f"图片解码失败: {str(e)}"}, 400)
+
+    ext = "jpg"
+    if "png" in image_base64[:30]:
+        ext = "png"
+    elif "gif" in image_base64[:30]:
+        ext = "gif"
+
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    filepath = os.path.join(ATTACHMENTS_DIR, filename)
+
+    try:
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+    except Exception as e:
+        return _cors_resp({"error": f"保存图片失败: {str(e)}"}, 500)
+
+    attachment_id = f"att_{uuid.uuid4().hex[:12]}"
+    src = f"/api/attachments/{filename}"
+
+    success = ds.create_attachment(
+        attachment_id=attachment_id,
+        user_id=user["id"],
+        character_id=character_id,
+        src=src,
+        title=title,
+        letter_id=letter_id,
+        is_favorite=True,
+        device_id=device_id or None,
+    )
+
+    if not success:
+        try:
+            os.remove(filepath)
+        except Exception:
+            pass
+        return _cors_resp({"error": "保存到相册失败"}, 500)
+
+    return _cors_resp({
+        "status": "ok",
+        "attachment": {
+            "id": attachment_id,
+            "src": src,
+            "title": title,
+        }
+    })
+
+
+@app.route("/api/attachments/<path:filename>", methods=["GET", "OPTIONS"])
+def serve_attachment(filename):
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    from flask import send_from_directory
+
+    try:
+        return send_from_directory(ATTACHMENTS_DIR, filename, max_age=86400)
+    except Exception:
+        from flask import abort
+        abort(404)
+
+
 # ============ 日程生成状态监控 API ============
 
 def _get_schedule_status_path():
