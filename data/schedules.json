@@ -599,6 +599,95 @@
         }
       ],
       "generated_at": "2026-07-12T16:58:07.014636"
+    },
+    "2026-07-13": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "窗台",
+          "thought": "新一天的开始，充满期待",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "阳光洒进来，好舒服",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "心情愉悦",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "睡觉打盹",
+          "location": "沙发",
+          "thought": "终于可以放松了",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "毯子上",
+          "thought": "享受片刻宁静",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "玩毛线球",
+          "location": "客厅",
+          "thought": "发现新玩具，兴奋不已",
+          "done": false
+        },
+        {
+          "time": "16:30",
+          "activity": "晒太阳",
+          "location": "窗边",
+          "thought": "温暖的阳光，很惬意",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "巡视领地",
+          "location": "阳台",
+          "thought": "黄昏的美景让我沉醉",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "食物的香气让我专注",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "睡觉打盹",
+          "location": "猫窝",
+          "thought": "夜幕降临，准备休息",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "观察窗外",
+          "location": "窗台",
+          "thought": "月光下，感到好奇",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-13T17:55:21.815756"
     }
   }
 }
