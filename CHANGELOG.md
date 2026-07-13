@@ -40,6 +40,18 @@
      - 前端新增 `uploadAttachment` API 和 `imageToBase64` 工具函数
      - `memories-panel.tsx` 存入相册改为上传 base64 到后端，失败时回退本地存储
      - `resolveAssetUrl` 已有 `/api/` 路径补全逻辑，图片 URL 可正常访问
+   - 前端 `fix/album-image-upload` 分支已合并到 main
+
+6. **相册图片加载失败和日期异常（深度修复）**（2026-07-13）
+   - 根因1：后端 `get_attachments` 优先用 `user_id` 查询，但匿名用户数据只写了 `device_id`，导致查不到数据，前端降级到本地缓存（日期全为同一天）
+   - 根因2：前端 `album-panel.tsx` 对已 `resolveAssetUrl` 处理过的 `src` 再次调用 `resolveAssetUrl`，虽不报错但逻辑冗余
+   - 根因3：删除操作只删本地缓存，未调后端接口，刷新后数据恢复
+   - 修复：
+     - 后端 `get_attachments` 改为 `user_id` 查不到时自动回退 `device_id` 查询
+     - 后端新增 `delete_attachment` 方法，支持 `user_id`/`device_id` 鉴权删除
+     - 后端 `/api/companion/attachments` 路由新增 `DELETE` 方法，删除后清理本地图片文件
+     - 前端新增 `deleteAttachment` API，删除操作同步后端和本地缓存
+     - 前端 `album-panel.tsx` 修复双重 `resolveAssetUrl` 问题
 
 ### ✨ 新功能
 
