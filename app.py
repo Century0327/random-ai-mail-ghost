@@ -1352,7 +1352,13 @@ def generate_schedule():
 
 
 
-@app.route("/api/companion/attachments", methods=["GET", "POST", "OPTIONS"])
+# ============ 附件图片上传 ============
+
+ATTACHMENTS_DIR = os.path.join(DATA_DIR, "attachments")
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+
+
+@app.route("/api/companion/attachments", methods=["GET", "POST", "DELETE", "OPTIONS"])
 def companion_attachments():
     if request.method == "OPTIONS":
         return _cors_resp({})
@@ -1385,17 +1391,36 @@ def companion_attachments():
             return _cors_resp({"error": "保存到相册失败"}, 500)
         return _cors_resp({"status": "ok", "attachment": {"id": attachment_id, "src": src, "title": title}})
 
+    if request.method == "DELETE":
+        data = request.get_json(silent=True) or {}
+        attachment_id = data.get("id", "")
+        if not attachment_id:
+            return _cors_resp({"error": "缺少附件 id"}, 400)
+        src = ds.delete_attachment(
+            attachment_id=attachment_id,
+            user_id=user["id"],
+            device_id=device_id or None,
+        )
+        if src is None:
+            return _cors_resp({"error": "附件不存在或无权删除"}, 404)
+        # 清理本地图片文件
+        if src and "/api/attachments/" in src:
+            filename = src.split("/api/attachments/")[-1]
+            filepath = os.path.join(ATTACHMENTS_DIR, filename)
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception:
+                pass
+        return _cors_resp({"status": "ok"})
+
     character_id = request.args.get("character_id")
     attachments = ds.get_attachments(user_id=user["id"], character_id=character_id,
                                      device_id=device_id or None)
     return _cors_resp({"attachments": attachments})
 
 
-# ============ 附件图片上传 ============
-
-ATTACHMENTS_DIR = os.path.join(DATA_DIR, "attachments")
-os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
-
+# ============ 附件图片上传（接口定义） ============
 
 @app.route("/api/companion/attachments/upload", methods=["POST", "OPTIONS"])
 def upload_attachment():

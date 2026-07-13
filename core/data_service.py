@@ -964,7 +964,11 @@ class DataService:
 
     def get_attachments(self, user_id: Optional[int] = None, character_id: Optional[str] = None,
                         device_id: Optional[str] = None) -> List[Dict]:
-        if user_id is not None:
+        # 优先用 user_id 查，查不到则回退 device_id
+        use_user_id = user_id is not None
+        use_device_id = device_id and not use_user_id
+
+        if use_user_id:
             if character_id:
                 rows = self._query(
                     """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
@@ -979,7 +983,12 @@ class DataService:
                        ORDER BY created_at DESC""",
                     (user_id,)
                 )
-        elif device_id:
+            # user_id 查不到数据时回退到 device_id
+            if rows is not None and len(rows) == 0 and device_id:
+                use_device_id = True
+                use_user_id = False
+
+        if use_device_id:
             if character_id:
                 rows = self._query(
                     """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
@@ -994,7 +1003,8 @@ class DataService:
                        ORDER BY created_at DESC""",
                     (device_id,)
                 )
-        else:
+
+        if not use_user_id and not use_device_id:
             if character_id:
                 rows = self._query(
                     """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
@@ -1005,6 +1015,7 @@ class DataService:
                 rows = self._query(
                     """SELECT id, letter_id, character_id, src, title, is_favorite, created_at
                        FROM attachments ORDER BY created_at DESC""")
+
         if rows is not None:
             return [dict(r) for r in rows]
         attachments = _load_json("attachments.json", [])
@@ -1020,6 +1031,46 @@ class DataService:
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (attachment_id, user_id, device_id, letter_id, character_id, src, title, is_favorite)
         )
+
+    def delete_attachment(self, attachment_id: str, user_id: Optional[int] = None,
+                          device_id: Optional[str] = None) -> Optional[str]:
+        """删除附件，返回被删除记录的 src（用于清理文件），失败返回 None"""
+        conn = self._conn() if self._use_db else None
+        if conn is not None:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                where_parts = ["id = %s"]
+                params = [attachment_id]
+                if user_id is not None:
+                    where_parts.append("user_id = %s")
+                    params.append(user_id)
+                if device_id:
+                    where_parts.append("device_id = %s")
+                    params.append(device_id)
+                where_clause = " AND ".join(where_parts)
+
+                cur.execute(f"SELECT src FROM attachments WHERE {where_clause}", params)
+                row = cur.fetchone()
+                if not row:
+                    cur.close()
+                    return None
+                src = dict(row).get("src")
+
+                cur.execute(f"DELETE FROM attachments WHERE {where_clause}", params)
+                conn.commit()
+                cur.close()
+                return src
+            except Exception as e:
+                logger.error(f"[delete_attachment] DB 失败: {e}")
+                if conn:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                return None
+            finally:
+                self._release_conn(conn)
+        return None
 
     # ==================== Migration helpers ====================
 
