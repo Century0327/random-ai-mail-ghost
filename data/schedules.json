@@ -688,6 +688,95 @@
         }
       ],
       "generated_at": "2026-07-13T17:55:21.815756"
+    },
+    "2026-07-14": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "猫窝",
+          "thought": "确认领地安全",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰起床",
+          "location": "窗台",
+          "thought": "阳光唤醒我",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "准备迎接新一天",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "睡觉打盹",
+          "location": "沙发",
+          "thought": "温暖的阳光真舒服",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "发呆",
+          "location": "窗台",
+          "thought": "看云朵飘过",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "睡觉打盹",
+          "location": "猫窝",
+          "thought": "午后的宁静最适合休息",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "玩毛线球",
+          "location": "客厅",
+          "thought": "毛线球带来快乐",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "晒太阳",
+          "location": "窗台",
+          "thought": "黄昏的阳光最温暖",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "晚餐的香味吸引我",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "毛线球陪伴我",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "睡觉",
+          "location": "猫窝",
+          "thought": "进入梦乡",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-14T17:14:51.744998"
     }
   }
 }
