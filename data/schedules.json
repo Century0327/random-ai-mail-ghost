@@ -337,6 +337,96 @@
         }
       ],
       "generated_at": "2026-07-10T16:31:44.981469"
+    },
+    "2026-07-15": {
+      "date": "2026-07-15",
+      "items": [
+        {
+          "time": "05:30",
+          "activity": "清晨巡逻",
+          "location": "窗台",
+          "thought": "天快亮了，先去看看领地",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "叫主人起床",
+          "location": "枕头边",
+          "thought": "起床啦！饭饭时间到！",
+          "done": false
+        },
+        {
+          "time": "06:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的猫粮味道还不错",
+          "done": false
+        },
+        {
+          "time": "07:30",
+          "activity": "晨间捕猎练习",
+          "location": "客厅",
+          "thought": "这个逗猫棒休想逃过我的爪子",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "上午第一觉",
+          "location": "阳光地毯上",
+          "thought": "暖暖的阳光，好困...zzZ",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "午觉",
+          "location": "沙发靠背",
+          "thought": "中午就该睡觉，人类懂什么",
+          "done": false
+        },
+        {
+          "time": "14:30",
+          "activity": "下午小憩",
+          "location": "猫爬架顶",
+          "thought": "高处睡得香，还能监视全家",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "舔毛理容",
+          "location": "窗台上",
+          "thought": "猫猫要保持帅气的发型",
+          "done": false
+        },
+        {
+          "time": "17:30",
+          "activity": "黄昏捕猎练习",
+          "location": "客厅",
+          "thought": "黄昏是猫的黄金时间！",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "终于开饭了，饿死喵了",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "夜间疯跑",
+          "location": "全家乱窜",
+          "thought": "冲啊！午夜竞速开始！",
+          "done": false
+        },
+        {
+          "time": "23:30",
+          "activity": "夜巡",
+          "location": "各个房间",
+          "thought": "夜间巡逻，确保全家安全",
+          "done": false
+        }
+      ],
+      "generatedAt": "2026-07-15T05:13:59.572614"
     }
   },
   "": {
