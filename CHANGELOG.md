@@ -53,6 +53,25 @@
      - 前端新增 `deleteAttachment` API，删除操作同步后端和本地缓存
      - 前端 `album-panel.tsx` 修复双重 `resolveAssetUrl` 问题
 
+7. **Vercel 部署后所有 API 返回 500**（2026-07-15）
+   - 根因：模块级 `os.makedirs(ATTACHMENTS_DIR)` 在 Vercel 只读文件系统抛出 `OSError: [Errno 30] Read-only file system`，导致 `app.py` 无法导入
+   - 修复：
+     - 移除模块级 `ATTACHMENTS_DIR` 和 `os.makedirs` 调用
+     - attachments 表新增 `image_data BYTEA` + `content_type TEXT` 字段（迁移 4）
+     - 上传接口改为纯数据库存储，不写本地文件
+     - `/api/attachments/<id>` 路由从数据库读取图片二进制返回
+     - 删除接口移除本地文件清理逻辑
+
+8. **GitHub Actions 生成的图片未写入数据库**（2026-07-15）
+   - 根因：`main.py` 发信后只写 `data/letters.json`，未写入 Neon 数据库，前端从数据库读取时无数据
+   - 修复：
+     - `main.py` 发信成功后调用 `DataService` 写入 `letters` 和 `attachments` 表
+     - 附件图片二进制直接存 `attachments.image_data` (BYTEA)
+     - `DataService` 新增 `get_or_create_user_by_device` 方法
+     - `create_letter` 新增 `letter_id`/`user_id` 可选参数
+     - workflow 传入 `DATABASE_URL` 和 `DEVICE_ID` 环境变量
+   - 需用户操作：在 GitHub Secrets 中添加 `DATABASE_URL`（Neon 连接串）
+
 ### ✨ 新功能
 
 - **物品系统重构**：将 `items` 和 `itemsLayout` 合并重构为 `playerFurniture` 表
