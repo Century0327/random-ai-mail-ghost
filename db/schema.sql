@@ -118,6 +118,8 @@ CREATE TABLE IF NOT EXISTS attachments (
     src TEXT NOT NULL,
     title TEXT,
     is_favorite BOOLEAN DEFAULT false,  -- 收藏
+    image_data BYTEA,  -- 图片二进制数据（Vercel 无服务器环境使用）
+    content_type TEXT DEFAULT 'image/jpeg',  -- MIME 类型
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -119,6 +119,31 @@ def _run_db_migrations():
         else:
             print("[Migration] conversations.device_id 字段已存在，跳过")
 
+        # 迁移 4: 给 attachments 表添加 image_data 和 content_type 字段（纯数据库存储图片）
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'attachments' AND column_name = 'image_data'
+        """)
+        if not cur.fetchone():
+            print("[Migration] 正在添加 attachments.image_data 字段...")
+            cur.execute("ALTER TABLE attachments ADD COLUMN image_data BYTEA")
+            conn.commit()
+            print("[Migration] attachments.image_data 字段添加完成")
+        else:
+            print("[Migration] attachments.image_data 字段已存在，跳过")
+
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'attachments' AND column_name = 'content_type'
+        """)
+        if not cur.fetchone():
+            print("[Migration] 正在添加 attachments.content_type 字段...")
+            cur.execute("ALTER TABLE attachments ADD COLUMN content_type TEXT DEFAULT 'image/jpeg'")
+            conn.commit()
+            print("[Migration] attachments.content_type 字段添加完成")
+        else:
+            print("[Migration] attachments.content_type 字段已存在，跳过")
+
         cur.close()
     except Exception as e:
         print(f"[Migration] 迁移失败: {e}")
@@ -1352,11 +1377,7 @@ def generate_schedule():
 
 
 
-# ============ 附件图片上传 ============
-
-ATTACHMENTS_DIR = os.path.join(DATA_DIR, "attachments")
-os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
-
+# ============ 附件图片（纯数据库存储，Vercel 无服务器环境无本地文件） ============
 
 @app.route("/api/companion/attachments", methods=["GET", "POST", "DELETE", "OPTIONS"])
 def companion_attachments():
@@ -1403,15 +1424,6 @@ def companion_attachments():
         )
         if src is None:
             return _cors_resp({"error": "附件不存在或无权删除"}, 404)
-        # 清理本地图片文件
-        if src and "/api/attachments/" in src:
-            filename = src.split("/api/attachments/")[-1]
-            filepath = os.path.join(ATTACHMENTS_DIR, filename)
-            try:
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-            except Exception:
-                pass
         return _cors_resp({"status": "ok"})
 
     character_id = request.args.get("character_id")
@@ -1420,7 +1432,7 @@ def companion_attachments():
     return _cors_resp({"attachments": attachments})
 
 
-# ============ 附件图片上传（接口定义） ============
+# ============ 附件图片上传（纯数据库存储） ============
 
 @app.route("/api/companion/attachments/upload", methods=["POST", "OPTIONS"])
 def upload_attachment():
@@ -1441,8 +1453,16 @@ def upload_attachment():
     if not image_base64:
         return _cors_resp({"error": "缺少图片数据"}, 400)
 
+    content_type = "image/jpeg"
     try:
         if image_base64.startswith("data:image"):
+            header_part = image_base64.split(",", 1)[0]
+            if "png" in header_part:
+                content_type = "image/png"
+            elif "gif" in header_part:
+                content_type = "image/gif"
+            elif "webp" in header_part:
+                content_type = "image/webp"
             image_base64 = image_base64.split(",", 1)[1]
         image_bytes = base64.b64decode(image_base64)
         if len(image_bytes) < 100:
@@ -1450,23 +1470,8 @@ def upload_attachment():
     except Exception as e:
         return _cors_resp({"error": f"图片解码失败: {str(e)}"}, 400)
 
-    ext = "jpg"
-    if "png" in image_base64[:30]:
-        ext = "png"
-    elif "gif" in image_base64[:30]:
-        ext = "gif"
-
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(ATTACHMENTS_DIR, filename)
-
-    try:
-        with open(filepath, "wb") as f:
-            f.write(image_bytes)
-    except Exception as e:
-        return _cors_resp({"error": f"保存图片失败: {str(e)}"}, 500)
-
     attachment_id = f"att_{uuid.uuid4().hex[:12]}"
-    src = f"/api/attachments/{filename}"
+    src = f"/api/attachments/{attachment_id}"
 
     success = ds.create_attachment(
         attachment_id=attachment_id,
@@ -1477,13 +1482,11 @@ def upload_attachment():
         letter_id=letter_id,
         is_favorite=True,
         device_id=device_id or None,
+        image_data=image_bytes,
+        content_type=content_type,
     )
 
     if not success:
-        try:
-            os.remove(filepath)
-        except Exception:
-            pass
         return _cors_resp({"error": "保存到相册失败"}, 500)
 
     return _cors_resp({
@@ -1496,18 +1499,27 @@ def upload_attachment():
     })
 
 
-@app.route("/api/attachments/<path:filename>", methods=["GET", "OPTIONS"])
-def serve_attachment(filename):
+@app.route("/api/attachments/<path:attachment_id>", methods=["GET", "OPTIONS"])
+def serve_attachment(attachment_id):
     if request.method == "OPTIONS":
         return _cors_resp({})
 
-    from flask import send_from_directory
-
-    try:
-        return send_from_directory(ATTACHMENTS_DIR, filename, max_age=86400)
-    except Exception:
+    data = ds.get_attachment_data(attachment_id)
+    if not data or not data.get("image_data"):
         from flask import abort
         abort(404)
+
+    image_bytes = data["image_data"]
+    if isinstance(image_bytes, memoryview):
+        image_bytes = bytes(image_bytes)
+
+    content_type = data.get("content_type") or "image/jpeg"
+
+    from flask import make_response
+    resp = make_response(image_bytes)
+    resp.headers["Content-Type"] = content_type
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
 
 
 # ============ 日程生成状态监控 API ============

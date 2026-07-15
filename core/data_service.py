@@ -1025,12 +1025,46 @@ class DataService:
 
     def create_attachment(self, attachment_id: str, user_id: int, character_id: str, src: str,
                           title: str = "", letter_id: Optional[str] = None,
-                          is_favorite: bool = False, device_id: Optional[str] = None) -> bool:
+                          is_favorite: bool = False, device_id: Optional[str] = None,
+                          image_data: Optional[bytes] = None,
+                          content_type: str = "image/jpeg") -> bool:
         return self._execute(
-            """INSERT INTO attachments (id, user_id, device_id, letter_id, character_id, src, title, is_favorite)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (attachment_id, user_id, device_id, letter_id, character_id, src, title, is_favorite)
+            """INSERT INTO attachments (id, user_id, device_id, letter_id, character_id, src, title, is_favorite, image_data, content_type)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (attachment_id, user_id, device_id, letter_id, character_id, src, title, is_favorite, image_data, content_type)
         )
+
+    def get_attachment_data(self, attachment_id: str) -> Optional[Dict]:
+        """根据 id 或 src 路径查附件的二进制数据（用于图片访问）"""
+        conn = self._conn() if self._use_db else None
+        if conn is not None:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    "SELECT id, src, image_data, content_type FROM attachments WHERE id = %s",
+                    (attachment_id,)
+                )
+                row = cur.fetchone()
+                cur.close()
+                if row:
+                    return dict(row)
+                # 兼容旧格式：按 src 中的文件名查
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    "SELECT id, src, image_data, content_type FROM attachments WHERE src LIKE %s LIMIT 1",
+                    (f"%{attachment_id}%",)
+                )
+                row = cur.fetchone()
+                cur.close()
+                if row:
+                    return dict(row)
+                return None
+            except Exception as e:
+                logger.error(f"[get_attachment_data] DB 失败: {e}")
+                return None
+            finally:
+                self._release_conn(conn)
+        return None
 
     def delete_attachment(self, attachment_id: str, user_id: Optional[int] = None,
                           device_id: Optional[str] = None) -> Optional[str]:
