@@ -10,12 +10,12 @@ import json
 import random
 import imaplib
 import email
+import logging
 from email.header import decode_header
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from core.logger import setup_logger
 
-logger = setup_logger("conversation")
+logger = logging.getLogger(__name__)
 
 
 # ============ IMAP 收信 ============
@@ -254,11 +254,47 @@ def render_relation_bar(value, relation_config):
 """.strip()
 
 
-# ============ 对话历史 ============
+# ============ 对话历史（数据库优先，本地加密文件兜底） ============
 
-def load_conversation_history(enable, persona_name):
+def _get_ds():
+    """尝试获取 DataService 实例，失败返回 None"""
+    try:
+        from core.data_service import DataService
+        db_url = os.environ.get("DATABASE_URL", "")
+        if not db_url:
+            return None
+        ds = DataService(db_url=db_url)
+        return ds
+    except Exception as e:
+        logger.debug(f"[CONVERSATION] DataService 不可用: {e}")
+        return None
+
+
+def load_conversation_history(enable, persona_name, device_id=None, limit=50):
     if not enable:
         return {"full": [], "summary": ""}
+    
+    # 优先从数据库加载
+    ds = _get_ds()
+    if ds and device_id:
+        try:
+            rows = ds.get_conversations(character_id=persona_name, limit=limit, device_id=device_id)
+            if rows:
+                full = []
+                for r in rows:
+                    full.append({
+                        "time": str(r.get("created_at", datetime.now().isoformat())),
+                        "role": r.get("role", "ghost"),
+                        "sender": r.get("sender"),
+                        "content": r.get("content", "")
+                    })
+                full.reverse()  # 数据库是倒序的，转回正序
+                logger.info(f"[CONVERSATION] 从数据库加载 {len(full)} 条对话（{persona_name}）")
+                return {"full": full, "summary": ""}
+        except Exception as e:
+            logger.warning(f"[CONVERSATION] 数据库加载失败，回退本地文件: {e}")
+    
+    # 兜底：本地加密文件
     try:
         from core.crypto import get_key, load_conversation
         key = get_key()
@@ -269,9 +305,27 @@ def load_conversation_history(enable, persona_name):
         return {"full": [], "summary": ""}
 
 
-def save_conversation_history(enable, persona_name, data):
+def save_conversation_history(enable, persona_name, data, device_id=None):
     if not enable:
         return
+    
+    # 优先写入数据库（只写最新的一条，批量写由 add_to_history 处理）
+    ds = _get_ds()
+    if ds and device_id and data.get("full"):
+        try:
+            latest = data["full"][-1]
+            ds.add_conversation(
+                character_id=persona_name,
+                role=latest.get("role", "ghost"),
+                content=latest.get("content", ""),
+                sender=latest.get("sender"),
+                device_id=device_id,
+            )
+            logger.debug(f"[CONVERSATION] 对话写入数据库: {persona_name}/{latest.get('role')}")
+        except Exception as e:
+            logger.warning(f"[CONVERSATION] 数据库写入失败，回退本地文件: {e}")
+    
+    # 兜底：本地加密文件
     try:
         from core.crypto import get_key, save_conversation
         key = get_key()

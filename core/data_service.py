@@ -794,23 +794,23 @@ class DataService:
         if device_id:
             if character_id:
                 rows = self._query(
-                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE device_id = %s AND character_id = %s ORDER BY created_at DESC LIMIT %s",
+                    "SELECT id, character_id, subject, content, source, attachment_url, direction, created_at FROM letters WHERE device_id = %s AND character_id = %s ORDER BY created_at DESC LIMIT %s",
                     (device_id, character_id, limit)
                 )
             else:
                 rows = self._query(
-                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE device_id = %s ORDER BY created_at DESC LIMIT %s",
+                    "SELECT id, character_id, subject, content, source, attachment_url, direction, created_at FROM letters WHERE device_id = %s ORDER BY created_at DESC LIMIT %s",
                     (device_id, limit)
                 )
         else:
             if character_id:
                 rows = self._query(
-                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
+                    "SELECT id, character_id, subject, content, source, attachment_url, direction, created_at FROM letters WHERE character_id = %s ORDER BY created_at DESC LIMIT %s",
                     (character_id, limit)
                 )
             else:
                 rows = self._query(
-                    "SELECT id, character_id, subject, body, source, attachment_url, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
+                    "SELECT id, character_id, subject, content, source, attachment_url, direction, created_at FROM letters ORDER BY created_at DESC LIMIT %s",
                     (limit,)
                 )
         if rows is not None:
@@ -820,25 +820,46 @@ class DataService:
             letters = [l for l in letters if l.get("character_id") == character_id]
         return letters[:limit]
 
-    def create_letter(self, character_id: str, subject: str, body: str,
+    def create_letter(self, character_id: str, subject: str, content: str,
                       source: str = "ai", attachment_url: Optional[str] = None,
                       device_id: Optional[str] = None,
-                      letter_id: Optional[str] = None,
+                      direction: str = "from_character",
                       user_id: Optional[int] = None) -> Optional[Dict]:
-        if letter_id is None:
-            letter_id = f"l{_uuid_hex()}"
-        db_ok = self._execute(
-            "INSERT INTO letters (id, character_id, subject, body, source, attachment_url, device_id, user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (letter_id, character_id, subject, body, source, attachment_url, device_id, user_id)
-        )
+        conn = self._conn() if self._use_db else None
+        letter_id = None
+        if conn is not None:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    """INSERT INTO letters (character_id, subject, content, source, attachment_url, device_id, direction, user_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at""",
+                    (character_id, subject, content, source, attachment_url, device_id, direction, user_id)
+                )
+                row = cur.fetchone()
+                conn.commit()
+                cur.close()
+                if row:
+                    letter_id = dict(row).get("id")
+                    created_at = dict(row).get("created_at")
+            except Exception as e:
+                logger.error(f"[create_letter] DB 失败: {e}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                return None
+            finally:
+                self._release_conn(conn)
+
         letters = _load_json("letters.json", [])
         new_letter = {
-            "id": letter_id,
+            "id": letter_id or f"l{len(letters) + 1}",
             "character_id": character_id,
             "subject": subject,
-            "body": body,
+            "content": content,
             "source": source,
             "attachment_url": attachment_url,
+            "direction": direction,
             "created_at": datetime.utcnow().isoformat() + "Z"
         }
         letters.insert(0, new_letter)
@@ -951,10 +972,12 @@ class DataService:
         return []
 
     def add_conversation(self, character_id: str, role: str, content: str,
-                         sender: Optional[str] = None) -> bool:
+                         sender: Optional[str] = None,
+                         device_id: Optional[str] = None,
+                         user_id: Optional[int] = None) -> bool:
         return self._execute(
-            "INSERT INTO conversations (character_id, role, sender, content) VALUES (%s, %s, %s, %s)",
-            (character_id, role, sender, content)
+            "INSERT INTO conversations (character_id, role, sender, content, device_id, user_id) VALUES (%s, %s, %s, %s, %s, %s)",
+            (character_id, role, sender, content, device_id, user_id)
         )
 
     # ==================== User States ====================
