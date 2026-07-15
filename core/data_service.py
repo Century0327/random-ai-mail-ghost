@@ -1277,6 +1277,337 @@ class DataService:
         finally:
             self._release_conn(conn)
 
+    # ==================== v2.0 角色实例驱动系统 ====================
+
+    # ---------- 角色实例 ----------
+
+    def create_instance(self, template_id: str, owner_user_id: Optional[int] = None,
+                        owner_device_id: Optional[str] = None, name: Optional[str] = None,
+                        min_days: int = 2, max_days: int = 5) -> Optional[str]:
+        """创建角色实例，返回实例 ID"""
+        inst_id = f"inst_{template_id}_{_uuid_hex(8)}"
+        ok = self._execute(
+            """INSERT INTO character_instances (id, template_id, owner_user_id, owner_device_id, name, min_days, max_days)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (inst_id, template_id, owner_user_id, owner_device_id, name or template_id, min_days, max_days)
+        )
+        return inst_id if ok else None
+
+    def get_instance(self, instance_id: str) -> Optional[Dict]:
+        rows = self._query(
+            "SELECT * FROM character_instances WHERE id = %s",
+            (instance_id,), fetch_one=True
+        )
+        return dict(rows) if rows else None
+
+    def get_instances_by_owner(self, user_id: Optional[int] = None,
+                               device_id: Optional[str] = None,
+                               status: str = "active") -> List[Dict]:
+        if user_id:
+            rows = self._query(
+                "SELECT * FROM character_instances WHERE owner_user_id = %s AND status = %s ORDER BY created_at DESC",
+                (user_id, status)
+            )
+        elif device_id:
+            rows = self._query(
+                "SELECT * FROM character_instances WHERE owner_device_id = %s AND status = %s ORDER BY created_at DESC",
+                (device_id, status)
+            )
+        else:
+            return []
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def get_instances_due_for_letter(self) -> List[Dict]:
+        """查询所有到达发信时间的活跃实例"""
+        rows = self._query(
+            """SELECT * FROM character_instances
+               WHERE status = 'active'
+                 AND (next_send_at IS NULL OR next_send_at <= NOW())
+               ORDER BY next_send_at NULLS FIRST
+               LIMIT 20"""
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def update_instance_next_send(self, instance_id: str, next_send_at: str) -> bool:
+        return self._execute(
+            "UPDATE character_instances SET next_send_at = %s, updated_at = NOW() WHERE id = %s",
+            (next_send_at, instance_id)
+        ) is not False
+
+    def update_instance_relation(self, instance_id: str, relation_value: int) -> bool:
+        return self._execute(
+            "UPDATE character_instances SET relation_value = %s, updated_at = NOW() WHERE id = %s",
+            (relation_value, instance_id)
+        ) is not False
+
+    def update_instance_status(self, instance_id: str, status: str) -> bool:
+        return self._execute(
+            "UPDATE character_instances SET status = %s, updated_at = NOW() WHERE id = %s",
+            (status, instance_id)
+        ) is not False
+
+    def is_instance_owner(self, instance_id: str, user_id: Optional[int] = None,
+                          device_id: Optional[str] = None) -> bool:
+        row = self._query(
+            "SELECT id FROM character_instances WHERE id = %s AND (owner_user_id = %s OR owner_device_id = %s)",
+            (instance_id, user_id, device_id), fetch_one=True
+        )
+        return row is not None and len(dict(row)) > 0
+
+    # ---------- 实例成员 ----------
+
+    def add_instance_member(self, instance_id: str, email: str,
+                            user_id: Optional[int] = None,
+                            display_name: Optional[str] = None,
+                            role: str = "member") -> Optional[int]:
+        """添加成员，返回成员 ID；已存在则返回现有 ID"""
+        existing = self._query(
+            "SELECT id FROM instance_members WHERE instance_id = %s AND email = %s",
+            (instance_id, email), fetch_one=True
+        )
+        if existing:
+            return dict(existing).get("id")
+
+        result = self._query(
+            """INSERT INTO instance_members (instance_id, user_id, email, display_name, role, joined_at)
+               VALUES (%s, %s, %s, %s, %s, NOW())
+               RETURNING id""",
+            (instance_id, user_id, email, display_name or email.split("@")[0], role),
+            fetch_one=True
+        )
+        if result:
+            return dict(result).get("id")
+        return None
+
+    def get_active_members(self, instance_id: str) -> List[Dict]:
+        """获取实例的活跃成员（active 状态，可收信）"""
+        rows = self._query(
+            """SELECT * FROM instance_members
+               WHERE instance_id = %s AND email_status = 'active'
+               ORDER BY joined_at""",
+            (instance_id,)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def get_instance_members(self, instance_id: str) -> List[Dict]:
+        rows = self._query(
+            "SELECT * FROM instance_members WHERE instance_id = %s ORDER BY joined_at",
+            (instance_id,)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def find_instances_by_email(self, email: str) -> List[Dict]:
+        """通过邮箱查找所有关联的实例（TD 退订用）"""
+        rows = self._query(
+            """SELECT ci.* FROM character_instances ci
+               JOIN instance_members im ON ci.id = im.instance_id
+               WHERE im.email = %s AND im.email_status = 'active' AND ci.status = 'active'""",
+            (email,)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def mark_first_email_sent(self, member_id: int) -> bool:
+        return self._execute(
+            "UPDATE instance_members SET first_email_sent = TRUE WHERE id = %s",
+            (member_id,)
+        ) is not False
+
+    def update_member_settings(self, member_id: int, email_status: Optional[str] = None,
+                               notify_owner_on_close: Optional[bool] = None) -> bool:
+        fields, params = [], []
+        if email_status is not None:
+            fields.append("email_status = %s")
+            params.append(email_status)
+            if email_status == "unsubscribed":
+                fields.append("unsubscribed_at = NOW()")
+        if notify_owner_on_close is not None:
+            fields.append("notify_owner_on_close = %s")
+            params.append(notify_owner_on_close)
+        if not fields:
+            return False
+        params.append(member_id)
+        return self._execute(
+            f"UPDATE instance_members SET {', '.join(fields)} WHERE id = %s",
+            tuple(params)
+        ) is not False
+
+    # ---------- 信件（v2.0 版本：支持 instance_id + recipient_email） ----------
+
+    def save_letter_v2(self, instance_id: str, template_id: str, recipient_email: str,
+                       subject: str, content: str, attachment_url: Optional[str] = None,
+                       direction: str = "outbound", user_id: Optional[int] = None,
+                       device_id: Optional[str] = None) -> Optional[int]:
+        """存储信件，返回 letter_id（整数）"""
+        result = self._query(
+            """INSERT INTO letters (instance_id, character_id, recipient_email, subject, content,
+                                   attachment_url, direction, user_id, device_id, source)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ai')
+               RETURNING id""",
+            (instance_id, template_id, recipient_email, subject, content,
+             attachment_url, direction, user_id, device_id),
+            fetch_one=True
+        )
+        if result:
+            return int(dict(result).get("id"))
+        return None
+
+    def get_letters_v2(self, instance_id: Optional[str] = None,
+                       recipient_email: Optional[str] = None,
+                       character_id: Optional[str] = None,
+                       limit: int = 50, include_deleted: bool = False) -> List[Dict]:
+        """v2.0 信件查询：支持按实例/收件人/角色过滤"""
+        sql = """SELECT l.*, ci.name as instance_name, c.name as character_name
+                 FROM letters l
+                 LEFT JOIN character_instances ci ON l.instance_id = ci.id
+                 LEFT JOIN characters c ON l.character_id = c.id
+                 WHERE 1=1"""
+        params = []
+        if instance_id:
+            sql += " AND l.instance_id = %s"
+            params.append(instance_id)
+        if recipient_email:
+            sql += " AND l.recipient_email = %s"
+            params.append(recipient_email)
+        if character_id:
+            sql += " AND l.character_id = %s"
+            params.append(character_id)
+        if not include_deleted:
+            sql += " AND (l.is_deleted = FALSE OR l.is_deleted IS NULL)"
+        sql += " ORDER BY l.created_at DESC LIMIT %s"
+        params.append(limit)
+        rows = self._query(sql, tuple(params))
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    # ---------- 邀请系统 ----------
+
+    def create_invitation(self, instance_id: str, code: str, token: Optional[str] = None,
+                          invited_email: Optional[str] = None, max_uses: int = 1,
+                          created_by: str = "system",
+                          expires_at: Optional[str] = None) -> Optional[int]:
+        result = self._query(
+            """INSERT INTO invitations (instance_id, code, token, invited_email, max_uses, created_by, expires_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
+            (instance_id, code, token, invited_email, max_uses, created_by, expires_at),
+            fetch_one=True
+        )
+        if result:
+            return int(dict(result).get("id"))
+        return None
+
+    def validate_invitation(self, code_or_token: str) -> Optional[Dict]:
+        """验证邀请码或 token，有效返回邀请详情，无效返回 None"""
+        row = self._query(
+            """SELECT * FROM invitations
+               WHERE (code = %s OR token = %s)
+                 AND used_count < max_uses
+                 AND (expires_at IS NULL OR expires_at > NOW())
+               LIMIT 1""",
+            (code_or_token, code_or_token), fetch_one=True
+        )
+        return dict(row) if row else None
+
+    def use_invitation(self, invitation_id: int) -> bool:
+        return self._execute(
+            "UPDATE invitations SET used_count = used_count + 1 WHERE id = %s",
+            (invitation_id,)
+        ) is not False
+
+    # ---------- 退订 ----------
+
+    def unsubscribe_by_email(self, instance_id: str, email: str,
+                             method: str = "unknown",
+                             letter_id: Optional[int] = None) -> bool:
+        """退订：标记成员状态 + 记录日志"""
+        ok = self._execute(
+            """UPDATE instance_members
+               SET email_status = 'unsubscribed', unsubscribed_at = NOW()
+               WHERE instance_id = %s AND email = %s""",
+            (instance_id, email)
+        )
+        if ok is False:
+            return False
+        self._execute(
+            """INSERT INTO unsubscribe_logs (instance_id, email, method, letter_id)
+               VALUES (%s, %s, %s, %s)""",
+            (instance_id, email, method, letter_id)
+        )
+        return True
+
+    # ---------- 对话历史（v2.0：按实例） ----------
+
+    def add_conversation_v2(self, instance_id: str, role: str, content: str,
+                            sender: Optional[str] = None,
+                            character_id: Optional[str] = None,
+                            user_id: Optional[int] = None,
+                            device_id: Optional[str] = None) -> bool:
+        return self._execute(
+            """INSERT INTO conversations (instance_id, character_id, role, sender, content, user_id, device_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (instance_id, character_id, role, sender, content, user_id, device_id)
+        ) is not False
+
+    def get_conversations_v2(self, instance_id: str, limit: int = 50) -> List[Dict]:
+        rows = self._query(
+            """SELECT id, role, sender, content, created_at FROM conversations
+               WHERE instance_id = %s
+               ORDER BY created_at DESC LIMIT %s""",
+            (instance_id, limit)
+        )
+        if rows is not None:
+            result = [dict(r) for r in rows]
+            result.reverse()
+            return result
+        return []
+
+    # ---------- 角色工作室 ----------
+
+    def create_character(self, char_id: str, name: str, description: str,
+                         persona: str, creator_id: str,
+                         status: str = "private") -> bool:
+        return self._execute(
+            """INSERT INTO characters (id, name, description, persona, creator_id, status)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (char_id, name, description, persona, creator_id, status)
+        ) is not False
+
+    def update_character_status(self, char_id: str, status: str) -> bool:
+        return self._execute(
+            "UPDATE characters SET status = %s WHERE id = %s",
+            (status, char_id)
+        ) is not False
+
+    def get_characters_by_status(self, status: str = "approved",
+                                 limit: int = 50) -> List[Dict]:
+        rows = self._query(
+            "SELECT id, name, description, persona, creator_id, status, created_at FROM characters WHERE status = %s ORDER BY created_at DESC LIMIT %s",
+            (status, limit)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
+    def get_user_characters(self, creator_id: str) -> List[Dict]:
+        rows = self._query(
+            "SELECT id, name, description, status, created_at FROM characters WHERE creator_id = %s ORDER BY created_at DESC",
+            (creator_id,)
+        )
+        if rows is not None:
+            return [dict(r) for r in rows]
+        return []
+
 
 # 全局单例
 ds = DataService()

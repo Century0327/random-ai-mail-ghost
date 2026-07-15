@@ -4,6 +4,54 @@
 
 ## [Unreleased]
 
+### 🚀 架构升级：Ghost Mail v2.0 角色实例驱动的社交邮件订阅系统
+
+**核心变革**：从"静态群发脚本"升级为"角色实例驱动的社交邮件订阅系统"
+
+#### 数据库设计
+- 新增 5 张 v2.0 核心表：
+  - `character_instances`：角色实例表（A 的 Kitty、B 的 Puppy 都是独立实例）
+  - `instance_members`：实例成员表（谁在这个实例里，支持多用户共享）
+  - `invitations`：邀请表（邀请码/链接管理）
+  - `unsubscribe_logs`：退订记录表（防误操作+审计）
+  - `user_emails`：用户邮箱绑定表
+  - `character_versions`：角色版本历史表
+- `letters` 表新增字段：`instance_id`、`recipient_email`（支持按收件人查询）
+- `characters` 表新增字段：`creator_id`、`status`（支持角色工作室）
+- `conversations` 表新增字段：`instance_id`（按实例隔离对话历史）
+- 全部迁移通过 `app.py` 的 `_run_db_migrations()` 自动执行（迁移 5-9）
+
+#### 后端重构
+- **`main.py`**：新增 `run_scheduler()` 作为 v2.0 入口
+  - 从数据库读取所有到达发信时间的实例
+  - 每个实例生成一次信件内容（所有成员收到相同内容，共享体验）
+  - 为每个成员独立存储信件记录（内容相同，状态独立）
+  - 自动更新下次发信时间和对话历史
+  - 发信前自动处理 TD 退订
+  - 向后兼容：无 DATABASE_URL 或无实例时回退 v1 模式
+
+- **`data_service.py`**：新增 v2.0 核心方法
+  - 实例管理：`create_instance`、`get_instance`、`get_instances_by_owner`、`get_instances_due_for_letter`、`update_instance_next_send`、`update_instance_status`、`is_instance_owner`
+  - 成员管理：`add_instance_member`、`get_active_members`、`get_instance_members`、`find_instances_by_email`、`mark_first_email_sent`、`update_member_settings`
+  - 信件系统：`save_letter_v2`、`get_letters_v2`（支持实例/收件人/角色多维过滤）
+  - 邀请系统：`create_invitation`、`validate_invitation`、`use_invitation`
+  - 退订系统：`unsubscribe_by_email`（标记状态 + 记录日志）
+  - 对话历史：`add_conversation_v2`、`get_conversations_v2`（按实例）
+  - 角色工作室：`create_character`（用户自定义角色）
+
+- **`app.py`**：新增 v2.0 API 路由（`/api/v2/*`）
+  - 实例管理：`GET/POST /api/v2/instances`、`GET /api/v2/instances/<id>`、`PUT /api/v2/instances/<id>/status`
+  - 成员管理：`GET/POST /api/v2/instances/<id>/members`、`PUT /api/v2/members/<id>/settings`
+  - 邀请系统：`POST /api/v2/instances/<id>/invitations`、`GET /api/v2/invitations/validate`、`POST /api/v2/invitations/accept`
+  - 信件查询：`GET /api/v2/letters`（支持 instance_id/recipient_email/character_id 过滤）
+  - 退订系统：`GET/POST /api/v2/unsubscribe`（链接方式 + API 方式）
+  - 角色工作室：`GET /api/v2/characters/market`、`POST /api/v2/characters`、`POST /api/v2/characters/<id>/submit`、`POST /api/v2/characters/<id>/subscribe`
+
+- **`conversation.py`**：IMAP 退订解析增强
+  - 新增 `fetch_user_replies_v2()`：读取所有未读邮件，解析发件人邮箱
+  - 新增 `process_td_unsubscribe()`：检测 TD/退订/UNSUBSCRIBE 关键词，自动执行退订
+  - 严格匹配策略：纯 TD/退订 或 短文本开头匹配，防止误判
+
 ### 🐛 Bug 修复
 
 1. **邮件数据隔离**（2026-07-11）

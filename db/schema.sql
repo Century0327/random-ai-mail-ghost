@@ -290,3 +290,166 @@ INSERT INTO achievements (achievement_id, name, description, rarity, category, c
     ('days_30', '一月之约', '连续互动 30 天', 'epic', 'social', 'days_active', 30, 50, 200),
     ('all_characters', '全员制霸', '与所有角色建立关系', 'rare', 'collection', 'all_characters', 4, 20, 100)
 ON CONFLICT (achievement_id) DO NOTHING;
+
+-- ============================================================
+--  v2.0 重构：角色实例驱动的社交邮件订阅系统
+-- ============================================================
+
+-- 角色实例表：A 的 Kitty、B 的 Puppy 都是实例
+CREATE TABLE IF NOT EXISTS character_instances (
+    id VARCHAR(32) PRIMARY KEY,
+    template_id VARCHAR(32) NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    owner_device_id VARCHAR(128),
+    name VARCHAR(128),
+    status VARCHAR(20) DEFAULT 'active',
+    relation_value INT DEFAULT 50,
+    conversation_summary TEXT,
+    schedule_json TEXT,
+    next_send_at TIMESTAMPTZ,
+    min_days INT DEFAULT 2,
+    max_days INT DEFAULT 5,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_char_instances_owner ON character_instances(owner_user_id, owner_device_id);
+CREATE INDEX IF NOT EXISTS idx_char_instances_status ON character_instances(status);
+CREATE INDEX IF NOT EXISTS idx_char_instances_next_send ON character_instances(next_send_at);
+
+-- 实例成员表：谁在这个实例里
+CREATE TABLE IF NOT EXISTS instance_members (
+    id SERIAL PRIMARY KEY,
+    instance_id VARCHAR(32) NOT NULL REFERENCES character_instances(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    email VARCHAR(256) NOT NULL,
+    display_name VARCHAR(128),
+    role VARCHAR(20) DEFAULT 'member',
+    email_status VARCHAR(20) DEFAULT 'active',
+    first_email_sent BOOLEAN DEFAULT FALSE,
+    notify_owner_on_close BOOLEAN DEFAULT TRUE,
+    invited_at TIMESTAMPTZ DEFAULT NOW(),
+    joined_at TIMESTAMPTZ,
+    unsubscribed_at TIMESTAMPTZ,
+    UNIQUE(instance_id, email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_inst_members_instance ON instance_members(instance_id);
+CREATE INDEX IF NOT EXISTS idx_inst_members_email ON instance_members(email);
+CREATE INDEX IF NOT EXISTS idx_inst_members_status ON instance_members(instance_id, email_status);
+
+-- 邀请表
+CREATE TABLE IF NOT EXISTS invitations (
+    id SERIAL PRIMARY KEY,
+    instance_id VARCHAR(32) NOT NULL REFERENCES character_instances(id) ON DELETE CASCADE,
+    code VARCHAR(64) UNIQUE NOT NULL,
+    token VARCHAR(256) UNIQUE,
+    invited_email VARCHAR(256),
+    expires_at TIMESTAMPTZ,
+    max_uses INT DEFAULT 1,
+    used_count INT DEFAULT 0,
+    created_by VARCHAR(128) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_instance ON invitations(instance_id);
+CREATE INDEX IF NOT EXISTS idx_invitations_code ON invitations(code);
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+
+-- 退订日志表
+CREATE TABLE IF NOT EXISTS unsubscribe_logs (
+    id SERIAL PRIMARY KEY,
+    instance_id VARCHAR(32) NOT NULL,
+    email VARCHAR(256) NOT NULL,
+    method VARCHAR(20),
+    letter_id INTEGER REFERENCES letters(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_unsub_logs_instance ON unsubscribe_logs(instance_id);
+CREATE INDEX IF NOT EXISTS idx_unsub_logs_email ON unsubscribe_logs(email);
+
+-- 用户邮箱绑定表
+CREATE TABLE IF NOT EXISTS user_emails (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email VARCHAR(256) NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
+    verified BOOLEAN DEFAULT FALSE,
+    verification_token VARCHAR(256),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_emails_user ON user_emails(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_emails_email ON user_emails(email);
+
+-- letters 表增加实例和收件人维度
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'letters' AND column_name = 'instance_id') THEN
+        ALTER TABLE letters ADD COLUMN instance_id VARCHAR(32) REFERENCES character_instances(id) ON DELETE SET NULL;
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'letters' AND column_name = 'recipient_email') THEN
+        ALTER TABLE letters ADD COLUMN recipient_email VARCHAR(256);
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_letters_instance_id ON letters(instance_id);
+CREATE INDEX IF NOT EXISTS idx_letters_recipient_email ON letters(recipient_email);
+CREATE INDEX IF NOT EXISTS idx_letters_instance_recipient ON letters(instance_id, recipient_email);
+
+-- characters 表增加模板审核状态
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'characters' AND column_name = 'creator_id') THEN
+        ALTER TABLE characters ADD COLUMN creator_id VARCHAR(128);
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'characters' AND column_name = 'status') THEN
+        ALTER TABLE characters ADD COLUMN status VARCHAR(20) DEFAULT 'official';
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'characters' AND column_name = 'created_at') THEN
+        ALTER TABLE characters ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- 角色版本历史表
+CREATE TABLE IF NOT EXISTS character_versions (
+    id SERIAL PRIMARY KEY,
+    character_id VARCHAR(32) NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    version INT NOT NULL,
+    persona_text TEXT,
+    relation_config TEXT,
+    prompt_template TEXT,
+    created_by VARCHAR(128),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(character_id, version)
+);
+
+-- conversations 表增加 instance_id
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conversations' AND column_name = 'instance_id') THEN
+        ALTER TABLE conversations ADD COLUMN instance_id VARCHAR(32) REFERENCES character_instances(id) ON DELETE SET NULL;
+    END IF;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_conversations_instance ON conversations(instance_id);

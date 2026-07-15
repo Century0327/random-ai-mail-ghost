@@ -115,6 +115,116 @@ def fetch_user_replies(contacts, imap_config, since_time=None):
     return replies
 
 
+def fetch_user_replies_v2(imap_config, since_time=None):
+    """
+    v2.0: 从收件箱读取所有回复（不限制 contacts，用于 TD 退订检测）
+    返回包含 sender_email 的回复列表
+    """
+    replies = []
+    try:
+        mail = imaplib.IMAP4_SSL(imap_config["server"], imap_config["port"])
+        mail.login(imap_config["email"], imap_config["auth_code"])
+        mail.select("INBOX")
+
+        status, data = mail.search(None, "UNSEEN")
+        if status != "OK":
+            mail.logout()
+            return replies
+
+        ids = data[0].split()
+        if not ids:
+            mail.logout()
+            return replies
+
+        ids = ids[-20:] if len(ids) > 20 else ids
+
+        for eid in ids:
+            status, msg_data = mail.fetch(eid, "(RFC822)")
+            if status != "OK":
+                continue
+            raw = msg_data[0][1]
+            msg = email.message_from_bytes(raw)
+
+            from_header = _decode_mime_header(msg.get("From", ""))
+            sender_email = ""
+            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', from_header)
+            if email_match:
+                sender_email = email_match.group(0).lower()
+
+            date_str = msg.get("Date", "")
+            body = _extract_body(msg)
+
+            if since_time and date_str:
+                try:
+                    msg_time = parsedate_to_datetime(date_str)
+                    if msg_time.replace(tzinfo=None) < since_time:
+                        continue
+                except Exception:
+                    pass
+
+            if body and sender_email:
+                replies.append({
+                    "time": date_str,
+                    "sender_email": sender_email,
+                    "sender_name": from_header,
+                    "subject": _decode_mime_header(msg.get("Subject", "")),
+                    "body": body[:500],
+                    "msg_id": eid.decode() if isinstance(eid, bytes) else eid,
+                })
+
+        mail.logout()
+        logger.info(f"[IMAP v2] 读取到 {len(replies)} 封未读邮件")
+    except Exception as e:
+        logger.error(f"[IMAP v2] 收信失败: {e}")
+    return replies
+
+
+def process_td_unsubscribe(imap_config, ds):
+    """
+    v2.0: 处理 TD 退订
+    检查收件箱中未读邮件，检测 TD/退订/UNSUBSCRIBE 关键词
+    对匹配的邮件执行退订操作
+    """
+    replies = fetch_user_replies_v2(imap_config)
+    if not replies:
+        return 0
+
+    unsubscribe_count = 0
+
+    for reply in replies:
+        body_clean = reply["body"].strip().upper()
+
+        is_td = False
+        if body_clean in ["TD", "T.D", "T.D.", "退订", "退订。", "UNSUBSCRIBE", "UNSUB"]:
+            is_td = True
+        elif body_clean.startswith("TD") or body_clean.startswith("退订"):
+            if len(body_clean) <= 20:
+                is_td = True
+
+        if not is_td:
+            continue
+
+        sender_email = reply["sender_email"]
+        logger.info(f"[UNSUBSCRIBE] 检测到 TD 退订请求: {sender_email}")
+
+        try:
+            instances = ds.find_instances_by_email(sender_email)
+            for inst in instances:
+                inst_id = inst["id"]
+                ok = ds.unsubscribe_by_email(
+                    instance_id=inst_id,
+                    email=sender_email,
+                    method="td_reply"
+                )
+                if ok:
+                    unsubscribe_count += 1
+                    logger.info(f"[UNSUBSCRIBE] {sender_email} 从实例 {inst_id} 退订成功")
+        except Exception as e:
+            logger.error(f"[UNSUBSCRIBE] 处理退订失败 {sender_email}: {e}")
+
+    return unsubscribe_count
+
+
 # ============ 关系系统解析 ============
 
 def parse_relation_system(persona_text):

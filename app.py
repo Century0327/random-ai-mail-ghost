@@ -144,6 +144,238 @@ def _run_db_migrations():
         else:
             print("[Migration] attachments.content_type 字段已存在，跳过")
 
+        # 迁移 5: v2.0 - 角色实例驱动的社交邮件订阅系统
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'character_instances'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 character_instances 表...")
+            cur.execute("""
+                CREATE TABLE character_instances (
+                    id VARCHAR(32) PRIMARY KEY,
+                    template_id VARCHAR(32) NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+                    owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    owner_device_id VARCHAR(128),
+                    name VARCHAR(128),
+                    status VARCHAR(20) DEFAULT 'active',
+                    relation_value INT DEFAULT 50,
+                    conversation_summary TEXT,
+                    schedule_json TEXT,
+                    next_send_at TIMESTAMPTZ,
+                    min_days INT DEFAULT 2,
+                    max_days INT DEFAULT 5,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+            cur.execute("CREATE INDEX idx_char_instances_owner ON character_instances(owner_user_id, owner_device_id)")
+            cur.execute("CREATE INDEX idx_char_instances_status ON character_instances(status)")
+            cur.execute("CREATE INDEX idx_char_instances_next_send ON character_instances(next_send_at)")
+            conn.commit()
+            print("[Migration] v2.0 - character_instances 表创建完成")
+        else:
+            print("[Migration] v2.0 - character_instances 表已存在，跳过")
+
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'instance_members'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 instance_members 表...")
+            cur.execute("""
+                CREATE TABLE instance_members (
+                    id SERIAL PRIMARY KEY,
+                    instance_id VARCHAR(32) NOT NULL REFERENCES character_instances(id) ON DELETE CASCADE,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    email VARCHAR(256) NOT NULL,
+                    display_name VARCHAR(128),
+                    role VARCHAR(20) DEFAULT 'member',
+                    email_status VARCHAR(20) DEFAULT 'active',
+                    first_email_sent BOOLEAN DEFAULT FALSE,
+                    notify_owner_on_close BOOLEAN DEFAULT TRUE,
+                    invited_at TIMESTAMPTZ DEFAULT NOW(),
+                    joined_at TIMESTAMPTZ,
+                    unsubscribed_at TIMESTAMPTZ,
+                    UNIQUE(instance_id, email)
+                )
+            """)
+            cur.execute("CREATE INDEX idx_inst_members_instance ON instance_members(instance_id)")
+            cur.execute("CREATE INDEX idx_inst_members_email ON instance_members(email)")
+            cur.execute("CREATE INDEX idx_inst_members_status ON instance_members(instance_id, email_status)")
+            conn.commit()
+            print("[Migration] v2.0 - instance_members 表创建完成")
+        else:
+            print("[Migration] v2.0 - instance_members 表已存在，跳过")
+
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'invitations'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 invitations 表...")
+            cur.execute("""
+                CREATE TABLE invitations (
+                    id SERIAL PRIMARY KEY,
+                    instance_id VARCHAR(32) NOT NULL REFERENCES character_instances(id) ON DELETE CASCADE,
+                    code VARCHAR(64) UNIQUE NOT NULL,
+                    token VARCHAR(256) UNIQUE,
+                    invited_email VARCHAR(256),
+                    expires_at TIMESTAMPTZ,
+                    max_uses INT DEFAULT 1,
+                    used_count INT DEFAULT 0,
+                    created_by VARCHAR(128) NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+            cur.execute("CREATE INDEX idx_invitations_instance ON invitations(instance_id)")
+            cur.execute("CREATE INDEX idx_invitations_code ON invitations(code)")
+            cur.execute("CREATE INDEX idx_invitations_token ON invitations(token)")
+            conn.commit()
+            print("[Migration] v2.0 - invitations 表创建完成")
+        else:
+            print("[Migration] v2.0 - invitations 表已存在，跳过")
+
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'unsubscribe_logs'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 unsubscribe_logs 表...")
+            cur.execute("""
+                CREATE TABLE unsubscribe_logs (
+                    id SERIAL PRIMARY KEY,
+                    instance_id VARCHAR(32) NOT NULL,
+                    email VARCHAR(256) NOT NULL,
+                    method VARCHAR(20),
+                    letter_id INTEGER REFERENCES letters(id) ON DELETE SET NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+            cur.execute("CREATE INDEX idx_unsub_logs_instance ON unsubscribe_logs(instance_id)")
+            cur.execute("CREATE INDEX idx_unsub_logs_email ON unsubscribe_logs(email)")
+            conn.commit()
+            print("[Migration] v2.0 - unsubscribe_logs 表创建完成")
+        else:
+            print("[Migration] v2.0 - unsubscribe_logs 表已存在，跳过")
+
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'user_emails'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 user_emails 表...")
+            cur.execute("""
+                CREATE TABLE user_emails (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    email VARCHAR(256) NOT NULL,
+                    is_primary BOOLEAN DEFAULT FALSE,
+                    verified BOOLEAN DEFAULT FALSE,
+                    verification_token VARCHAR(256),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(user_id, email)
+                )
+            """)
+            cur.execute("CREATE INDEX idx_user_emails_user ON user_emails(user_id)")
+            cur.execute("CREATE INDEX idx_user_emails_email ON user_emails(email)")
+            conn.commit()
+            print("[Migration] v2.0 - user_emails 表创建完成")
+        else:
+            print("[Migration] v2.0 - user_emails 表已存在，跳过")
+
+        # 迁移 6: v2.0 - letters 表增加 instance_id 和 recipient_email
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'letters' AND column_name = 'instance_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 添加 letters.instance_id 字段...")
+            cur.execute("ALTER TABLE letters ADD COLUMN instance_id VARCHAR(32) REFERENCES character_instances(id) ON DELETE SET NULL")
+            cur.execute("CREATE INDEX idx_letters_instance_id ON letters(instance_id)")
+            conn.commit()
+            print("[Migration] v2.0 - letters.instance_id 添加完成")
+        else:
+            print("[Migration] v2.0 - letters.instance_id 已存在，跳过")
+
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'letters' AND column_name = 'recipient_email'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 添加 letters.recipient_email 字段...")
+            cur.execute("ALTER TABLE letters ADD COLUMN recipient_email VARCHAR(256)")
+            cur.execute("CREATE INDEX idx_letters_recipient_email ON letters(recipient_email)")
+            cur.execute("CREATE INDEX idx_letters_instance_recipient ON letters(instance_id, recipient_email)")
+            conn.commit()
+            print("[Migration] v2.0 - letters.recipient_email 添加完成")
+        else:
+            print("[Migration] v2.0 - letters.recipient_email 已存在，跳过")
+
+        # 迁移 7: v2.0 - characters 表增加 creator_id/status/created_at
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'characters' AND column_name = 'creator_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 添加 characters.creator_id 字段...")
+            cur.execute("ALTER TABLE characters ADD COLUMN creator_id VARCHAR(128)")
+            conn.commit()
+            print("[Migration] v2.0 - characters.creator_id 添加完成")
+        else:
+            print("[Migration] v2.0 - characters.creator_id 已存在，跳过")
+
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'characters' AND column_name = 'status'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 添加 characters.status 字段...")
+            cur.execute("ALTER TABLE characters ADD COLUMN status VARCHAR(20) DEFAULT 'official'")
+            conn.commit()
+            print("[Migration] v2.0 - characters.status 添加完成")
+        else:
+            print("[Migration] v2.0 - characters.status 已存在，跳过")
+
+        # 迁移 8: v2.0 - conversations 表增加 instance_id
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'conversations' AND column_name = 'instance_id'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 添加 conversations.instance_id 字段...")
+            cur.execute("ALTER TABLE conversations ADD COLUMN instance_id VARCHAR(32) REFERENCES character_instances(id) ON DELETE SET NULL")
+            cur.execute("CREATE INDEX idx_conversations_instance ON conversations(instance_id)")
+            conn.commit()
+            print("[Migration] v2.0 - conversations.instance_id 添加完成")
+        else:
+            print("[Migration] v2.0 - conversations.instance_id 已存在，跳过")
+
+        # 迁移 9: v2.0 - character_versions 表
+        cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'character_versions'
+        """)
+        if not cur.fetchone():
+            print("[Migration] v2.0 - 创建 character_versions 表...")
+            cur.execute("""
+                CREATE TABLE character_versions (
+                    id SERIAL PRIMARY KEY,
+                    character_id VARCHAR(32) NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+                    version INT NOT NULL,
+                    persona_text TEXT,
+                    relation_config TEXT,
+                    prompt_template TEXT,
+                    created_by VARCHAR(128),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(character_id, version)
+                )
+            """)
+            conn.commit()
+            print("[Migration] v2.0 - character_versions 表创建完成")
+        else:
+            print("[Migration] v2.0 - character_versions 表已存在，跳过")
+
         cur.close()
     except Exception as e:
         print(f"[Migration] 迁移失败: {e}")
@@ -2702,6 +2934,543 @@ def admin_stats():
         return _cors_resp({"error": str(e)}, 500)
     finally:
         conn.close()
+
+
+# ======================================================================
+#  v2.0 API：角色实例驱动的社交邮件订阅系统
+# ======================================================================
+
+# ---------- 工具函数 ----------
+
+def _generate_invite_code():
+    """生成 6 位邀请码"""
+    import random
+    import string
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+def _generate_secure_token():
+    """生成安全 token"""
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+def _get_current_user():
+    """从请求中获取当前用户（优先 steam，其次 device）"""
+    ok, user, _ = auth_required(request, allow_device=True)
+    return user if ok else None
+
+
+# ---------- 实例管理 ----------
+
+@app.route("/api/v2/instances", methods=["GET", "OPTIONS"])
+def v2_get_instances():
+    """获取当前用户的所有角色实例"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    user_id = user.get("id")
+    device_id = request.headers.get("X-Device-ID", "")
+
+    instances = ds.get_instances_by_owner(user_id=user_id, device_id=device_id)
+    return _cors_resp({"instances": instances})
+
+
+@app.route("/api/v2/instances", methods=["POST"])
+def v2_create_instance():
+    """创建角色实例"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    data = request.get_json(silent=True) or {}
+    template_id = data.get("template_id")
+    name = data.get("name")
+    min_days = data.get("min_days", 2)
+    max_days = data.get("max_days", 5)
+
+    if not template_id:
+        return _cors_resp({"error": "缺少 template_id"}, 400)
+
+    char = ds.get_character(template_id)
+    if not char:
+        return _cors_resp({"error": "角色模板不存在"}, 404)
+
+    user_id = user.get("id")
+    device_id = request.headers.get("X-Device-ID", "")
+
+    inst_id = ds.create_instance(
+        template_id=template_id,
+        owner_user_id=user_id,
+        owner_device_id=device_id,
+        name=name,
+        min_days=min_days,
+        max_days=max_days
+    )
+
+    if not inst_id:
+        return _cors_resp({"error": "创建实例失败"}, 500)
+
+    # 自动将创建者加入成员表
+    user_email = data.get("email")
+    if user_email:
+        ds.add_instance_member(
+            instance_id=inst_id,
+            email=user_email,
+            user_id=user_id,
+            display_name=data.get("display_name") or user.get("steam_name") or "主人",
+            role="owner"
+        )
+
+    return _cors_resp({
+        "id": inst_id,
+        "message": "实例创建成功"
+    })
+
+
+@app.route("/api/v2/instances/<inst_id>", methods=["GET", "OPTIONS"])
+def v2_get_instance(inst_id):
+    """获取实例详情"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    inst = ds.get_instance(inst_id)
+    if not inst:
+        return _cors_resp({"error": "实例不存在"}, 404)
+
+    return _cors_resp({"instance": inst})
+
+
+@app.route("/api/v2/instances/<inst_id>/status", methods=["PUT", "OPTIONS"])
+def v2_update_instance_status(inst_id):
+    """更新实例状态（暂停/恢复/归档）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    if not ds.is_instance_owner(inst_id, user_id=user.get("id"),
+                                 device_id=request.headers.get("X-Device-ID", "")):
+        return _cors_resp({"error": "无权操作"}, 403)
+
+    data = request.get_json(silent=True) or {}
+    status = data.get("status")
+
+    if status not in ("active", "paused", "archived"):
+        return _cors_resp({"error": "无效状态"}, 400)
+
+    ok = ds.update_instance_status(inst_id, status)
+    if not ok:
+        return _cors_resp({"error": "更新失败"}, 500)
+
+    return _cors_resp({"message": "状态已更新"})
+
+
+# ---------- 实例成员 ----------
+
+@app.route("/api/v2/instances/<inst_id>/members", methods=["GET", "OPTIONS"])
+def v2_get_instance_members(inst_id):
+    """获取实例成员列表"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    if not ds.is_instance_owner(inst_id, user_id=user.get("id"),
+                                 device_id=request.headers.get("X-Device-ID", "")):
+        return _cors_resp({"error": "无权查看"}, 403)
+
+    members = ds.get_instance_members(inst_id)
+    return _cors_resp({"members": members})
+
+
+@app.route("/api/v2/instances/<inst_id>/members", methods=["POST"])
+def v2_add_member(inst_id):
+    """手动添加成员（创建者邀请）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    if not ds.is_instance_owner(inst_id, user_id=user.get("id"),
+                                 device_id=request.headers.get("X-Device-ID", "")):
+        return _cors_resp({"error": "无权操作"}, 403)
+
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    display_name = data.get("display_name")
+
+    if not email:
+        return _cors_resp({"error": "缺少 email"}, 400)
+
+    member_id = ds.add_instance_member(
+        instance_id=inst_id,
+        email=email,
+        display_name=display_name,
+        role="member"
+    )
+
+    if not member_id:
+        return _cors_resp({"error": "添加失败，邮箱可能已存在"}, 400)
+
+    return _cors_resp({
+        "member_id": member_id,
+        "message": "成员添加成功"
+    })
+
+
+@app.route("/api/v2/members/<int:member_id>/settings", methods=["PUT", "OPTIONS"])
+def v2_update_member_settings(member_id):
+    """更新成员设置（暂停/恢复邮箱、关闭通知）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    data = request.get_json(silent=True) or {}
+    email_status = data.get("email_status")
+    notify_owner = data.get("notify_owner_on_close")
+
+    if email_status is None and notify_owner is None:
+        return _cors_resp({"error": "缺少更新字段"}, 400)
+
+    ok = ds.update_member_settings(
+        member_id,
+        email_status=email_status,
+        notify_owner_on_close=notify_owner
+    )
+
+    if not ok:
+        return _cors_resp({"error": "更新失败"}, 500)
+
+    return _cors_resp({"message": "设置已更新"})
+
+
+# ---------- 邀请系统 ----------
+
+@app.route("/api/v2/instances/<inst_id>/invitations", methods=["POST", "OPTIONS"])
+def v2_create_invitation(inst_id):
+    """创建邀请"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    if not ds.is_instance_owner(inst_id, user_id=user.get("id"),
+                                 device_id=request.headers.get("X-Device-ID", "")):
+        return _cors_resp({"error": "无权邀请"}, 403)
+
+    data = request.get_json(silent=True) or {}
+    invited_email = data.get("email")
+    max_uses = data.get("max_uses", 1)
+
+    code = _generate_invite_code()
+    token = _generate_secure_token()
+
+    inv_id = ds.create_invitation(
+        instance_id=inst_id,
+        code=code,
+        token=token,
+        invited_email=invited_email,
+        max_uses=max_uses,
+        created_by=str(user.get("id") or request.headers.get("X-Device-ID", ""))
+    )
+
+    if not inv_id:
+        return _cors_resp({"error": "创建邀请失败"}, 500)
+
+    return _cors_resp({
+        "id": inv_id,
+        "code": code,
+        "token": token,
+        "link": f"/invite?t={token}",
+        "message": "邀请已创建"
+    })
+
+
+@app.route("/api/v2/invitations/validate", methods=["GET", "OPTIONS"])
+def v2_validate_invitation():
+    """验证邀请码/链接是否有效"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    code = request.args.get("code")
+    token = request.args.get("token")
+
+    if not code and not token:
+        return _cors_resp({"error": "缺少邀请码或 token"}, 400)
+
+    invitation = ds.validate_invitation(code or token)
+    if not invitation:
+        return _cors_resp({"valid": False, "error": "邀请无效或已过期"})
+
+    inst = ds.get_instance(invitation["instance_id"])
+    char = ds.get_character(invitation["instance_id"].split("_")[1] if "_" in invitation["instance_id"] else "") if inst else None
+
+    return _cors_resp({
+        "valid": True,
+        "invitation": {
+            "id": invitation["id"],
+            "instance_id": invitation["instance_id"],
+            "invited_email": invitation.get("invited_email"),
+            "max_uses": invitation["max_uses"],
+            "used_count": invitation["used_count"],
+        },
+        "instance": inst,
+        "character": char,
+    })
+
+
+@app.route("/api/v2/invitations/accept", methods=["POST", "OPTIONS"])
+def v2_accept_invitation():
+    """接受邀请，加入实例"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    data = request.get_json(silent=True) or {}
+    token = data.get("token")
+    code = data.get("code")
+    email = data.get("email")
+    display_name = data.get("display_name")
+
+    if not (token or code):
+        return _cors_resp({"error": "缺少邀请码或 token"}, 400)
+    if not email:
+        return _cors_resp({"error": "缺少邮箱地址"}, 400)
+
+    invitation = ds.validate_invitation(token or code)
+    if not invitation:
+        return _cors_resp({"error": "邀请无效或已过期"}, 400)
+
+    inst_id = invitation["instance_id"]
+
+    user = _get_current_user()
+    user_id = user.get("id") if user else None
+
+    member_id = ds.add_instance_member(
+        instance_id=inst_id,
+        email=email,
+        user_id=user_id,
+        display_name=display_name or email.split("@")[0],
+        role="member"
+    )
+
+    if not member_id:
+        return _cors_resp({"error": "加入失败，可能已在实例中"}, 400)
+
+    ds.use_invitation(invitation["id"])
+
+    return _cors_resp({
+        "instance_id": inst_id,
+        "member_id": member_id,
+        "message": "加入成功"
+    })
+
+
+# ---------- 信件查询 ----------
+
+@app.route("/api/v2/letters", methods=["GET", "OPTIONS"])
+def v2_get_letters():
+    """v2.0 信件查询：按实例/收件人/角色过滤"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    instance_id = request.args.get("instance_id")
+    character_id = request.args.get("character_id")
+    recipient_email = request.args.get("recipient_email")
+    limit = request.args.get("limit", 50, type=int)
+
+    # 确定 recipient_email
+    if not recipient_email:
+        user = _get_current_user()
+        if user and user.get("email"):
+            recipient_email = user["email"]
+
+    if not recipient_email and not instance_id and not character_id:
+        return _cors_resp({"error": "需要提供邮箱、实例ID或角色ID"}, 400)
+
+    letters = ds.get_letters_v2(
+        instance_id=instance_id,
+        recipient_email=recipient_email,
+        character_id=character_id,
+        limit=limit
+    )
+
+    return _cors_resp({"letters": letters})
+
+
+# ---------- 退订 ----------
+
+@app.route("/api/v2/unsubscribe", methods=["GET", "POST", "OPTIONS"])
+def v2_unsubscribe():
+    """退订入口"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    # 链接方式（GET 或 POST 带 token）
+    token = request.args.get("t") or (request.get_json(silent=True) or {}).get("token")
+    if token:
+        # token 格式：inst_id:email:timestamp:signature
+        # 简化版：直接从 token 解析（实际项目应使用 JWT 或查表）
+        try:
+            import base64
+            decoded = base64.urlsafe_b64decode(token + '=' * (-len(token) % 4)).decode()
+            parts = decoded.split(":")
+            if len(parts) >= 2:
+                instance_id = parts[0]
+                email = parts[1]
+                ds.unsubscribe_by_email(instance_id, email, method="link")
+                return _cors_resp({"message": "退订成功", "instance_id": instance_id, "email": email})
+        except Exception:
+            pass
+        return _cors_resp({"error": "退订链接无效"}, 400)
+
+    # TD 回复方式 / API 方式
+    data = request.get_json(silent=True) or {}
+    instance_id = data.get("instance_id")
+    email = data.get("email")
+    method = data.get("method", "api")
+
+    if instance_id and email:
+        ok = ds.unsubscribe_by_email(instance_id, email, method=method)
+        if ok:
+            return _cors_resp({"message": "退订成功"})
+        return _cors_resp({"error": "退订失败"}, 500)
+
+    return _cors_resp({"error": "参数不足"}, 400)
+
+
+# ---------- 角色工作室 ----------
+
+@app.route("/api/v2/characters/market", methods=["GET", "OPTIONS"])
+def v2_character_market():
+    """角色市场：获取公开角色列表"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    characters = ds.get_characters()
+    # 过滤：只显示公开的（官方 + approved）
+    public_chars = [c for c in characters if c.get("isPublic") or c.get("is_official")]
+    return _cors_resp({"characters": public_chars})
+
+
+@app.route("/api/v2/characters", methods=["POST", "OPTIONS"])
+def v2_create_character():
+    """创建自定义角色"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    data = request.get_json(silent=True) or {}
+    name = data.get("name")
+    description = data.get("description", "")
+    personality = data.get("personality", "")
+    persona = data.get("persona", "")
+
+    if not name:
+        return _cors_resp({"error": "缺少角色名称"}, 400)
+
+    import uuid as _uuid
+    char_id = f"char_{_uuid.uuid4().hex[:8]}"
+    creator_id = str(user.get("id") or request.headers.get("X-Device-ID", ""))
+
+    ok = ds.create_character(
+        char_id=char_id,
+        name=name,
+        description=description,
+        persona=persona or personality,
+        creator_id=creator_id,
+        status="private"
+    )
+
+    if not ok:
+        return _cors_resp({"error": "创建失败"}, 500)
+
+    return _cors_resp({"id": char_id, "message": "角色创建成功"})
+
+
+@app.route("/api/v2/characters/<char_id>/submit", methods=["POST", "OPTIONS"])
+def v2_submit_character(char_id):
+    """提交审核（申请公开）"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    # TODO: 检查是否为创建者
+    ok = _db_execute(
+        "UPDATE characters SET status = 'pending' WHERE id = %s",
+        (char_id,)
+    )
+    if not ok:
+        return _cors_resp({"error": "提交失败"}, 500)
+
+    return _cors_resp({"message": "已提交审核"})
+
+
+@app.route("/api/v2/characters/<char_id>/subscribe", methods=["POST", "OPTIONS"])
+def v2_subscribe_character(char_id):
+    """订阅市场角色：基于模板创建实例"""
+    if request.method == "OPTIONS":
+        return _cors_resp({})
+
+    user = _get_current_user()
+    if not user:
+        return _cors_resp({"error": "未登录"}, 401)
+
+    char = ds.get_character(char_id)
+    if not char:
+        return _cors_resp({"error": "角色不存在"}, 404)
+
+    user_id = user.get("id")
+    device_id = request.headers.get("X-Device-ID", "")
+
+    data = request.get_json(silent=True) or {}
+    name = data.get("name") or char.get("name")
+
+    inst_id = ds.create_instance(
+        template_id=char_id,
+        owner_user_id=user_id,
+        owner_device_id=device_id,
+        name=name
+    )
+
+    if not inst_id:
+        return _cors_resp({"error": "订阅失败"}, 500)
+
+    # 自动加入成员
+    email = data.get("email")
+    if email:
+        ds.add_instance_member(
+            instance_id=inst_id,
+            email=email,
+            user_id=user_id,
+            display_name=data.get("display_name") or user.get("steam_name") or "主人",
+            role="owner"
+        )
+
+    return _cors_resp({
+        "instance_id": inst_id,
+        "message": "订阅成功"
+    })
 
 
 if __name__ == "__main__":

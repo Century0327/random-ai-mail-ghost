@@ -592,5 +592,258 @@ def main():
     logger.info("[EXIT] 完成")
 
 
+# ======================================================================
+#  v2.0 角色实例驱动的定时发信系统
+# ======================================================================
+
+def run_scheduler():
+    """
+    v2.0 定时任务入口：被 GitHub Actions 调用
+    从数据库读取所有到达发信时间的角色实例，群发邮件
+    """
+    from core.data_service import DataService
+    from datetime import datetime, timedelta
+    import uuid as _uuid
+
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url:
+        logger.info("[v2] DATABASE_URL 未配置，使用 v1 静态配置模式")
+        main()
+        return
+
+    ds = DataService(db_url=db_url)
+
+    # 检查 v2.0 表是否就绪（向后兼容）
+    try:
+        instances = ds.get_instances_due_for_letter()
+    except Exception as e:
+        logger.warning(f"[v2] 数据库查询失败，回退 v1 模式: {e}")
+        main()
+        return
+
+    if not instances:
+        logger.info("[v2] 没有到达发信时间的实例")
+        # 即使没实例也运行一次 v1（兼容旧配置）
+        if CONTACT_CONFIG:
+            main()
+        return
+
+    logger.info(f"[v2] 找到 {len(instances)} 个待发信实例")
+
+    # 处理 TD 退订（在发信前检查）
+    try:
+        from core.conversation import process_td_unsubscribe
+        unsub_count = process_td_unsubscribe(imap_config, ds)
+        if unsub_count > 0:
+            logger.info(f"[v2] 处理了 {unsub_count} 个 TD 退订请求")
+    except Exception as e:
+        logger.warning(f"[v2] TD 退订处理失败: {e}")
+
+    # SMTP 配置
+    from core.mailer import build_email, send_email as _send_mail
+    smtp_config = {
+        "server": "smtp.qq.com",
+        "port": 465,
+        "email": QQ_EMAIL,
+        "auth_code": QQ_AUTH_CODE,
+    }
+
+    for inst in instances:
+        inst_id = inst["id"]
+        template_id = inst["template_id"]
+        relation_value = inst.get("relation_value", 50)
+        min_days = inst.get("min_days", 2)
+        max_days = inst.get("max_days", 5)
+
+        logger.info(f"[v2] 处理实例 {inst_id} (模板: {template_id})")
+
+        # 获取活跃成员
+        members = ds.get_active_members(inst_id)
+        if not members:
+            logger.info(f"[v2] 实例 {inst_id} 无活跃成员，跳过")
+            next_days = random.randint(min_days, max_days)
+            next_send = (datetime.utcnow() + timedelta(days=next_days)).isoformat()
+            ds.update_instance_next_send(inst_id, next_send)
+            continue
+
+        logger.info(f"[v2] 实例 {inst_id} 有 {len(members)} 个活跃成员")
+
+        # 加载人设
+        try:
+            from core.persona import load_persona
+            persona_name, persona_text, _ = load_persona(template_id)
+        except Exception as e:
+            logger.error(f"[v2] 加载人设失败 {template_id}: {e}")
+            next_days = random.randint(min_days, max_days)
+            next_send = (datetime.utcnow() + timedelta(days=next_days)).isoformat()
+            ds.update_instance_next_send(inst_id, next_send)
+            continue
+
+        # 获取对话历史
+        history = {"full": [], "summary": "", "relation_value": relation_value}
+        try:
+            conv_list = ds.get_conversations_v2(inst_id, limit=FULL_HISTORY_SIZE + 10)
+            if conv_list:
+                history["full"] = [
+                    {
+                        "time": str(c.get("created_at", datetime.now().isoformat())),
+                        "role": c.get("role", "ghost"),
+                        "sender": c.get("sender"),
+                        "content": c.get("content", "")
+                    }
+                    for c in conv_list
+                ]
+        except Exception as e:
+            logger.warning(f"[v2] 加载对话历史失败: {e}")
+
+        # 关系系统
+        from core.conversation import parse_relation_system
+        relation_config = parse_relation_system(persona_text)
+
+        # 生成正文
+        try:
+            from core.ai_client import call_ai
+            from core.conversation import build_context_prompt
+
+            ghost_memory, new_replies = build_context_prompt(history)
+
+            prompt = f"""你现在是{persona_name}，{persona_text[:500]}
+
+{ghost_memory}
+
+请写一封发给对方的日常邮件，主题随意，语气自然亲切，字数200-400字。
+格式要求：输出 JSON {{"subject": "主题", "body": "正文"}}"""
+
+            ai_result = call_ai(prompt, f"你是{persona_name}，写日常邮件。")
+            subject = f"{SUBJECT_PREFIX}来自{persona_name}的信"
+            body = ai_result or "亲爱的朋友：\n\n今天天气不错，希望你一切都好。\n\n想你的我"
+            # 简单解析 JSON
+            import json as _json
+            try:
+                if ai_result and "{" in ai_result and "}" in ai_result:
+                    start = ai_result.index("{")
+                    end = ai_result.rindex("}") + 1
+                    parsed = _json.loads(ai_result[start:end])
+                    if parsed.get("subject"):
+                        subject = parsed["subject"]
+                    if parsed.get("body"):
+                        body = parsed["body"]
+            except Exception:
+                pass
+        except Exception as e:
+            logger.error(f"[v2] 生成信件失败 {inst_id}: {e}")
+            next_days = random.randint(min_days, max_days)
+            next_send = (datetime.utcnow() + timedelta(days=next_days)).isoformat()
+            ds.update_instance_next_send(inst_id, next_send)
+            continue
+
+        # 生成附件
+        attachment_data = None
+        if ATTACHMENT_LOCATION != "none":
+            try:
+                from core.attachment import create_attachment
+                att = create_attachment(persona_name, relation_value, ATTACHMENT_LOCATION)
+                if att:
+                    attachment_data = att
+            except Exception as e:
+                logger.warning(f"[v2] 生成附件失败: {e}")
+
+        # 构建收信人列表并群发
+        contacts = []
+        for m in members:
+            contacts.append({
+                "name": m.get("display_name") or "朋友",
+                "email": m["email"],
+                "member_id": m["id"],
+                "first_email": not m.get("first_email_sent", False),
+            })
+
+        success_count = 0
+
+        for contact in contacts:
+            try:
+                ok = _send_mail(
+                    subject=subject,
+                    body=body,
+                    smtp_config=smtp_config,
+                    contacts=[contact],
+                    signature=SIGNATURE,
+                    footer=FOOTER,
+                    email_template=EMAIL_TEMPLATE,
+                    attachment=attachment_data,
+                )
+
+                if ok:
+                    success_count += 1
+
+                    # 存储信件记录
+                    attachment_url = None
+                    if attachment_data and attachment_data.get("image_bytes"):
+                        att_id = f"att_v2_{inst_id}_{_uuid.uuid4().hex[:8]}"
+                        attachment_url = f"/api/attachments/{att_id}"
+
+                    letter_id_int = ds.save_letter_v2(
+                        instance_id=inst_id,
+                        template_id=template_id,
+                        recipient_email=contact["email"],
+                        subject=subject,
+                        content=body,
+                        attachment_url=attachment_url,
+                        direction="from_character",
+                        device_id=f"v2_{inst_id}",
+                    )
+
+                    # 附件存库
+                    if attachment_data and attachment_data.get("image_bytes") and attachment_url:
+                        try:
+                            ds.create_attachment(
+                                attachment_id=attachment_url.split("/")[-1],
+                                user_id=0,
+                                character_id=template_id,
+                                src=attachment_url,
+                                title=f"{persona_name}的来信附件",
+                                letter_id=letter_id_int,
+                                is_favorite=True,
+                                device_id=f"v2_{inst_id}",
+                                image_data=attachment_data["image_bytes"],
+                                content_type="image/jpeg",
+                            )
+                        except Exception as e:
+                            logger.warning(f"[v2] 附件存库失败: {e}")
+
+                    # 首次发信标记
+                    if contact["first_email"]:
+                        ds.mark_first_email_sent(contact["member_id"])
+
+            except Exception as e:
+                logger.error(f"[v2] 发信失败 {contact['email']}: {e}")
+
+        # 写入对话历史
+        if success_count > 0:
+            try:
+                ds.add_conversation_v2(
+                    instance_id=inst_id,
+                    role="ghost",
+                    content=body[:1000],
+                    character_id=template_id,
+                )
+            except Exception as e:
+                logger.warning(f"[v2] 写入对话历史失败: {e}")
+
+        # 更新下次发信时间
+        next_days = random.randint(min_days, max_days)
+        next_send = (datetime.utcnow() + timedelta(days=next_days)).isoformat()
+        ds.update_instance_next_send(inst_id, next_send)
+
+        logger.info(f"[v2] 实例 {inst_id} 完成：成功 {success_count}/{len(contacts)} 人，下次 {next_send}")
+
+    logger.info("[v2] 全部实例处理完成")
+
+
 if __name__ == "__main__":
-    main()
+    # v2.0 优先，v1 兜底
+    try:
+        run_scheduler()
+    except Exception as e:
+        logger.error(f"[v2] 调度器异常，回退 v1: {e}")
+        main()
