@@ -17,6 +17,7 @@
 import os
 import json
 import logging
+import uuid as _uuid_mod
 from datetime import datetime, date
 from typing import List, Dict, Optional, Any
 
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+
+
+def _uuid_hex(length: int = 12) -> str:
+    return _uuid_mod.uuid4().hex[:length]
 
 
 def _json_path(filename: str) -> str:
@@ -77,6 +82,36 @@ class DataService:
             except Exception as e:
                 logger.warning(f"[DB] 连接池初始化失败，降级为单连接模式: {e}")
                 self._pool = None
+
+    def get_or_create_user_by_device(self, device_id: str) -> Optional[Dict]:
+        """根据 device_id 获取或创建用户（供 main.py 等 CLI 场景使用）"""
+        conn = self._conn()
+        if not conn:
+            return None
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT * FROM users WHERE device_id = %s", (device_id,))
+            row = cur.fetchone()
+            if row:
+                cur.close()
+                return dict(row)
+            cur.execute(
+                "INSERT INTO users (device_id, steam_id, steam_name, tier) VALUES (%s, %s, %s, %s) RETURNING *",
+                (device_id, f"dev_{device_id[:10]}", "GhostBot", "basic")
+            )
+            row = cur.fetchone()
+            conn.commit()
+            cur.close()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"[get_or_create_user_by_device] 失败: {e}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return None
+        finally:
+            self._release_conn(conn)
 
     def _conn(self):
         if not self._use_db:
@@ -787,14 +822,18 @@ class DataService:
 
     def create_letter(self, character_id: str, subject: str, body: str,
                       source: str = "ai", attachment_url: Optional[str] = None,
-                      device_id: Optional[str] = None) -> Optional[Dict]:
+                      device_id: Optional[str] = None,
+                      letter_id: Optional[str] = None,
+                      user_id: Optional[int] = None) -> Optional[Dict]:
+        if letter_id is None:
+            letter_id = f"l{_uuid_hex()}"
         db_ok = self._execute(
-            "INSERT INTO letters (character_id, subject, body, source, attachment_url, device_id) VALUES (%s, %s, %s, %s, %s, %s)",
-            (character_id, subject, body, source, attachment_url, device_id)
+            "INSERT INTO letters (id, character_id, subject, body, source, attachment_url, device_id, user_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (letter_id, character_id, subject, body, source, attachment_url, device_id, user_id)
         )
         letters = _load_json("letters.json", [])
         new_letter = {
-            "id": f"l{len(letters) + 1}",
+            "id": letter_id,
             "character_id": character_id,
             "subject": subject,
             "body": body,

@@ -67,6 +67,8 @@ jobs:
           AI_API_KEY_key3: ${{ secrets.AI_API_KEY_key3 }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           CONVERSATION_KEY: ${{ secrets.CONVERSATION_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEVICE_ID: ${{ secrets.DEVICE_ID || 'gh_actions_default' }}
           FORCE_SEND: ${{ inputs.force_send || 'false' }}
           ATTACHMENT_MODE: ${{ inputs.attachment_mode || 'normal' }}
         run: python main.py

@@ -378,7 +378,69 @@ def main():
         log_history(subject, source, persona)
         schedule_next(state, MIN_DAYS, MAX_DAYS)
         
-        # 写入 data/letters.json（供前端 API 读取）
+        # 写入 Neon 数据库（信件 + 附件）
+        try:
+            from core.data_service import DataService
+            db_url = os.environ.get("DATABASE_URL", "")
+            if db_url:
+                ds = DataService(db_url=db_url)
+                from datetime import datetime as _dt
+                import uuid as _uuid
+
+                # 获取或创建默认用户
+                device_id = os.environ.get("DEVICE_ID", "gh_actions_default")
+                user = ds.get_or_create_user_by_device(device_id) if hasattr(ds, 'get_or_create_user_by_device') else None
+                user_id = user["id"] if user else None
+
+                # 写入信件
+                letter_id = f"l_{_uuid.uuid4().hex[:12]}"
+                attachment_url = None
+                if attachment and attachment.get("filename"):
+                    attachment_url = f"/api/attachments/att_{letter_id}"
+
+                ok_letter = ds.create_letter(
+                    letter_id=letter_id,
+                    user_id=user_id,
+                    character_id=persona,
+                    subject=subject,
+                    body=body,
+                    source=source,
+                    attachment_url=attachment_url,
+                    device_id=device_id,
+                )
+                if ok_letter:
+                    logger.info(f"[DB] 信件写入成功: {letter_id}")
+                else:
+                    logger.warning(f"[DB] 信件写入失败: {letter_id}")
+
+                # 写入附件（图片二进制存数据库）
+                if attachment and attachment.get("image_bytes"):
+                    att_id = f"att_{letter_id}"
+                    att_src = f"/api/attachments/{att_id}"
+                    image_bytes = attachment["image_bytes"]
+
+                    ok_att = ds.create_attachment(
+                        attachment_id=att_id,
+                        user_id=user_id or 0,
+                        character_id=persona,
+                        src=att_src,
+                        title=f"第{attachment.get('number', 1)}封信附件",
+                        letter_id=letter_id,
+                        is_favorite=True,
+                        device_id=device_id,
+                        image_data=image_bytes,
+                        content_type="image/jpeg",
+                    )
+                    if ok_att:
+                        logger.info(f"[DB] 附件写入成功: {att_id} ({len(image_bytes)} bytes)")
+                    else:
+                        logger.warning(f"[DB] 附件写入失败: {att_id}")
+            else:
+                logger.info("[DB] DATABASE_URL 未配置，跳过数据库写入")
+        except Exception as e:
+            logger.warning(f"[DB] 数据库写入失败: {e}")
+        
+        # 写入 data/letters.json（供前端 API 读取，本地兜底）
         try:
             import json as _json
             import os as _os
