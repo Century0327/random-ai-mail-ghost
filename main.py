@@ -125,9 +125,10 @@ def generate_email(force_attachment=None):
     )
 
     persona_name, persona_text, relation_config = load_persona(PERSONA)
+    device_id = os.environ.get("DEVICE_ID", "gh_actions_default")
 
-    # 加载历史 + 收取回复
-    history = load_conversation_history(ENABLE_CONVERSATION, persona_name)
+    # 加载历史 + 收取回复（优先从数据库读取）
+    history = load_conversation_history(ENABLE_CONVERSATION, persona_name, device_id=device_id)
     last_send_time = None
     if history.get("full"):
         try:
@@ -141,6 +142,9 @@ def generate_email(force_attachment=None):
         for r in replies:
             history = add_to_history(history, "user", r["body"], sender=r["sender"],
                                       summary_config=summary_config)
+            if ENABLE_CONVERSATION:
+                from core.conversation import save_conversation_history as save_conv
+                save_conv(ENABLE_CONVERSATION, persona_name, history, device_id=device_id)
 
     # 关系值计算
     relation_value = load_relation_value(history, relation_config)
@@ -260,11 +264,11 @@ def generate_email(force_attachment=None):
         if bar_html:
             body += bar_html
 
-    # 记录到历史
+    # 记录到历史（优先写入数据库）
     if ENABLE_CONVERSATION:
         from core.conversation import save_conversation_history as save_conv
         history = add_to_history(history, "ghost", body, summary_config=summary_config)
-        save_conv(ENABLE_CONVERSATION, persona_name, history)
+        save_conv(ENABLE_CONVERSATION, persona_name, history, device_id=device_id)
 
     # 附件系统
     attachment = None
@@ -384,57 +388,57 @@ def main():
             db_url = os.environ.get("DATABASE_URL", "")
             if db_url:
                 ds = DataService(db_url=db_url)
-                from datetime import datetime as _dt
-                import uuid as _uuid
 
                 # 获取或创建默认用户
                 device_id = os.environ.get("DEVICE_ID", "gh_actions_default")
                 user = ds.get_or_create_user_by_device(device_id) if hasattr(ds, 'get_or_create_user_by_device') else None
                 user_id = user["id"] if user else None
 
-                # 写入信件
-                letter_id = f"l_{_uuid.uuid4().hex[:12]}"
+                # 预生成附件 ID，保证信件与附件 URL 一致
+                import uuid as _uuid
+                att_id = None
                 attachment_url = None
                 if attachment and attachment.get("filename"):
-                    attachment_url = f"/api/attachments/att_{letter_id}"
+                    att_id = f"att_gh_{persona}_{_uuid.uuid4().hex[:8]}"
+                    attachment_url = f"/api/attachments/{att_id}"
 
-                ok_letter = ds.create_letter(
-                    letter_id=letter_id,
+                # 写入信件（使用 schema 实际字段：content / direction / RETURNING id）
+                letter = ds.create_letter(
                     user_id=user_id,
                     character_id=persona,
                     subject=subject,
-                    body=body,
+                    content=body,
                     source=source,
                     attachment_url=attachment_url,
                     device_id=device_id,
+                    direction="from_character",
                 )
-                if ok_letter:
-                    logger.info(f"[DB] 信件写入成功: {letter_id}")
+                if letter and letter.get("id"):
+                    letter_id_int = int(letter["id"])
+                    logger.info(f"[DB] 信件写入成功: id={letter_id_int}")
+
+                    # 写入附件（图片二进制存数据库），letter_id 用整数
+                    if attachment and attachment.get("image_bytes") and att_id:
+                        image_bytes = attachment["image_bytes"]
+
+                        ok_att = ds.create_attachment(
+                            attachment_id=att_id,
+                            user_id=user_id or 0,
+                            character_id=persona,
+                            src=attachment_url,
+                            title=f"第{attachment.get('number', 1)}封信附件",
+                            letter_id=letter_id_int,
+                            is_favorite=True,
+                            device_id=device_id,
+                            image_data=image_bytes,
+                            content_type="image/jpeg",
+                        )
+                        if ok_att:
+                            logger.info(f"[DB] 附件写入成功: {att_id} ({len(image_bytes)} bytes)")
+                        else:
+                            logger.warning(f"[DB] 附件写入失败: {att_id}")
                 else:
-                    logger.warning(f"[DB] 信件写入失败: {letter_id}")
-
-                # 写入附件（图片二进制存数据库）
-                if attachment and attachment.get("image_bytes"):
-                    att_id = f"att_{letter_id}"
-                    att_src = f"/api/attachments/{att_id}"
-                    image_bytes = attachment["image_bytes"]
-
-                    ok_att = ds.create_attachment(
-                        attachment_id=att_id,
-                        user_id=user_id or 0,
-                        character_id=persona,
-                        src=att_src,
-                        title=f"第{attachment.get('number', 1)}封信附件",
-                        letter_id=letter_id,
-                        is_favorite=True,
-                        device_id=device_id,
-                        image_data=image_bytes,
-                        content_type="image/jpeg",
-                    )
-                    if ok_att:
-                        logger.info(f"[DB] 附件写入成功: {att_id} ({len(image_bytes)} bytes)")
-                    else:
-                        logger.warning(f"[DB] 附件写入失败: {att_id}")
+                    logger.warning("[DB] 信件写入失败")
             else:
                 logger.info("[DB] DATABASE_URL 未配置，跳过数据库写入")
         except Exception as e:
