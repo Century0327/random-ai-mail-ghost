@@ -72,6 +72,16 @@
      - workflow 传入 `DATABASE_URL` 和 `DEVICE_ID` 环境变量
    - 需用户操作：在 GitHub Secrets 中添加 `DATABASE_URL`（Neon 连接串）
 
+9. **对话历史迁移到数据库 + letters 表字段修复**（2026-07-15）
+   - 根因1：`conversation.py` 使用自定义 `logger` 模块导致 `No module named 'logger'` 错误
+   - 根因2：`letters` 表字段名错误（`body` 应为 `content`），`id` 类型不匹配（字符串 vs SERIAL整数），缺少 `direction` 字段
+   - 根因3：对话历史只存本地加密文件，GitHub Actions 环境数据易丢失
+   - 修复：
+     - `conversation.py`：改用标准 `logging`，对话读写改为数据库优先 + 文件兜底
+     - `data_service.py`：`add_conversation` 新增 `device_id`/`user_id`；`create_letter` 修正字段名和 RETURNING；`get_letters` 查询字段修正
+     - `main.py`：数据库写入使用 `content` 字段和 `direction='from_character'`；对话历史加载/保存传入 `device_id`
+   - 结果：对话历史稳定存储在云端数据库，AI 回信可基于历史上下文
+
 ### ✨ 新功能
 
 - **物品系统重构**：将 `items` 和 `itemsLayout` 合并重构为 `playerFurniture` 表
