@@ -1045,6 +1045,116 @@
         }
       ],
       "generated_at": "2026-07-16T17:15:28.682404"
+    },
+    "2026-07-17": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "窗台边",
+          "thought": "检查领地安全",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰起床",
+          "location": "猫窝",
+          "thought": "新的一天开始啦",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "阳光下",
+          "thought": "保持毛发整洁",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "打盹",
+          "location": "沙发垫",
+          "thought": "温暖的阳光很舒服",
+          "done": false
+        },
+        {
+          "time": "11:00",
+          "activity": "发呆",
+          "location": "窗帘后",
+          "thought": "望着窗外的鸟儿",
+          "done": false
+        },
+        {
+          "time": "13:00",
+          "activity": "打盹",
+          "location": "软垫上",
+          "thought": "困倦需要休息",
+          "done": false
+        },
+        {
+          "time": "15:00",
+          "activity": "玩毛线球",
+          "location": "地板中央",
+          "thought": "毛线球在动",
+          "done": false
+        },
+        {
+          "time": "17:00",
+          "activity": "晒太阳",
+          "location": "窗台",
+          "thought": "阳光暖洋洋的",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "准备迎接夜晚",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "观察窗外",
+          "location": "高处",
+          "thought": "月光洒进来",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "玩毛线球",
+          "location": "玩具盒",
+          "thought": "夜晚也有乐趣",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "打盹",
+          "location": "床边",
+          "thought": "疲惫需要闭眼",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "睡觉",
+          "location": "猫窝",
+          "thought": "温暖的怀抱真好",
+          "done": false
+        },
+        {
+          "time": "23:30",
+          "activity": "轻柔巡视",
+          "location": "走廊",
+          "thought": "确认所有角落安全",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-17T17:11:38.063163"
     }
   }
 }
