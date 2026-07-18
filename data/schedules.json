@@ -1155,6 +1155,95 @@
         }
       ],
       "generated_at": "2026-07-17T17:11:38.063163"
+    },
+    "2026-07-18": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "窗台",
+          "thought": "发现新玩具",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "晨光洒满地板",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "阳光下",
+          "thought": "舒服得打呼",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "梦到蝴蝶飞舞",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "蜷缩睡觉",
+          "location": "棉垫",
+          "thought": "温暖的午后时光",
+          "done": false
+        },
+        {
+          "time": "15:00",
+          "activity": "玩毛线球",
+          "location": "客厅",
+          "thought": "线头像小精灵",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "舔爪子",
+          "location": "猫窝",
+          "thought": "准备迎接黄昏",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "追逐光影",
+          "location": "窗帘后",
+          "thought": "好奇窗外交替",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "晒太阳",
+          "location": "窗边",
+          "thought": "暖洋洋的惬意",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "线团滚动真有趣",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "蜷缩睡觉",
+          "location": "窝里",
+          "thought": "月光轻抚毛发",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-18T16:58:07.570288"
     }
   }
 }
