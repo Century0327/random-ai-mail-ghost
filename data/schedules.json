@@ -1244,6 +1244,95 @@
         }
       ],
       "generated_at": "2026-07-18T16:58:07.570288"
+    },
+    "2026-07-19": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "窗台",
+          "thought": "检查安全",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "准备迎接朝阳",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "阳光下",
+          "thought": "让毛发更柔软",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "享受温暖",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "软垫",
+          "thought": "补充体力",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "追逐乐趣",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "逗弄玩具",
+          "location": "客厅",
+          "thought": "保持活力",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "外出探险",
+          "location": "阳台",
+          "thought": "感受微风",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "满足饥饿",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "暖和晒太阳",
+          "location": "窗台",
+          "thought": "享受最后阳光",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "轻声叫唤",
+          "location": "床边",
+          "thought": "寻求陪伴",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-07-19T16:58:07.026669"
     }
   }
 }
