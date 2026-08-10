@@ -1333,6 +1333,95 @@
         }
       ],
       "generated_at": "2026-07-19T16:58:07.026669"
+    },
+    "2026-08-10": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "探索新角落",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "晨光唤醒身体",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "窗台",
+          "thought": "准备迎接阳光",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "鲜鱼干的香气",
+          "done": false
+        },
+        {
+          "time": "09:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "温暖阳光真惬意",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "午睡",
+          "location": "窝里",
+          "thought": "躲进小被窝",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "发呆",
+          "location": "窗台",
+          "thought": "云朵形状很有趣",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "玩毛线球",
+          "location": "地板",
+          "thought": "新玩具真好玩",
+          "done": false
+        },
+        {
+          "time": "17:30",
+          "activity": "观察窗外",
+          "location": "窗台",
+          "thought": "鸟儿在活动",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "猎物游戏",
+          "location": "客厅",
+          "thought": "追逐光斑像猎物",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "美味晚餐已备好",
+          "done": false
+        },
+        {
+          "time": "21:00",
+          "activity": "巡视夜景",
+          "location": "阳台",
+          "thought": "夜色静谧如梦",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-08-10T16:58:20.931710"
     }
   }
 }
