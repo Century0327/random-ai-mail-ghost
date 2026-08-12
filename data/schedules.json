@@ -1511,6 +1511,95 @@
         }
       ],
       "generated_at": "2026-08-11T17:03:45.529798"
+    },
+    "2026-08-12": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "晨光中探索",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "阳光照进窗台",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "准备迎接新的一天",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "10:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "温暖的阳光真好",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "发呆",
+          "location": "窗台",
+          "thought": "云朵在慢慢移动",
+          "done": false
+        },
+        {
+          "time": "13:30",
+          "activity": "舔爪子",
+          "location": "地毯",
+          "thought": "保持毛发整洁",
+          "done": false
+        },
+        {
+          "time": "15:00",
+          "activity": "玩毛线球",
+          "location": "玩具盒",
+          "thought": "毛线球在脚边滚动",
+          "done": false
+        },
+        {
+          "time": "16:30",
+          "activity": "抓沙发",
+          "location": "客厅",
+          "thought": "柔软的布料很有趣",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "追逐光影",
+          "location": "窗边",
+          "thought": "黄昏的风吹过",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "晚餐香气扑鼻",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "观察窗外",
+          "location": "窗台",
+          "thought": "月光洒满庭院",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-08-12T16:58:33.747708"
     }
   }
 }
