@@ -1689,6 +1689,95 @@
         }
       ],
       "generated_at": "2026-08-13T16:57:51.881461"
+    },
+    "2026-08-14": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "晨光唤醒探索欲",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "窗台",
+          "thought": "阳光照在毛发上",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "猫窝",
+          "thought": "蹭蹭柔软被褥",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "10:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "被毛线球吸引",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "喝清水",
+          "location": "饮水槽",
+          "thought": "水滴滑落指尖",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "玩毛线球",
+          "location": "地面",
+          "thought": "追逐金色光点",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "发呆",
+          "location": "书架",
+          "thought": "看着窗外飞鸟",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "追逐光影",
+          "location": "地板",
+          "thought": "跃动的光斑有趣",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "巡视领地",
+          "location": "卧室",
+          "thought": "确认所有角落安全",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "蜷缩睡觉",
+          "location": "猫窝",
+          "thought": "月光温柔包裹",
+          "done": false
+        },
+        {
+          "time": "23:30",
+          "activity": "舔舐爪垫",
+          "location": "床沿",
+          "thought": "准备进入梦境",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-08-14T16:52:28.192568"
     }
   }
 }
