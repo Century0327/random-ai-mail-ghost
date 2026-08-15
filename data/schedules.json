@@ -1778,6 +1778,95 @@
         }
       ],
       "generated_at": "2026-08-14T16:52:28.192568"
+    },
+    "2026-08-15": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "清晨的阳光真温暖",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "新的一天开始啦",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "窗台",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "期待今天的冒险",
+          "done": false
+        },
+        {
+          "time": "10:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "阳光照在毛绒绒上",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "发呆",
+          "location": "书架",
+          "thought": "看着窗外的飞鸟",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "打盹",
+          "location": "地毯",
+          "thought": "困得眼皮打架",
+          "done": false
+        },
+        {
+          "time": "16:00",
+          "activity": "玩毛线球",
+          "location": "客厅",
+          "thought": "毛线球在脚下滚动",
+          "done": false
+        },
+        {
+          "time": "17:30",
+          "activity": "蜷缩休息",
+          "location": "床底",
+          "thought": "暖烘烘的角落真舒服",
+          "done": false
+        },
+        {
+          "time": "18:00",
+          "activity": "巡视领地",
+          "location": "阳台",
+          "thought": "晚霞映红了窗棂",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "吃晚餐",
+          "location": "食盆旁",
+          "thought": "肉条的香气飘过来",
+          "done": false
+        },
+        {
+          "time": "20:00",
+          "activity": "发呆",
+          "location": "窗帘后",
+          "thought": "月光洒在爪垫上",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-08-15T16:25:15.551317"
     }
   }
 }
