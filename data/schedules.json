@@ -1956,6 +1956,95 @@
         }
       ],
       "generated_at": "2026-08-16T16:23:01.921432"
+    },
+    "2026-08-17": {
+      "items": [
+        {
+          "time": "05:00",
+          "activity": "巡视领地",
+          "location": "客厅",
+          "thought": "清晨的阳光真温暖",
+          "done": false
+        },
+        {
+          "time": "06:00",
+          "activity": "伸懒腰",
+          "location": "猫窝",
+          "thought": "新的一天充满期待",
+          "done": false
+        },
+        {
+          "time": "07:00",
+          "activity": "梳理毛发",
+          "location": "窗台",
+          "thought": "晨光中感受微风",
+          "done": false
+        },
+        {
+          "time": "08:30",
+          "activity": "吃早餐",
+          "location": "食盆旁",
+          "thought": "今天的小鱼干真香",
+          "done": false
+        },
+        {
+          "time": "10:00",
+          "activity": "打盹",
+          "location": "沙发",
+          "thought": "阳光照得格外舒服",
+          "done": false
+        },
+        {
+          "time": "12:00",
+          "activity": "发呆",
+          "location": "书桌",
+          "thought": "盯着窗帘飘动",
+          "done": false
+        },
+        {
+          "time": "14:00",
+          "activity": "打盹",
+          "location": "床头",
+          "thought": "困得眼皮直打架",
+          "done": false
+        },
+        {
+          "time": "15:30",
+          "activity": "玩毛线球",
+          "location": "地毯",
+          "thought": "追逐游戏真解压",
+          "done": false
+        },
+        {
+          "time": "17:00",
+          "activity": "巡视领地",
+          "location": "阳台",
+          "thought": "黄昏的微风很惬意",
+          "done": false
+        },
+        {
+          "time": "18:30",
+          "activity": "吃零食",
+          "location": "碗边",
+          "thought": "奖励自己一小块",
+          "done": false
+        },
+        {
+          "time": "19:00",
+          "activity": "蜷缩睡觉",
+          "location": "窝里",
+          "thought": "夜幕降临该休息了",
+          "done": false
+        },
+        {
+          "time": "22:00",
+          "activity": "打盹",
+          "location": "柜顶",
+          "thought": "月光洒在毛茸茸上",
+          "done": false
+        }
+      ],
+      "generated_at": "2026-08-17T16:30:13.090098"
     }
   }
 }
